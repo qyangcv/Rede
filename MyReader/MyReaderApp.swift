@@ -6,12 +6,28 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct MyReaderApp: App {
+    @State private var session = ReaderSession()
+    
+    init () {
+        NSApplication.shared.appearance = NSAppearance(named: .aqua)
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(.localLibrary)
+        .environment(session)
+        
+        Window("Reader Window", id: ReaderSession.windowID) {
+            ReaderWindow()
+        }
+        .environment(session)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
     }
 }

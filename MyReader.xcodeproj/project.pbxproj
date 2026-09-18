@@ -6,8 +6,23 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2F62D3763055C33000626E1E /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 2F62D3753055C33000626E1E /* ZIPFoundation */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2F62D37F3056A5CB00626E1E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2F442E6D30525751000DD248 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2F442E7430525751000DD248;
+			remoteInfo = MyReader;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		2F442E7530525751000DD248 /* MyReader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyReader.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2F62D37B3056A5CB00626E1E /* MyReaderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MyReaderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +31,23 @@
 			path = MyReader;
 			sourceTree = "<group>";
 		};
+		2F62D37C3056A5CB00626E1E /* MyReaderTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MyReaderTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		2F442E7230525751000DD248 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2F62D3763055C33000626E1E /* ZIPFoundation in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2F62D3783056A5CB00626E1E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				2F442E7730525751000DD248 /* MyReader */,
+				2F62D37C3056A5CB00626E1E /* MyReaderTests */,
 				2F442E7630525751000DD248 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				2F442E7530525751000DD248 /* MyReader.app */,
+				2F62D37B3056A5CB00626E1E /* MyReaderTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -65,10 +95,34 @@
 			);
 			name = MyReader;
 			packageProductDependencies = (
+				2F62D3753055C33000626E1E /* ZIPFoundation */,
 			);
 			productName = MyReader;
 			productReference = 2F442E7530525751000DD248 /* MyReader.app */;
 			productType = "com.apple.product-type.application";
+		};
+		2F62D37A3056A5CB00626E1E /* MyReaderTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2F62D3813056A5CB00626E1E /* Build configuration list for PBXNativeTarget "MyReaderTests" */;
+			buildPhases = (
+				2F62D3773056A5CB00626E1E /* Sources */,
+				2F62D3783056A5CB00626E1E /* Frameworks */,
+				2F62D3793056A5CB00626E1E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2F62D3803056A5CB00626E1E /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				2F62D37C3056A5CB00626E1E /* MyReaderTests */,
+			);
+			name = MyReaderTests;
+			packageProductDependencies = (
+			);
+			productName = MyReaderTests;
+			productReference = 2F62D37B3056A5CB00626E1E /* MyReaderTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -83,6 +137,10 @@
 					2F442E7430525751000DD248 = {
 						CreatedOnToolsVersion = 26.6;
 					};
+					2F62D37A3056A5CB00626E1E = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 2F442E7430525751000DD248;
+					};
 				};
 			};
 			buildConfigurationList = 2F442E7030525751000DD248 /* Build configuration list for PBXProject "MyReader" */;
@@ -94,18 +152,29 @@
 			);
 			mainGroup = 2F442E6C30525751000DD248;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2F442E7630525751000DD248 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				2F442E7430525751000DD248 /* MyReader */,
+				2F62D37A3056A5CB00626E1E /* MyReaderTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		2F442E7330525751000DD248 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2F62D3793056A5CB00626E1E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +191,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2F62D3773056A5CB00626E1E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		2F62D3803056A5CB00626E1E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2F442E7430525751000DD248 /* MyReader */;
+			targetProxy = 2F62D37F3056A5CB00626E1E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		2F442E7E30525752000DD248 /* Debug */ = {
@@ -254,9 +338,19 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = BTW6LD2Q74;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -288,7 +382,17 @@
 				DEVELOPMENT_TEAM = BTW6LD2Q74;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -306,6 +410,46 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		2F62D3823056A5CB00626E1E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BTW6LD2Q74;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.qyang.MyReaderTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MyReader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MyReader";
+			};
+			name = Debug;
+		};
+		2F62D3833056A5CB00626E1E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = BTW6LD2Q74;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.qyang.MyReaderTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MyReader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MyReader";
 			};
 			name = Release;
 		};
@@ -330,7 +474,35 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		2F62D3813056A5CB00626E1E /* Build configuration list for PBXNativeTarget "MyReaderTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2F62D3823056A5CB00626E1E /* Debug */,
+				2F62D3833056A5CB00626E1E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.20;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2F62D3753055C33000626E1E /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 2F442E6D30525751000DD248 /* Project object */;
 }

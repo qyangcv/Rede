@@ -1,0 +1,145 @@
+:root {
+  /* 字体 */
+  --font-family: "FZYouHei_GBK 506L", -apple-system;
+  --font-size: 19px;
+  --font-weight: 400;
+
+  /* 排版 */
+  --line-height: 1.85;
+  --para-spacing: 0.9em;
+  --text-indent: 2em;
+
+  /* 颜色 */
+  --fg: #2f2c28;
+  --bg: #e5e5e5;
+  --fg-dim: #8a8378;
+  --rule: #ddd5c6;
+  
+  --leaf-size: 320px;
+  --bg-leaf: url("leaf.svg");
+
+  /* 版面 */
+  --measure: 38em;
+  --page-margin-x: 48px;
+  --page-margin-top: 44px;
+  --page-margin-bottom: 56px;
+  --page-gap: 96px;
+}
+
+/* ---------- 2. Reset：先全部归零 ---------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body * {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-indent: 0;
+}
+
+/* ---------- 3. 页面与正文 ---------- */
+html {
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg);
+  background-image: var(--bg-leaf, none);
+  background-repeat: no-repeat;
+  background-position: right top;
+  background-size: var(--leaf-size) auto;
+  background-attachment: fixed;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  
+  padding-top: var(--page-margin-top);
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  font-weight: var(--font-weight);
+  line-height: var(--line-height);
+  color: var(--fg);
+  background: transparent;
+
+  text-align: justify;
+  text-justify: inter-ideograph;
+  word-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+}
+
+.chapter + .chapter { 
+  break-before: column; 
+}
+
+/* ---------- 4. 段落 ---------- */
+p {
+  margin: 0 0 var(--para-spacing);
+  text-indent: var(--text-indent);
+}
+
+/* ---------- 5. 标题 ---------- */
+h1, h2, h3, h4, h5, h6 {
+  margin: 2.2em 0 1.2em;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  text-indent: 0;
+}
+h1 { font-size: 1.6em; }
+h2 { font-size: 1.35em; }
+h3 { font-size: 1.15em; }
+h4, h5, h6 { font-size: 1em; }
+
+/* ---------- 6. 图片 ---------- */
+img, svg {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: var(--page-height, 100vh);
+  margin: 1.4em auto;
+}
+
+/* ---------- 7. 引文 / 分隔线 ---------- */
+blockquote {
+  margin: 1.4em 0;
+  padding: 0.2em 0 0.2em 1.2em;
+  border-left: 3px solid var(--rule);
+  color: var(--fg-dim);
+}
+blockquote p { text-indent: 0; }
+
+hr {
+  width: 30%;
+  margin: 2.4em auto;
+  border-top: 1px solid var(--rule);
+}
+
+/* ---------- 8. 压制行内 style 属性 ---------- */
+[style] {
+  color: inherit !important;
+  background-color: transparent !important;
+  font-family: var(--font-family) !important;
+}
+
+#book {
+  --page-height: round(down, calc(100vh - var(--page-margin-top) - var(--page-margin-bottom)), 1px);
+  width: round(down, min(var(--measure), calc(100vw - 2 * var(--page-margin-x))), 1px);
+  height: var(--page-height);
+  margin: 0 auto;
+  overflow: hidden;
+
+  column-width: 1px;
+  column-count: 1;
+  column-gap: var(--page-gap);
+  column-fill: auto;
+  -webkit-column-axis: horizontal;
+}
+
+#book.loading {
+  visibility: hidden;
+}
