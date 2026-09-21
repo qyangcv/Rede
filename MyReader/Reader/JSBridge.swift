@@ -17,10 +17,20 @@ struct JSBridge {
 }
 
 extension JSBridge {
-    func open(paths: [String]) async { await call("reader.open(paths)", ["paths": paths]) }
-    func next() async { await call("reader.next()") }
-    func prev() async { await call("reader.prev()") }
-    func jump(chapter: Int, anchor: String?) async {
+    func open(paths: [String], style: [String: String]) async { 
+        await call("reader.open(paths, style)", ["paths": paths, "style": style])
+    }
+    func setStyle(_ vars: [String: String]) async {
+        await call("reader.setStyle(vars)", ["vars": vars])
+    }
+    func next() async {
+        await call("reader.next()") 
+    }
+    func prev() async {
+        await call("reader.prev()") 
+    }
+    func jump(chapter: Int, anchor: String?) async 
+    {
         await call("reader.jump(chapter, anchor)", ["chapter": chapter, "anchor": anchor ?? ""])
     }
 }

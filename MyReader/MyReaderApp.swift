@@ -20,12 +20,14 @@ struct MyReaderApp: App {
         WindowGroup {
             ContentView()
         }
+        .defaultSize(width: 600, height: 400)
         .modelContainer(.localLibrary)
         .environment(session)
         
         Window("Reader Window", id: ReaderSession.windowID) {
             ReaderWindow()
         }
+        .defaultSize(width: 734, height: 861)
         .environment(session)
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)

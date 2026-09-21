@@ -3,9 +3,11 @@ import SwiftData
 import AppKit
 
 enum AppPaths {
-    static let library = URL(filePath: "/Users/yang/code/MyReader/.library", directoryHint: .isDirectory)
+    static let root = URL(filePath: "/Users/yang/code/MyReader", directoryHint: .isDirectory)
+    static let library = root.appending(component: ".library", directoryHint: .isDirectory)
     static let store = library.appending(component: "library.store")
     static let books = library.appending(component: "books", directoryHint: .isDirectory)
+    static let settings = root.appending(components: ".settings", "settings.json")
 }
 
 @Model

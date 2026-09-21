@@ -1,6 +1,5 @@
 import WebKit
 import UniformTypeIdentifiers
-import os
 
 final class EpubSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "epub"
@@ -104,6 +103,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
     let webView: ReaderWebView
     private let bridge: JSBridge
     private var shellNavigation: WKNavigation?
+    private var style = ReaderStyle.default
     
     init(book: EpubBook) {
         self.book = book
@@ -124,7 +124,8 @@ final class Reader: NSObject,  WKNavigationDelegate {
         }
     }
 
-    func open() {
+    func open(style: ReaderStyle) {
+        self.style = style
         guard let baseURL = EpubSchemeHandler.url(for: ""),
               let html = try? AppResourceSchemeHandler.data(named: "reader.html") else { return }
         shellNavigation = webView.load(html, mimeType: "text/html",
@@ -134,7 +135,17 @@ final class Reader: NSObject,  WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard navigation === shellNavigation else { return }
         let paths = book.model.spine.map(\.path)
-        Task { await bridge.open(paths: paths) }
+        let style = style.cssVariables
+        Task { await bridge.open(paths: paths, style: style) }
+    }
+
+    func apply(_ style: ReaderStyle) {
+        self.style = style
+        Task { await bridge.setStyle(style.cssVariables) }
+    }
+
+    func focus() {
+        webView.window?.makeFirstResponder(webView)
     }
     
     private func handleKeyDown(_ event: NSEvent) -> Bool {

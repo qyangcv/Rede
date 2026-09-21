@@ -6,12 +6,14 @@ const book = document.getElementById("book");
 const base = document.querySelector("base");
 const ROOT = new URL(document.baseURI);
 
+const SPREAD_RATIO = 2 / 3;
+
 const state = {
   spinePaths: [],
   chapterId: -1,
-  page: 0,
-  pageCount: 1,
-  pageStride: 0,
+  spread: 0,
+  spreadCount: 1,
+  spreadStride: 0,
   navId: 0,
 };
 
@@ -19,26 +21,33 @@ const state = {
 
 const reader = {
   // 入口：保存 paths、绑定事件、打开第一章
-  open(paths, chapter = 0) {
+  open(paths, style = {}, chapter = 0) {
     state.spinePaths = paths;
+    applyStyle(style);
     book.addEventListener("click", onClick);
     book.addEventListener("load", reflow, true);
     window.addEventListener("resize", reflow);
+    applyLayout();
     goto(chapter, 0);
   },
 
   next() {
-    if (state.page < state.pageCount - 1) scrollToPage(state.page + 1);
+    if (state.spread < state.spreadCount - 1) scrollToSpread(state.spread + 1);
     else goto(state.chapterId + 1, 0);
   },
 
   prev() {
-    if (state.page > 0) scrollToPage(state.page - 1);
+    if (state.spread > 0) scrollToSpread(state.spread - 1);
     else goto(state.chapterId - 1, -1);
   },
 
   jump(chapter, anchor) {
     goto(chapter, anchor || 0);
+  },
+
+  setStyle(vars) {
+    applyStyle(vars);
+    reflow();
   },
 };
 
@@ -62,7 +71,7 @@ async function goto(chapter, at) {
   }
 
   measure();
-  scrollToPage(locate(at));
+  scrollToSpread(locate(at));
   book.classList.remove("loading");
 }
 
@@ -94,22 +103,34 @@ function waitAssets(root) {
   return Promise.race([Promise.all([document.fonts.ready, ...images]), timeout]);
 }
 
-// 计算 step 和 pageCount
+// 根据窗口宽度切换单栏 / 双栏
+function applyLayout() {
+  const spread = window.innerWidth > screen.availWidth * SPREAD_RATIO;
+  book.classList.toggle("spread", spread);
+}
+
+// 把 CSS 变量写到 :root 的内联样式，覆盖 reader.css 的默认值
+function applyStyle(vars = {}) {
+  const root = document.documentElement.style;
+  for (const [name, value] of Object.entries(vars)) root.setProperty(name, value);
+}
+
+// 计算 spreadStride 和 spreadCount
 function measure() {
   const gap = parseFloat(getComputedStyle(book).columnGap) || 0;
-  state.pageStride = book.clientWidth + gap;
-  state.pageCount = Math.max(1, Math.round((book.scrollWidth + gap) / state.pageStride));
+  state.spreadStride = book.clientWidth + gap;
+  state.spreadCount = Math.max(1, Math.round((book.scrollWidth + gap) / state.spreadStride));
 }
 
 // 修改 scrollLeft 进行滚动
-function scrollToPage(page) {
-  state.page = Math.min(Math.max(page, 0), state.pageCount - 1);
-  book.scrollLeft = state.page * state.pageStride;
+function scrollToSpread(page) {
+  state.spread = Math.min(Math.max(page, 0), state.spreadCount - 1);
+  book.scrollLeft = state.spread * state.spreadStride;
 }
 
 // 把 at（页码或锚点）转成具体页码
 function locate(at) {
-  if (typeof at === "number") return at < 0 ? state.pageCount + at : at;
+  if (typeof at === "number") return at < 0 ? state.spreadCount + at : at;
 
   const id = CSS.escape(at);
   const el = book.querySelector(`#${id}, a[name="${id}"]`);
@@ -117,15 +138,16 @@ function locate(at) {
   if (!rect) return 0;
 
   const offset = rect.left - book.getBoundingClientRect().left + book.scrollLeft;
-  return Math.floor((offset + 1) / state.pageStride);
+  return Math.floor((offset + 1) / state.spreadStride);
 }
 
 // 窗口缩放或图片加载后，重新测量并按比例恢复位置
 function reflow() {
+  applyLayout();
   if (book.classList.contains("loading")) return;
-  const ratio = state.page / state.pageCount;
+  const ratio = state.spread / state.spreadCount;
   measure();
-  scrollToPage(Math.round(ratio * state.pageCount));
+  scrollToSpread(Math.round(ratio * state.spreadCount));
 }
 
 // 拦截链接跳转

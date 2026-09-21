@@ -4,34 +4,19 @@ struct TOCButton: View {
     let toc: [EpubTocEntry]
     let onSelect: (EpubTocEntry) -> Void
 
-    @State private var isHovering = false
     @State private var showTOC = false
 
-    private var isVisible: Bool { isHovering || showTOC }
-
     var body: some View {
-        Button {
+        Button("目录", systemImage: "list.bullet") {
             showTOC.toggle()
-        } label: {
-            Image(systemName: "list.bullet")
-                .font(.system(size: 14, weight: .medium))
-                .frame(width: 32, height: 32)
-                .background(.regularMaterial, in: Circle())
-                .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
         }
-        .buttonStyle(.plain)
         .help("目录")
-        .popover(isPresented: $showTOC, arrowEdge: .top) {
+        .popover(isPresented: $showTOC, arrowEdge: .bottom) {
             TOCList(toc: toc) { entry in
                 showTOC = false
                 onSelect(entry)
             }
         }
-        .opacity(isVisible ? 1 : 0)
-        .animation(.easeInOut(duration: 0.15), value: isVisible)
-        .padding(28)
-        .contentShape(Rectangle())
-        .onHover { isHovering = $0 }
     }
 }
 

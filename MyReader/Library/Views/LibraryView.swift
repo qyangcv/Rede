@@ -11,26 +11,27 @@ struct LibraryView: View {
     @Environment(ReaderSession.self) private var session
     @Environment(\.openWindow) private var openWindow
     
-    private let columns = [GridItem(.adaptive(minimum: 120, maximum: 160), spacing: 24)]
-    
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 28) {
-                    ForEach(books) { book in
-                        BookCard(book: book)
-                            .onTapGesture(count: 2) { open(book) }
-                            .contextMenu {
-                                Button("打开", systemImage: "book") { open(book) }
-                                Button("删除", systemImage: "trash", role: .destructive) {
-                                    bookToDelete = book
-                                }
-                            }
-                    }
-                }
-                .padding(24)
+            GeometryReader { proxy in
+                let grid = layout(width: proxy.size.width)
+                ScrollView {
+                    LazyVGrid(columns: grid.columns, spacing: 28) {
+                        ForEach(books) { book in
+                            BookCard(book: book)
+                                .onTapGesture(count: 2) { open(book) }
+                                .contextMenu {
+                                    Button("打开", systemImage: "book") { open(book) }
+                                    Button("删除", systemImage: "trash", role: .destructive) {
+                                        bookToDelete = book
+                                   }
+                               }
+                       }
+                   }
+                   .padding(.horizontal, grid.spacing)
+                   .padding(.vertical, 28)
+               }
             }
-            .frame(minWidth: 600, minHeight: 400)
             .overlay {
                 if books.isEmpty {
                     ContentUnavailableView(
@@ -67,6 +68,16 @@ struct LibraryView: View {
                 Text(errors.joined(separator: "\n"))
             }
         }
+    }
+    
+    private let cardWidth: CGFloat = 150
+    private let minSpacing: CGFloat = 24
+
+    private func layout(width: CGFloat) -> (columns: [GridItem], spacing: CGFloat) {
+        let n = max(1, Int((width - minSpacing) / (cardWidth + minSpacing)))
+        let spacing = (width - CGFloat(n) * cardWidth) / CGFloat(n + 1)
+        let column = GridItem(.fixed(cardWidth), spacing: spacing)
+        return (columns: Array(repeating: column, count: n), spacing: spacing)
     }
     
     private func handleImport(_ result: Result<URL, Error>) {

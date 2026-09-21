@@ -23,13 +23,33 @@ struct ReaderWebViewContainer: NSViewRepresentable {
 
 struct ReaderView: View {
     let reader: Reader
+
+    @Bindable private var settings = Settings.shared
     
     var body: some View {
         ReaderWebViewContainer(webView: reader.webView)
-            .overlay (alignment: .bottomLeading) {
-                TOCButton(toc: reader.book.model.toc, onSelect: reader.go(to:))
+            .overlay(alignment: .top) {
+                    Color.clear
+                        .frame(height: 28)
+                        .contentShape(Rectangle())
+                        .gesture(WindowDragGesture())
+                        .allowsWindowActivationEvents(true)
+                }
+            .toolbar {
+                ToolbarItem(placement: .navigation) {
+                    TOCButton(toc: reader.book.model.toc, onSelect: reader.go(to:))
+                }
+                .sharedBackgroundVisibility(.hidden)
+
+                ToolbarItem(placement: .primaryAction) {
+                    StyleButton(style: $settings.readerStyle, onDismiss: reader.focus)
+                }
+                .sharedBackgroundVisibility(.hidden)
             }
-            .onAppear { reader.open() }
+            .onAppear { reader.open(style: settings.readerStyle) }
+            .onChange(of: settings.readerStyle) { _, new in
+                reader.apply(new)
+            }
     }
 }
 
@@ -65,6 +85,8 @@ struct ReaderWindow: View {
                 ContentUnavailableView("No book opened", systemImage: "book")
             }
         }
+        .ignoresSafeArea()
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .navigationTitle(session.bookName ?? "Reader Window")
         .onDisappear { session.close() }
     }
