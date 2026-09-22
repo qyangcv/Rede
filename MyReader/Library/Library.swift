@@ -15,6 +15,7 @@ final class Book {
     @Attribute(.unique) var name: String
     var author: String
     var date: Date
+    var position: ReadingPosition?
 
     init(name: String, author: String, date: Date = .now) {
         self.name = name

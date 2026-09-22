@@ -15,29 +15,31 @@ const state = {
   spreadCount: 1,
   spreadStride: 0,
   navId: 0,
+  offset: 0,   // 当前页首字符在本章文本流中的偏移量（阅读锚点）
+  total: 0,    // 本章文本流总字符数
 };
 
 // Swift 调用接口
 
 const reader = {
-  // 入口：保存 paths、绑定事件、打开第一章
-  open(paths, style = {}, chapter = 0) {
+  // 入口：保存 paths、绑定事件、恢复到 start（null 则从头开始）
+  open(paths, style = {}, start = null) {
     state.spinePaths = paths;
     applyStyle(style);
     book.addEventListener("click", onClick);
     book.addEventListener("load", reflow, true);
     window.addEventListener("resize", reflow);
     applyLayout();
-    goto(chapter, 0);
+    goto(start ? start.chapter : 0, start ?? 0);
   },
 
   next() {
-    if (state.spread < state.spreadCount - 1) scrollToSpread(state.spread + 1);
+    if (state.spread < state.spreadCount - 1) settle(state.spread + 1);
     else goto(state.chapterId + 1, 0);
   },
 
   prev() {
-    if (state.spread > 0) scrollToSpread(state.spread - 1);
+    if (state.spread > 0) settle(state.spread - 1);
     else goto(state.chapterId - 1, -1);
   },
 
@@ -51,7 +53,7 @@ const reader = {
   },
 };
 
-// 导航，at 为数字（页码）或字符串（锚点）
+// 导航，at 为数字（页码）、字符串（锚点）或位置对象
 async function goto(chapter, at) {
   const path = state.spinePaths[chapter];
   if (path === undefined) return;
@@ -66,12 +68,14 @@ async function goto(chapter, at) {
     base.href = url.href;
     book.replaceChildren(...nodes);
     state.chapterId = chapter;
+    state.total = textLength();
     await waitAssets(book);
     if (token !== state.navId) return;
   }
 
   measure();
-  scrollToSpread(locate(at));
+  // 从保存的位置恢复时沿用原锚点，不重新测量，避免多次恢复逐页回退
+  settle(locate(at), isPosition(at) ? at.offset : null);
   book.classList.remove("loading");
 }
 
@@ -128,26 +132,101 @@ function scrollToSpread(page) {
   book.scrollLeft = state.spread * state.spreadStride;
 }
 
-// 把 at（页码或锚点）转成具体页码
+// 翻页落位：滚动 + 刷新锚点 + 上报进度
+function settle(page, offset = null) {
+  scrollToSpread(page);
+  state.offset = offset ?? anchorOffset();
+  report();
+}
+
+function isPosition(at) {
+  return at !== null && typeof at === "object";
+}
+
+// 把 at（页码、锚点或位置对象）转成具体页码
 function locate(at) {
   if (typeof at === "number") return at < 0 ? state.spreadCount + at : at;
+
+  if (isPosition(at)) {
+    const spread = spreadAt(at.offset);
+    return spread >= 0 ? spread : Math.round((at.ratio || 0) * (state.spreadCount - 1));
+  }
 
   const id = CSS.escape(at);
   const el = book.querySelector(`#${id}, a[name="${id}"]`);
   const rect = el?.getClientRects()[0];
-  if (!rect) return 0;
+  return rect ? spreadOfRect(rect) : 0;
+}
 
+// ---------- 阅读位置 ----------
+
+// 本章文本流总字符数
+function textLength() {
+  const walker = document.createTreeWalker(book, NodeFilter.SHOW_TEXT);
+  let total = 0;
+  while (walker.nextNode()) total += walker.currentNode.length;
+  return total;
+}
+
+// 第 offset 个字符的 Range，越界返回 null
+function rangeAt(offset) {
+  if (offset < 0 || offset >= state.total) return null;
+  const walker = document.createTreeWalker(book, NodeFilter.SHOW_TEXT);
+  let seen = 0;
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (seen + node.length > offset) {
+      const range = document.createRange();
+      range.setStart(node, offset - seen);
+      range.setEnd(node, offset - seen + 1);
+      return range;
+    }
+    seen += node.length;
+  }
+  return null;
+}
+
+// 矩形 → 页码
+function spreadOfRect(rect) {
   const offset = rect.left - book.getBoundingClientRect().left + book.scrollLeft;
   return Math.floor((offset + 1) / state.spreadStride);
 }
 
-// 窗口缩放或图片加载后，重新测量并按比例恢复位置
+// 字符偏移 → 页码；字符不可见（空白折叠等）返回 -1
+function spreadAt(offset) {
+  const rect = rangeAt(offset)?.getClientRects()[0];
+  return rect ? spreadOfRect(rect) : -1;
+}
+
+// 二分查找当前页的第一个字符：分栏版面里页码随偏移量单调非递减
+function anchorOffset() {
+  let lo = 0, hi = state.total - 1, found = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const spread = spreadAt(mid);
+    if (spread < 0 || spread < state.spread) lo = mid + 1;
+    else { found = mid; hi = mid - 1; }
+  }
+  return found;
+}
+
+// 上报进度给 Swift（每次落位都发，节流交给 Swift 侧）
+function report() {
+  window.webkit?.messageHandlers?.reading_progress?.postMessage({
+    chapter: state.chapterId,
+    offset: state.offset,
+    total: state.total,
+    ratio: state.spreadCount > 1 ? state.spread / (state.spreadCount - 1) : 0,
+  });
+}
+
+// 窗口缩放,改字号,图片加载后重新测量，回到锚点所在页；锚点本身不重算，所以反复缩放不会累积漂移
 function reflow() {
   applyLayout();
   if (book.classList.contains("loading")) return;
-  const ratio = state.spread / state.spreadCount;
   measure();
-  scrollToSpread(Math.round(ratio * state.spreadCount));
+  const spread = spreadAt(state.offset);
+  scrollToSpread(spread >= 0 ? spread : state.spread);
 }
 
 // 拦截链接跳转

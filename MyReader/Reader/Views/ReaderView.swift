@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WebKit
 
 final class ReaderWebView: WKWebView {
@@ -59,15 +60,36 @@ final class ReaderSession {
     
     private(set) var reader: Reader?
     private(set) var bookName: String?
+    private var store: ProgressStore?
     
-    func open(_ book: Book) throws {
-        if bookName == book.name, reader != nil { return }
-        let epub = try parseEpub(at: book.url)
-        reader = Reader(book: epub)
-        bookName = book.name
+    init() {
+        // Cmd+Q 不会触发窗口的 onDisappear，这里兜底
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.store?.flush() }
+        }
     }
     
+    func open(_ book: Book, context: ModelContext) throws {
+        if bookName == book.name, reader != nil { return }
+        store?.flush()
+
+        let epub = try parseEpub(at: book.url)
+        let store = ProgressStore(book: book, context: context)
+        let reader = Reader(book: epub, start: book.position)
+        reader.onProgress = { position in
+            MainActor.assumeIsolated { store.record(position) }
+        }
+
+        self.store = store
+        self.reader = reader
+        self.bookName = book.name
+    }
+
     func close() {
+        store?.flush()
+        store = nil
         reader = nil
         bookName = nil
     }

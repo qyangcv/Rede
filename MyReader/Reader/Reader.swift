@@ -101,23 +101,33 @@ final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
 final class Reader: NSObject,  WKNavigationDelegate {
     let book: EpubBook
     let webView: ReaderWebView
+
     private let bridge: JSBridge
     private var shellNavigation: WKNavigation?
     private var style = ReaderStyle.default
+
+    static let progressChannel = "reading_progress"
+    private let start: ReadingPosition?
+    var onProgress: ((ReadingPosition) -> Void)?
     
-    init(book: EpubBook) {
+    init(book: EpubBook, start: ReadingPosition? = nil) {
         self.book = book
+        self.start = start
         
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(EpubSchemeHandler(book: book), forURLScheme: EpubSchemeHandler.scheme)
         config.setURLSchemeHandler(AppResourceSchemeHandler(), forURLScheme: AppResourceSchemeHandler.scheme)
+
+        let relay = ProgressRelay()
+        config.userContentController.add(relay, name: Self.progressChannel)
         
         self.webView = ReaderWebView(frame: .zero, configuration: config)
         self.webView.isInspectable = true
         self.bridge = JSBridge(webView: webView)
         
         super.init()
-        
+
+        relay.reader = self
         webView.navigationDelegate = self
         webView.onKeyDown = { [weak self] event in
             self?.handleKeyDown(event) ?? false
@@ -136,7 +146,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
         guard navigation === shellNavigation else { return }
         let paths = book.model.spine.map(\.path)
         let style = style.cssVariables
-        Task { await bridge.open(paths: paths, style: style) }
+        Task { await bridge.open(paths: paths, style: style, start: start) }
     }
 
     func apply(_ style: ReaderStyle) {
@@ -166,5 +176,17 @@ final class Reader: NSObject,  WKNavigationDelegate {
             await bridge.jump(chapter: index, anchor: entry.fragment)
             webView.window?.makeFirstResponder(webView)
         }
+    }
+}
+
+private final class ProgressRelay: NSObject, WKScriptMessageHandler {
+    weak var reader: Reader?
+
+    func userContentController(_ controller: WKUserContentController,
+                               didReceive message: WKScriptMessage) {
+        guard let data = try? JSONSerialization.data(withJSONObject: message.body),
+              let position = try? JSONDecoder().decode(ReadingPosition.self, from: data)
+        else { return }
+        reader?.onProgress?(position)
     }
 }

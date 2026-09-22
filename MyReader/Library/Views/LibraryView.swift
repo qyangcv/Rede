@@ -101,7 +101,7 @@ struct LibraryView: View {
     
     private func open(_ book: Book) {
         do {
-            try session.open(book)
+            try session.open(book, context: modelContext)
             openWindow(id: ReaderSession.windowID)
         } catch {
             errors.append(error.localizedDescription)
