@@ -64,6 +64,7 @@ fastlane/test_output
 .DS_Store
 .vscode
 .library
+.settings
 
 MyReaderFont
 MyReaderTests
