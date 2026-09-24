@@ -8,6 +8,7 @@ struct LibraryView: View {
     @State private var isImporting = false
     @State private var errors: [String] = []
     @State private var bookToDelete: Book?
+    @State private var bookToEdit: Book?
     @Environment(ReaderSession.self) private var session
     @Environment(\.openWindow) private var openWindow
     
@@ -22,6 +23,7 @@ struct LibraryView: View {
                                 .onTapGesture(count: 2) { open(book) }
                                 .contextMenu {
                                     Button("打开", systemImage: "book") { open(book) }
+                                    Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
                                     Button("删除", systemImage: "trash", role: .destructive) {
                                         bookToDelete = book
                                    }
@@ -37,7 +39,7 @@ struct LibraryView: View {
                     ContentUnavailableView(
                         "书架是空的",
                         systemImage: "books.vertical",
-                        description: Text("导入 EPUB 文件后会显示在这里")
+                        description: Text("点击右上角按钮导入 EPUB")
                     )
                 }
             }
@@ -50,6 +52,9 @@ struct LibraryView: View {
                 allowedContentTypes: [.epub],
                 onCompletion: handleImport
             )
+            .sheet(item: $bookToEdit) { book in
+                BookInfoEditor(book: book, onSave: save)
+            }
             .confirmationDialog(
                 "删除：\(bookToDelete?.name ?? "") ？",
                 isPresented: Binding(get: { bookToDelete != nil },
@@ -89,7 +94,16 @@ struct LibraryView: View {
         }
     }
     
+    private func save() {
+        do {
+            try modelContext.save()
+        } catch {
+            errors.append(error.localizedDescription)
+        }
+    }
+    
     private func delete(_ book: Book) {
+        if session.book?.id == book.id { session.close() }
         do {
             try withAnimation {
                 try BookRemover.remove(book, from: modelContext)
@@ -148,6 +162,44 @@ struct BookCard: View {
     }
 }
 
+struct BookInfoEditor: View {
+    let book: Book
+    let onSave: () -> Void
+    
+    @State private var name: String
+    @State private var author: String
+    @Environment(\.dismiss) private var dismiss
+    
+    init(book: Book, onSave: @escaping () -> Void) {
+        self.book = book
+        self.onSave = onSave
+        _name = State(initialValue: book.name)
+        _author = State(initialValue: book.author)
+    }
+    
+    var body: some View {
+        Form {
+            TextField("书名", text: $name)
+            TextField("作者", text: $author)
+        }
+        .padding()
+        .frame(width: 360)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("取消") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("保存") {
+                    book.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    book.author = author.trimmingCharacters(in: .whitespacesAndNewlines)
+                    onSave()
+                    dismiss()
+                }
+                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+    }
+}
 
 #Preview {
     LibraryView()

@@ -58,7 +58,10 @@ final class EpubSchemeHandler: NSObject, WKURLSchemeHandler {
 final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "myreader"
     private static let host = "app"
-    private static let allowed: Set<String> = ["reader.html", "reader.js", "reader.css", "leaf.svg"]
+    private static let allowed: Set<String> = [
+        "reader.html", "reader.js", "reader.css", "leaf.svg",
+        "ReadiumCSS-before.css", "ReadiumCSS-default.css", "ReadiumCSS-after.css",
+    ]
 
     static func url(for name: String) -> URL? {
         var components = URLComponents()
@@ -145,8 +148,9 @@ final class Reader: NSObject,  WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard navigation === shellNavigation else { return }
         let paths = book.model.spine.map(\.path)
+        let language = book.model.metadata.language
         let style = style.cssVariables
-        Task { await bridge.open(paths: paths, style: style, start: start) }
+        Task { await bridge.open(paths: paths, language: language, style: style, start: start) }
     }
 
     func apply(_ style: ReaderStyle) {

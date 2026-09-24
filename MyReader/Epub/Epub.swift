@@ -1,4 +1,4 @@
-// Parser Layer for epub2
+// Parser Layer for epub2 & epub3
 
 import Foundation
 import ZIPFoundation
@@ -15,12 +15,14 @@ struct EpubModel {
 struct EpubMetadata {
     let title: String
     let author: String
+    let language: String
 }
 
 struct EpubManifestItem {
     let id: String
     let path: String
     let mediaType: String
+    let properties: Set<String>
 }
 
 struct EpubTocEntry: Identifiable {
@@ -71,7 +73,9 @@ func parseEpub(at fileURL: URL) throws -> EpubBook {
 private func parseMetadata(_ opfXML: XMLDocument) throws -> EpubMetadata {
     let title = try opfXML.nodes(forXPath: "//*[local-name()='title']").first?.stringValue ?? ""
     let author = try opfXML.nodes(forXPath: "//*[local-name()='creator']").first?.stringValue ?? ""
-    return EpubMetadata(title: title, author: author)
+    let language = try opfXML.nodes(forXPath: "//*[local-name()='language']").first?.stringValue ?? ""
+    return EpubMetadata(title: title, author: author,
+                        language: language.trimmingCharacters(in: .whitespacesAndNewlines))
 }
 
 private func parseManifest(_ opfXML: XMLDocument, opfPath: String) throws -> [String: EpubManifestItem] {
@@ -83,7 +87,10 @@ private func parseManifest(_ opfXML: XMLDocument, opfPath: String) throws -> [St
               let href = element.attribute(forName: "href")?.stringValue,
               let mediaType = element.attribute(forName: "media-type")?.stringValue else { continue }
         let path = resolveHref(href, relativeTo: opfPath).path
-        manifest[id] = EpubManifestItem(id: id, path: path, mediaType: mediaType)
+        let properties = element.attribute(forName: "properties")?.stringValue?
+            .split(whereSeparator: \.isWhitespace).map(String.init) ?? []
+        manifest[id] = EpubManifestItem(id: id, path: path, mediaType: mediaType,
+                                        properties: Set(properties))
     }
     return manifest
 }
@@ -103,6 +110,10 @@ private func parseSpine(_ opfXML: XMLDocument, manifest: [String: EpubManifestIt
 
 private func parseToc(fetcher: EpubFetcher, opfXML: XMLDocument,
                       manifest: [String: EpubManifestItem]) -> [EpubTocEntry] {
+    if let nav = manifest.values.first(where: { $0.properties.contains("nav") }),
+       let toc = try? parseNavToc(fetcher: fetcher, navPath: nav.path), !toc.isEmpty {
+        return toc
+    }
     guard let ncxPath = findNcxPath(opfXML, manifest: manifest),
           let toc = try? parseNcxToc(fetcher: fetcher, ncxPath: ncxPath) else { return [] }
     return toc
@@ -117,6 +128,9 @@ private func findNcxPath(_ opfXML: XMLDocument, manifest: [String: EpubManifestI
 
 
 private func findCover(_ opfXML: XMLDocument, manifest: [String: EpubManifestItem]) -> EpubManifestItem? {
+    if let item = manifest.values.first(where: { $0.properties.contains("cover-image") }) {
+        return item
+    }
     guard let coverId = try? opfXML
         .nodes(forXPath: "//*[local-name()='meta'][@name='cover']/@content")
         .first?.stringValue else { return nil }
@@ -147,6 +161,38 @@ private func parseNavPoints(_ parent: XMLNode, ncxPath: String, idPrefix: String
                               path: path,
                               fragment: fragment,
                               children: children))
+    }
+    return toc
+}
+
+private func parseNavToc(fetcher: EpubFetcher, navPath: String) throws -> [EpubTocEntry] {
+    let navXML = try XMLDocument(data: fetcher.data(at: navPath))
+    guard let list = try navXML.nodes(forXPath:
+        "//*[local-name()='nav'][@*[local-name()='type']='toc']/*[local-name()='ol']").first
+    else { return [] }
+    return try parseNavList(list, navPath: navPath, idPrefix: "")
+}
+
+private func parseNavList(_ list: XMLNode, navPath: String, idPrefix: String) throws -> [EpubTocEntry] {
+    var toc: [EpubTocEntry] = []
+
+    let items = try list.nodes(forXPath: "./*[local-name()='li']")
+    for (index, li) in items.enumerated() {
+        let id = idPrefix.isEmpty ? "\(index)" : "\(idPrefix).\(index)"
+
+        // <li> 下是 <a href>（可跳转）或 <span>（仅分组标题），可选跟一个子 <ol>
+        let label = try li.nodes(forXPath: "./*[local-name()='a' or local-name()='span']").first
+        let title = label?.stringValue ?? ""
+        let href = try label?.nodes(forXPath: "@href").first?.stringValue ?? ""
+        let (path, fragment) = resolveHref(href, relativeTo: navPath)
+
+        let children = try li.nodes(forXPath: "./*[local-name()='ol']").first
+            .map { try parseNavList($0, navPath: navPath, idPrefix: id) } ?? []
+        toc.append(EpubTocEntry(id: id,
+                                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                                path: path,
+                                fragment: fragment,
+                                children: children))
     }
     return toc
 }

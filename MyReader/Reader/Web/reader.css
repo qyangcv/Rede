@@ -1,148 +1,35 @@
+/* 外壳页：只负责背景和章节 iframe 的位置，正文排版全部交给 ReadiumCSS */
 :root {
-  /* 字体 */
-  --font-family: -apple-system, "PingFang SC", "FZYouHei_GBK"; 
-  --font-size: 18px;
-  --font-weight: 400;
-
-  /* 排版 */
-  --line-height: 1.6;
-  --para-spacing: 0.9em;
-  --text-indent: 2em;
-
-  /* 颜色 */
-  --fg: #2f2c28;
-  --bg: #e5e5e5;
-  --fg-dim: #8a8378;
-  --rule: #ddd5c6;
-  
   --leaf-size: 320px;
-  --bg-leaf: url("leaf.svg");
 
-  /* 版面 */
-  --page-margin-x: 48px;
+  /* 上下页边距；左右页边距由章节内的 --RS__pageGutter 提供 */
   --page-margin-top: 60px;
   --page-margin-bottom: 50px;
-  --page-gap: 64px;
 }
 
-/* ---------- 2. Reset：先全部归零 ---------- */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-body * {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-indent: 0;
-}
-
-/* ---------- 3. 页面与正文 ---------- */
-html {
+html, body {
   height: 100%;
+  margin: 0;
   overflow: hidden;
-  background-color: var(--bg);
-  background-image: var(--bg-leaf, none);
+}
+
+html {
+  background-color: var(--reader-bg, #fff);
+  background-image: var(--reader-pattern, none);
   background-repeat: no-repeat;
   background-position: right top;
   background-size: var(--leaf-size) auto;
-  background-attachment: fixed;
 }
 
-body {
-  height: 100%;
-  margin: 0;
-  
-  padding-top: var(--page-margin-top);
-  font-family: var(--font-family);
-  font-size: var(--font-size);
-  font-weight: var(--font-weight);
-  line-height: var(--line-height);
-  color: var(--fg);
-  background: transparent;
-
-  text-align: justify;
-  text-justify: inter-ideograph;
-  word-wrap: break-word;
-  -webkit-font-smoothing: antialiased;
+#chapter {
+  position: fixed;
+  top: var(--page-margin-top);
+  left: 0;
+  width: 100%;
+  height: calc(100% - var(--page-margin-top) - var(--page-margin-bottom));
+  border: 0;
 }
 
-/* ---------- 4. 段落 ---------- */
-p {
-  margin: 0 0 var(--para-spacing);
-  text-indent: var(--text-indent);
-}
-
-/* ---------- 5. 标题 ---------- */
-h1, h2, h3, h4, h5, h6 {
-  margin: 2.2em 0 1.2em;
-  font-weight: 600;
-  line-height: 1.4;
-  text-align: center;
-  text-indent: 0;
-}
-h1 { font-size: 1.6em; }
-h2 { font-size: 1.35em; }
-h3 { font-size: 1.15em; }
-h4, h5, h6 { font-size: 1em; }
-
-/* ---------- 6. 图片 ---------- */
-img, svg {
-  display: block;
-  width: auto;
-  max-width: 100%;
-  height: auto;
-  max-height: var(--page-height, 100vh);
-}
-
-/* ---------- 7. 引文 / 分隔线 ---------- */
-blockquote {
-  margin: 1.4em 0;
-  padding: 0.2em 0 0.2em 1.2em;
-  border-left: 3px solid var(--rule);
-  color: var(--fg-dim);
-}
-blockquote p { text-indent: 0; }
-
-hr {
-  width: 30%;
-  margin: 2.4em auto;
-  border-top: 1px solid var(--rule);
-}
-
-/* ---------- 8. 压制行内 style 属性 ---------- */
-#book [style] {
-  color: inherit !important;
-  background-color: transparent !important;
-  font-family: var(--font-family) !important;
-}
-
-#book {
-  --cols: 1;
-  --page-width: round(down,
-        calc((100vw - 2 * var(--page-margin-x) - (var(--cols) - 1) * var(--page-gap)) / var(--cols)),
-    1px);
-  --page-height: round(down, calc(100vh - var(--page-margin-top) - var(--page-margin-bottom)), 1px);
-  
-  width: calc(var(--page-width) * var(--cols) + var(--page-gap) * (var(--cols) - 1));
-  height: var(--page-height);
-  margin: 0 auto; 
-  overflow: hidden;
-
-  column-width: 1px;
-  column-count: var(--cols); 
-  column-gap: var(--page-gap);
-  column-fill: auto;
-  -webkit-column-axis: horizontal;
-}
-
-#book.spread {
-  --cols: 2;
-}
-
-#book.loading {
+#chapter.loading {
   visibility: hidden;
 }

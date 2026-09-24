@@ -30,7 +30,28 @@ struct StylePanel: View {
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 14) {
                 GridRow {
                     label("字号")
-                    FontSizeStepper(size: $style.fontSize)
+                    FontScaleStepper(scale: $style.fontScale)
+                }
+
+                GridRow {
+                    label("字体")
+                    Picker("字体", selection: $style.font) {
+                        ForEach(ReaderFont.allCases) { font in
+                            Text(font.name).tag(font)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    // 由它占满第二列的剩余宽度，标签列才能保持内容宽度，不随下方行的增减而变化
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if let weight = style.fontWeight {
+                    GridRow {
+                        label("粗细")
+                        FontWeightSlider(weights: style.font.weights,
+                                         weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
+                    }
                 }
 
                 Divider()
@@ -48,12 +69,24 @@ struct StylePanel: View {
                 Divider()
 
                 GridRow {
-                    label("背景")
+                    label("颜色")
                     HStack(spacing: 6) {
                         ForEach(BackgroundColor.allCases) { item in
                             BackgroundSwatch(background: item,
                                              isSelected: item == style.background) {
                                 style.background = item
+                            }
+                        }
+                    }
+                }
+
+                GridRow {
+                    label("背景")
+                    HStack(spacing: 6) {
+                        ForEach(BackgroundPattern.allCases) { item in
+                            PatternSwatch(pattern: item, color: style.background.swatch,
+                                          isSelected: item == style.pattern) {
+                                style.pattern = item
                             }
                         }
                     }
@@ -89,28 +122,57 @@ struct StylePanel: View {
     }
 }
 
-private struct FontSizeStepper: View {
-    @Binding var size: Int
+private struct FontScaleStepper: View {
+    @Binding var scale: Int
 
-    private let range = ReaderStyle.fontSizeRange
+    private let range = ReaderStyle.fontScaleRange
+    private let step = ReaderStyle.fontScaleStep
 
     var body: some View {
         HStack(spacing: 9) {
             Button("减小字号", systemImage: "textformat.size.smaller") {
-                size = max(size - 1, range.lowerBound)
+                scale = max(scale - step, range.lowerBound)
             }
-            .disabled(size <= range.lowerBound)
+            .disabled(scale <= range.lowerBound)
 
-            Text("\(size)")
+            Text("\(range.upperBound)%")
                 .monospacedDigit()
-                .frame(minWidth: 0)
+                .hidden()
+                .overlay {
+                    Text("\(scale)%").monospacedDigit()
+                }
 
             Button("增大字号", systemImage: "textformat.size.larger") {
-                size = min(size + 1, range.upperBound)
+                scale = min(scale + step, range.upperBound)
             }
-            .disabled(size >= range.upperBound)
+            .disabled(scale >= range.upperBound)
         }
         .labelStyle(.iconOnly)
+    }
+}
+
+// 滑块在当前字体的可选字重之间逐档移动：静态字体只有几档，系统字体档位细密、近似连续
+private struct FontWeightSlider: View {
+    let weights: [Int]
+    @Binding var weight: Int
+
+    private var index: Binding<Double> {
+        Binding(
+            get: { Double(weights.firstIndex(of: weight) ?? 0) },
+            set: { weight = weights[Int($0.rounded())] }
+        )
+    }
+
+    var body: some View {
+        HStack(spacing: 9) {
+            Slider(value: index, in: 0...Double(weights.count - 1), step: 1)
+            Text("900")
+                .monospacedDigit()
+                .hidden()
+                .overlay(alignment: .trailing) {
+                    Text("\(weight)").monospacedDigit()
+                }
+        }
     }
 }
 
@@ -131,6 +193,45 @@ private struct BackgroundSwatch: View {
         }
         .buttonStyle(.plain)
         .help(background.name)
+    }
+}
+
+// 以当前底色预览图案：放大后贴右上角裁切，只露出页面右上角的样子
+private struct PatternSwatch: View {
+    let pattern: BackgroundPattern
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
+
+    private var image: NSImage? {
+        pattern.file
+            .flatMap { Bundle.main.url(forResource: $0, withExtension: nil) }
+            .flatMap(NSImage.init(contentsOf:))
+    }
+
+    var body: some View {
+        Button(action: action) {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(color)
+                .frame(width: 36, height: 20)
+                .overlay(alignment: .topTrailing) {
+                    if let image {
+                        Image(nsImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32) // 背景缩略图放大倍数
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .clipShape(.rect(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.primary.opacity(0.15)))
+                .padding(3)
+                .overlay(RoundedRectangle(cornerRadius: 9)
+                    .strokeBorder(isSelected ? Color.accentColor : .clear, lineWidth: 2))
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(pattern.name)
     }
 }
 

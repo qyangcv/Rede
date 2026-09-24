@@ -59,7 +59,7 @@ final class ReaderSession {
     static let windowID = "reader"
     
     private(set) var reader: Reader?
-    private(set) var bookName: String?
+    private(set) var book: Book?
     private var store: ProgressStore?
     
     init() {
@@ -72,7 +72,7 @@ final class ReaderSession {
     }
     
     func open(_ book: Book, context: ModelContext) throws {
-        if bookName == book.name, reader != nil { return }
+        if self.book?.id == book.id, reader != nil { return }
         store?.flush()
 
         let epub = try parseEpub(at: book.url)
@@ -84,14 +84,14 @@ final class ReaderSession {
 
         self.store = store
         self.reader = reader
-        self.bookName = book.name
+        self.book = book
     }
 
     func close() {
         store?.flush()
         store = nil
         reader = nil
-        bookName = nil
+        book = nil
     }
 }
 
@@ -109,7 +109,7 @@ struct ReaderWindow: View {
         }
         .ignoresSafeArea()
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .navigationTitle(session.bookName ?? "Reader Window")
+        .navigationTitle(session.book?.name ?? "Reader Window")
         .onDisappear { session.close() }
     }
 }
