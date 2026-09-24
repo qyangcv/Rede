@@ -63,7 +63,6 @@ final class ReaderSession {
     private var store: ProgressStore?
     
     init() {
-        // Cmd+Q 不会触发窗口的 onDisappear，这里兜底
         NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification, object: nil, queue: .main
         ) { [weak self] _ in

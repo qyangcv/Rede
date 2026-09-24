@@ -88,6 +88,8 @@ struct LibraryView: View {
     private func handleImport(_ result: Result<URL, Error>) {
         do {
             let url = try result.get()
+            let granted = url.startAccessingSecurityScopedResource()
+            defer { if granted { url.stopAccessingSecurityScopedResource() } }
             try BookImporter.importBook(from: url, into: modelContext)
         } catch {
             errors.append(error.localizedDescription)

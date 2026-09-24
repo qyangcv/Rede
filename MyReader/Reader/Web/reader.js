@@ -278,11 +278,10 @@ function reflow() {
   scrollToSpread(spread >= 0 ? spread : state.spread);
 }
 
-// 拦截章节内的链接，站内链接转成章节跳转
+// 拦截章节内的链接，站内链接转成章节跳转；站外链接放行，交给原生导航策略
 function onClick(event) {
   const link = event.target.closest("a[href]");
   if (!link) return;
-  event.preventDefault();
 
   let url, path, anchor;
   try {
@@ -290,10 +289,12 @@ function onClick(event) {
     path = decodeURIComponent(url.pathname.slice(1));
     anchor = decodeURIComponent(url.hash.slice(1));
   } catch {
+    event.preventDefault();
     return;
   }
   if (url.protocol !== ROOT.protocol || url.host !== ROOT.host) return;
 
+  event.preventDefault();
   const chapter = state.spinePaths.indexOf(path);
   if (chapter >= 0) reader.jump(chapter, anchor);
 }

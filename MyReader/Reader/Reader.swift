@@ -125,7 +125,11 @@ final class Reader: NSObject,  WKNavigationDelegate {
         config.userContentController.add(relay, name: Self.progressChannel)
         
         self.webView = ReaderWebView(frame: .zero, configuration: config)
+        
+        #if DEBUG
         self.webView.isInspectable = true
+        #endif
+        
         self.bridge = JSBridge(webView: webView)
         
         super.init()
@@ -151,6 +155,18 @@ final class Reader: NSObject,  WKNavigationDelegate {
         let language = book.model.metadata.language
         let style = style.cssVariables
         Task { await bridge.open(paths: paths, language: language, style: style, start: start) }
+    }
+
+    func webView(_ webView: WKWebView,
+                 decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+        guard let url = navigationAction.request.url,
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https", "mailto"].contains(scheme) else { return .allow }
+
+        if navigationAction.navigationType == .linkActivated {
+            NSWorkspace.shared.open(url)
+        }
+        return .cancel
     }
 
     func apply(_ style: ReaderStyle) {

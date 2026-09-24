@@ -1,6 +1,6 @@
 import SwiftUI
+import os
 
-// CodingKeyRepresentable 让以它为 key 的字典编码成 JSON 对象，而不是扁平数组
 enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresentable {
     case original, system, pingfang
 
@@ -14,7 +14,6 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         }
     }
 
-    // CSS font-family 值，nil 表示沿用书内字体；-apple-system 是关键字，不能加引号
     var family: String? {
         switch self {
         case .original: nil
@@ -23,7 +22,6 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         }
     }
 
-    // 默认字重，nil 表示字重由书决定
     var defaultWeight: Int? {
         switch self {
         case .original: nil
@@ -32,8 +30,6 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         }
     }
 
-    // 可选字重：系统字体（SF + 系统私有的可变苹方）支持连续字重，按细粒度取值；
-    // 公开的 PingFang SC 只有静态字形，只列出适合正文的几档
     var weights: [Int] {
         switch self {
         case .original: []
@@ -81,7 +77,6 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    // nil 表示跟随书：外壳页退回白色，章节根元素不设底色
     var color: String? {
         switch self {
         case .original: nil
@@ -90,11 +85,8 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    // 与背景配套的正文颜色；ReadiumCSS 要求背景色和文字色成对设置，才能压住书内自带的配色；
-    // 默认时交还给书和 ReadiumCSS
     var textColor: String? { color == nil ? nil : "#2f2c28" }
 
-    // 面板色块：默认按实际呈现的白色显示
     var swatch: Color { Color(hex: color ?? "#ffffff") }
 }
 
@@ -110,7 +102,6 @@ enum BackgroundPattern: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    // 图案文件：外壳页经 myreader:// 加载，样式面板的缩略图读同一个文件
     var file: String? {
         switch self {
         case .none: nil
@@ -118,7 +109,6 @@ enum BackgroundPattern: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    // 外壳页的 base URL 是书的 scheme，相对路径会解析错，必须给绝对 URL
     var css: String {
         guard let file, let url = AppResourceSchemeHandler.url(for: file) else { return "none" }
         return "url(\"\(url.absoluteString)\")"
@@ -135,9 +125,9 @@ private extension Color {
 }
 
 struct ReaderStyle: Equatable {
-    var fontScale: Int      // 相对书本字号的百分比，由 ReadiumCSS 以 zoom 等比缩放
+    var fontScale: Int
     var font: ReaderFont
-    var fontWeights: [ReaderFont: Int]  // 用户按字体调整过的字重，未调整的取字体默认值
+    var fontWeights: [ReaderFont: Int]
     var lineSpacing: Spacing
     var paraSpacing: Spacing
     var background: BackgroundColor
@@ -149,17 +139,14 @@ struct ReaderStyle: Equatable {
                                       lineSpacing: .standard, paraSpacing: .standard,
                                       background: .original, pattern: .none)
 
-    // 当前字体的字重，nil 表示字重由书决定
     var fontWeight: Int? {
         get { font.defaultWeight.map { fontWeights[font] ?? $0 } }
         set { fontWeights[font] = newValue }
     }
 
-    // --USER__* 写到章节文档的 :root，交给 ReadiumCSS；--reader-bg / --reader-pattern 由外壳页绘制
     var cssVariables: [String: String] {
         [
             "--USER__fontSize": "\(fontScale)%",
-            // 空值会被 style.setProperty 移除，ReadiumCSS 随之退回书内字体
             "--USER__fontFamily": font.family ?? "",
             "--USER__fontWeight": fontWeight.map(String.init) ?? "",
             "--USER__lineHeight": "\(lineSpacing.lineHeight)",
@@ -215,6 +202,7 @@ extension ReaderStyle: Codable {
 @Observable
 final class Settings {
     static let shared = Settings()
+    private static let log = Logger(subsystem: "MyReader", category: "Settings")
 
     var readerStyle: ReaderStyle { didSet { save() } }
 
@@ -237,7 +225,7 @@ final class Settings {
             try encoder.encode(Snapshot(readerStyle: readerStyle))
                 .write(to: AppPaths.settings, options: .atomic)
         } catch {
-            print("保存设置失败：\(error)")
+            Self.log.error("保存设置失败：\(error.localizedDescription, privacy: .public)")
         }
     }
 }

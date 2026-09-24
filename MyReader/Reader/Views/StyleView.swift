@@ -42,7 +42,6 @@ struct StylePanel: View {
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
-                    // 由它占满第二列的剩余宽度，标签列才能保持内容宽度，不随下方行的增减而变化
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
@@ -151,7 +150,6 @@ private struct FontScaleStepper: View {
     }
 }
 
-// 滑块在当前字体的可选字重之间逐档移动：静态字体只有几档，系统字体档位细密、近似连续
 private struct FontWeightSlider: View {
     let weights: [Int]
     @Binding var weight: Int
@@ -196,7 +194,6 @@ private struct BackgroundSwatch: View {
     }
 }
 
-// 以当前底色预览图案：放大后贴右上角裁切，只露出页面右上角的样子
 private struct PatternSwatch: View {
     let pattern: BackgroundPattern
     let color: Color

@@ -4,7 +4,15 @@ import AppKit
 import CryptoKit
 
 enum AppPaths {
-    static let root = URL(filePath: "/Users/yang/code/MyReader", directoryHint: .isDirectory)
+    #if DEBUG
+    static let root = URL(filePath: #filePath)   // .../MyReader/Library/Library.swift
+        .deletingLastPathComponent()             // .../MyReader/Library
+        .deletingLastPathComponent()             // .../MyReader
+        .deletingLastPathComponent()             // 仓库根目录
+    #else
+    static let root = URL.applicationSupportDirectory
+        .appending(component: "MyReader", directoryHint: .isDirectory)
+    #endif
     static let library = root.appending(component: ".library", directoryHint: .isDirectory)
     static let store = library.appending(component: "library.store")
     static let books = library.appending(component: "books", directoryHint: .isDirectory)
@@ -52,7 +60,7 @@ enum BookImporter {
 
         let fm = FileManager.default
         let book = Book(id: id, name: "", author: "")
-        try? fm.removeItem(at: book.parent)   // 库中无记录，残留目录来自失败的导入
+        try? fm.removeItem(at: book.parent)
         try fm.createDirectory(at: book.parent, withIntermediateDirectories: true)
         try fm.copyItem(at: source, to: book.url)
         

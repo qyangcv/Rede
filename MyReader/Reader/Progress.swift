@@ -1,8 +1,7 @@
 import Foundation
 import SwiftData
+import os
 
-// 阅读位置：以「章内字符偏移」为主锚点，与排版无关；
-// ratio 是锚点失效（当前页无可定位文本，如整页插图）时的兜底
 struct ReadingPosition: Codable, Equatable {
     var chapter: Int
     var offset: Int
@@ -14,10 +13,10 @@ struct ReadingPosition: Codable, Equatable {
     }
 }
 
-// 翻页时存入内存，停下 2 秒 / 关窗 / 退出时才写入文件
 @MainActor
 final class ProgressStore {
     private static let delay: Duration = .seconds(2)
+    private static let log = Logger(subsystem: "MyReader", category: "ReadingProgress")
 
     private let book: Book
     private let context: ModelContext
@@ -50,7 +49,7 @@ final class ProgressStore {
         do {
             try context.save()
         } catch {
-            print("保存阅读进度失败：\(error)")
+            Self.log.error("保存阅读进度失败：\(error.localizedDescription, privacy: .public)")
         }
     }
 }
