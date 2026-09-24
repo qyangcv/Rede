@@ -69,7 +69,7 @@ fastlane/test_output
 MyReaderFont
 MyReaderTests
 buildServer.json
-MyReader/Assets/books
-MyReader/Assets/fonts
+.dev-asserts
+MyReader/default.profraw
 
 CLAUDE.md
