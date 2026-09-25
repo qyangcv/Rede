@@ -9,7 +9,7 @@ struct LibraryView: View {
     @State private var errors: [String] = []
     @State private var bookToDelete: Book?
     @State private var bookToEdit: Book?
-    @State private var isDropTargeted = false
+    @State private var bookToExport: Book?
     @Environment(ReaderSession.self) private var session
     @Environment(\.openWindow) private var openWindow
     
@@ -25,6 +25,7 @@ struct LibraryView: View {
                                 .contextMenu {
                                     Button("打开", systemImage: "book") { open(book) }
                                     Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
+                                    Button("导出", systemImage: "square.and.arrow.up") { bookToExport = book }
                                     Button("删除", systemImage: "trash", role: .destructive) {
                                         bookToDelete = book
                                    }
@@ -63,6 +64,15 @@ struct LibraryView: View {
                 case .success(let urls): importBooks(urls)
                 case .failure(let error): errors.append(error.localizedDescription)
                 }
+            }
+            .fileExporter(
+                isPresented: Binding(get: { bookToExport != nil },
+                                     set: { if !$0 { bookToExport = nil } }),
+                document: bookToExport.map { EpubFile(url: $0.url) },
+                contentType: .epub,
+                defaultFilename: bookToExport?.exportName
+            ) { result in
+                if case .failure(let error) = result { errors.append(error.localizedDescription) }
             }
             .sheet(item: $bookToEdit) { book in
                 BookInfoEditor(book: book, onSave: save)
@@ -215,6 +225,19 @@ struct BookInfoEditor: View {
         }
     }
 }
+
+struct EpubFile: FileDocument {
+    static let readableContentTypes: [UTType] = [.epub]
+    let url: URL
+
+    init(url: URL) { self.url = url }
+    init(configuration: ReadConfiguration) throws { throw CocoaError(.featureUnsupported) }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        try FileWrapper(url: url)
+    }
+}
+
 
 #Preview {
     LibraryView()
