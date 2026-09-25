@@ -4,6 +4,7 @@ import SwiftUI
 
 struct StyleButton: View {
     @Binding var style: ReaderStyle
+    @Binding var appearance: Appearance
     var onDismiss: () -> Void = {}
 
     @State private var isPresented = false
@@ -12,12 +13,12 @@ struct StyleButton: View {
         Button {
             isPresented.toggle()
         } label: {
-            Label("外观", systemImage: "textformat")
+            Label("样式", systemImage: "textformat")
                 .environment(\.locale, Locale(identifier: "en"))
         }
-        .help("外观")
+        .help("样式")
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            StylePanel(style: $style)
+            StylePanel(style: $style, appearance: $appearance)
         }
         .onChange(of: isPresented) { _, shown in
             if !shown { onDismiss() }
@@ -27,6 +28,9 @@ struct StyleButton: View {
 
 struct StylePanel: View {
     @Binding var style: ReaderStyle
+    @Binding var appearance: Appearance
+
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -71,10 +75,21 @@ struct StylePanel: View {
                 Divider()
 
                 GridRow {
+                    label("外观")
+                    Picker("外观", selection: $appearance) {
+                        ForEach(Appearance.allCases) { item in
+                            Text(item.name).tag(item)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+
+                GridRow {
                     label("颜色")
                     HStack(spacing: 6) {
                         ForEach(BackgroundColor.allCases) { item in
-                            BackgroundSwatch(background: item,
+                            BackgroundSwatch(color: item.swatch(for: colorScheme), name: item.name,
                                              isSelected: item == style.background) {
                                 style.background = item
                             }
@@ -86,7 +101,7 @@ struct StylePanel: View {
                     label("背景")
                     HStack(spacing: 6) {
                         ForEach(BackgroundPattern.allCases) { item in
-                            PatternSwatch(pattern: item, color: style.background.swatch,
+                            PatternSwatch(pattern: item, color: style.background.swatch(for: colorScheme),
                                           isSelected: item == style.pattern) {
                                 style.pattern = item
                             }
@@ -178,14 +193,15 @@ private struct FontWeightSlider: View {
 }
 
 private struct BackgroundSwatch: View {
-    let background: BackgroundColor
+    let color: Color
+    let name: String
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Circle()
-                .fill(background.swatch)
+                .fill(color)
                 .overlay(Circle().strokeBorder(.primary.opacity(0.15)))
                 .frame(width: 24, height: 24)
                 .padding(3)
@@ -193,7 +209,7 @@ private struct BackgroundSwatch: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .help(background.name)
+        .help(name)
     }
 }
 
@@ -237,5 +253,6 @@ private struct PatternSwatch: View {
 
 #Preview("stylePanel") {
     @Previewable @State var style = ReaderStyle.default
-    StylePanel(style: $style)
+    @Previewable @State var appearance = Appearance.system
+    StylePanel(style: $style, appearance: $appearance)
 }

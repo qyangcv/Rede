@@ -73,6 +73,6 @@ buildServer.json
 Rede/default.profraw
 dist
 build
-
+*.profraw
 
 CLAUDE.md

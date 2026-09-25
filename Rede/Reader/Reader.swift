@@ -107,7 +107,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     private let bridge: JSBridge
     private var shellNavigation: WKNavigation?
-    private var style = ReaderStyle.default
+    private var style: [String: String] = [:]
 
     static let progressChannel = "reading_progress"
     private let start: ReadingPosition?
@@ -126,6 +126,8 @@ final class Reader: NSObject,  WKNavigationDelegate {
         
         self.webView = ReaderWebView(frame: .zero, configuration: config)
         
+        self.webView.setValue(false, forKey: "drawsBackground")
+        
         #if DEBUG
         self.webView.isInspectable = true
         #endif
@@ -141,19 +143,33 @@ final class Reader: NSObject,  WKNavigationDelegate {
         }
     }
 
-    func open(style: ReaderStyle) {
+    func open(style: [String: String]) {
         self.style = style
         guard let baseURL = EpubSchemeHandler.url(for: ""),
               let html = try? AppResourceSchemeHandler.data(named: "reader.html") else { return }
+        injectInitialStyle(style)
         shellNavigation = webView.load(html, mimeType: "text/html",
                                        characterEncodingName: "utf-8", baseURL: baseURL)
+    }
+    
+    private func injectInitialStyle(_ style: [String: String]) {
+        guard let data = try? JSONEncoder().encode(style) else { return }
+        let json = String(decoding: data, as: UTF8.self)
+        let source = """
+            for (const [name, value] of Object.entries(\(json)))
+              document.documentElement.style.setProperty(name, value);
+            """
+        let controller = webView.configuration.userContentController
+        controller.removeAllUserScripts()
+        controller.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart,
+                                              forMainFrameOnly: true))
     }
     
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard navigation === shellNavigation else { return }
         let paths = book.model.spine.map(\.path)
         let language = book.model.metadata.language
-        let style = style.cssVariables
+        let style = style
         Task { await bridge.open(paths: paths, language: language, style: style, start: start) }
     }
 
@@ -169,9 +185,9 @@ final class Reader: NSObject,  WKNavigationDelegate {
         return .cancel
     }
 
-    func apply(_ style: ReaderStyle) {
+    func apply(_ style: [String: String]) {
         self.style = style
-        Task { await bridge.setStyle(style.cssVariables) }
+        Task { await bridge.setStyle(style) }
     }
 
     func focus() {

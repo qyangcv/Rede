@@ -16,7 +16,7 @@ struct RedeApp: App {
        }()
     
     init () {
-        NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        NSApplication.shared.appearance = Settings.shared.appearance.nsAppearance
         NSWindow.allowsAutomaticWindowTabbing = false
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
         UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")

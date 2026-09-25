@@ -26,7 +26,12 @@ struct ReaderView: View {
     let reader: Reader
 
     @Bindable private var settings = Settings.shared
-    
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var cssVariables: [String: String] {
+        settings.readerStyle.cssVariables(for: colorScheme)
+    }
+
     var body: some View {
         ReaderWebViewContainer(webView: reader.webView)
             .overlay(alignment: .top) {
@@ -43,12 +48,13 @@ struct ReaderView: View {
                 .sharedBackgroundVisibility(.hidden)
 
                 ToolbarItem(placement: .primaryAction) {
-                    StyleButton(style: $settings.readerStyle, onDismiss: reader.focus)
+                    StyleButton(style: $settings.readerStyle, appearance: $settings.appearance,
+                                onDismiss: reader.focus)
                 }
                 .sharedBackgroundVisibility(.hidden)
             }
-            .onAppear { reader.open(style: settings.readerStyle) }
-            .onChange(of: settings.readerStyle) { _, new in
+            .onAppear { reader.open(style: cssVariables) }
+            .onChange(of: cssVariables) { _, new in
                 reader.apply(new)
             }
     }
