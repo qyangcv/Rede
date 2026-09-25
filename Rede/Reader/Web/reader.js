@@ -109,6 +109,9 @@ async function prepare(doc) {
     root.setAttribute("lang", state.language);
   }
 
+  // 关闭 macOS 的笔画扩张，即字体平滑，字形按原始轮廓渲染，粗细交给 --USER__fontWeight 控制
+  root.style.webkitFontSmoothing = "antialiased";
+
   const head = doc.head ?? root.insertBefore(doc.createElementNS(XHTML_NS, "head"), root.firstChild);
   const unstyled = !doc.querySelector('link[rel~="stylesheet"], style');
   const before = stylesheet(doc, "ReadiumCSS-before.css");
