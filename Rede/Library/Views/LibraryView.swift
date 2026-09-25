@@ -9,6 +9,7 @@ struct LibraryView: View {
     @State private var errors: [String] = []
     @State private var bookToDelete: Book?
     @State private var bookToEdit: Book?
+    @State private var isDropTargeted = false
     @Environment(ReaderSession.self) private var session
     @Environment(\.openWindow) private var openWindow
     
@@ -39,9 +40,14 @@ struct LibraryView: View {
                     ContentUnavailableView(
                         "书架是空的",
                         systemImage: "books.vertical",
-                        description: Text("点击右上角按钮导入 EPUB")
+                        description: Text("点击右上角按钮或拖入 EPUB")
                     )
                 }
+            }
+            .dropDestination(for: URL.self) { urls, _ in
+                let epubs = urls.filter { $0.pathExtension.lowercased() == "epub" }
+                importBooks(epubs)
+                return !epubs.isEmpty
             }
             .navigationTitle("我的书库")
             .toolbar {
@@ -50,8 +56,14 @@ struct LibraryView: View {
             .fileImporter(
                 isPresented: $isImporting,
                 allowedContentTypes: [.epub],
-                onCompletion: handleImport
-            )
+                allowsMultipleSelection: true
+            ){
+                result in
+                switch result {
+                case .success(let urls): importBooks(urls)
+                case .failure(let error): errors.append(error.localizedDescription)
+                }
+            }
             .sheet(item: $bookToEdit) { book in
                 BookInfoEditor(book: book, onSave: save)
             }
@@ -85,17 +97,6 @@ struct LibraryView: View {
         return (columns: Array(repeating: column, count: n), spacing: spacing)
     }
     
-    private func handleImport(_ result: Result<URL, Error>) {
-        do {
-            let url = try result.get()
-            let granted = url.startAccessingSecurityScopedResource()
-            defer { if granted { url.stopAccessingSecurityScopedResource() } }
-            try BookImporter.importBook(from: url, into: modelContext)
-        } catch {
-            errors.append(error.localizedDescription)
-        }
-    }
-    
     private func save() {
         do {
             try modelContext.save()
@@ -121,6 +122,18 @@ struct LibraryView: View {
             openWindow(id: ReaderSession.windowID)
         } catch {
             errors.append(error.localizedDescription)
+        }
+    }
+    
+    private func importBooks(_ urls: [URL]) {
+        for url in urls {
+            let granted = url.startAccessingSecurityScopedResource()
+            defer { if granted { url.stopAccessingSecurityScopedResource() } }
+            do {
+                try BookImporter.importBook(from: url, into: modelContext)
+            } catch {
+                errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+            }
         }
     }
 }
