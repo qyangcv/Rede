@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		2F62D3763055C33000626E1E /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 2F62D3753055C33000626E1E /* ZIPFoundation */; };
+		2FF960A430663CA600AFB10E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 2FF960A330663CA600AFB10E /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,9 +26,22 @@
 		2F62D37B3056A5CB00626E1E /* MyReaderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MyReaderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2FF960A630663DF200AFB10E /* Exceptions for "MyReader" folder in "MyReader" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2F442E7430525751000DD248 /* MyReader */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2F442E7730525751000DD248 /* MyReader */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2FF960A630663DF200AFB10E /* Exceptions for "MyReader" folder in "MyReader" target */,
+			);
 			path = MyReader;
 			sourceTree = "<group>";
 		};
@@ -44,6 +58,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2F62D3763055C33000626E1E /* ZIPFoundation in Frameworks */,
+				2FF960A430663CA600AFB10E /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -96,6 +111,7 @@
 			name = MyReader;
 			packageProductDependencies = (
 				2F62D3753055C33000626E1E /* ZIPFoundation */,
+				2FF960A330663CA600AFB10E /* Sparkle */,
 			);
 			productName = MyReader;
 			productReference = 2F442E7530525751000DD248 /* MyReader.app */;
@@ -144,7 +160,7 @@
 				};
 			};
 			buildConfigurationList = 2F442E7030525751000DD248 /* Build configuration list for PBXProject "MyReader" */;
-			developmentRegion = en;
+			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
@@ -154,6 +170,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+				2FF960A230663CA600AFB10E /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2F442E7630525751000DD248 /* Products */;
@@ -340,7 +357,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = BTW6LD2Q74;
 				ENABLE_APP_SANDBOX = NO;
-				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
@@ -354,6 +371,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MyReader/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -382,8 +400,8 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = BTW6LD2Q74;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
@@ -397,6 +415,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MyReader/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -496,6 +515,14 @@
 				minimumVersion = 0.9.20;
 			};
 		};
+		2FF960A230663CA600AFB10E /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -503,6 +530,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
 			productName = ZIPFoundation;
+		};
+		2FF960A330663CA600AFB10E /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2FF960A230663CA600AFB10E /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

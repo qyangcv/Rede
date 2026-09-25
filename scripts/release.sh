@@ -9,6 +9,8 @@ cd "$(dirname "$0")/.."
 [[ $(git branch --show-current) == main ]] || { echo "Please release from the main branch"; exit 1; }
 [[ -z $(git status --porcelain) ]]         || { echo "Working tree has uncommitted changes"; exit 1; }
 
+git fetch origin main --tags --quiet
+
 # 1. Choose version
 LATEST=$(git tag -l 'v*' --sort=-v:refname | head -1)
 CURRENT=${LATEST#v}
@@ -57,12 +59,22 @@ ln -s /Applications $BUILD/dmg/Applications
 gum spin --title "Creating dmg…" --show-error -- \
   hdiutil create -volname MyReader -srcfolder $BUILD/dmg -ov -format UDZO "$DMG"
 
-# 4. Publish to GitHub
-# git tag "$TAG"
-# git push origin main "$TAG"
-# gh release create "$TAG" "$DMG" \
-#   --title "MyReader $VERSION" \
-#   --notes-file scripts/release-notes.md \
-#   --generate-notes
+# 4. Generate appcast (signs the dmg with the EdDSA key in Keychain)
+rm -rf $BUILD/appcast && mkdir -p $BUILD/appcast
+cp "$DMG" $BUILD/appcast/
+$BUILD/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast $BUILD/appcast \
+  --download-url-prefix "https://github.com/qyangcv/MyReader/releases/download/$TAG/"
+
+# 5. Publish to GitHub (GitHub creates the tag together with the release)
+CHANGES=$(git log ${LATEST:+$LATEST..}HEAD --no-merges --pretty='- %s')
+NOTES=$(printf '## 更新内容\n\n%s\n\n%s' "$CHANGES" "$(< scripts/release-notes.md)")
+
+git push origin main
+gh release create "$TAG" "$DMG" $BUILD/appcast/appcast.xml \
+  --target "$(git rev-parse HEAD)" \
+  --title "MyReader $VERSION" \
+  --notes "$NOTES" \
+  --generate-notes
+git fetch --tags --quiet
 
 echo "Released $TAG"
