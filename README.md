@@ -44,7 +44,7 @@
 
 > Rede 未经 Apple 公证，也可以在终端执行 `xattr -dr com.apple.quarantine /Applications/Rede.app` 代替第 3 步
 
-## 依赖
+## 使用的开源工具
 
 - [ZIPFoundation](https://github.com/weichsel/ZIPFoundation)
 - [ReadiumCSS](https://github.com/readium/css)
