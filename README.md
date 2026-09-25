@@ -22,7 +22,7 @@
 
 **阅读**
 
-- `←` / `→` 翻页
+- 方向键 `←` / `→` 翻页
 - 单双栏视图自动切换
 - 阅读进度自动保存
 
@@ -32,15 +32,19 @@
 - 调整行距、段距
 - 切换背景色、背景图案
 
+**检查更新**
+
+- 
+
 ## 安装
 
 1. 从 [Releases](https://github.com/qyangcv/Rede/releases/latest) 下载最新的 `Rede.dmg`
 2. 打开 dmg，将 Rede 拖入 “应用程序” 文件夹
-3. 首次打开时会被系统拦截，前往 “系统设置 > 隐私与安全性”，点击“仍要打开”
+3. 首次打开时会被系统拦截，前往 “系统设置 > 隐私与安全性 > 安全性”，找到 “已阻止 Rede.app 以保护 Mac”，点击“仍要打开”
 
-> 应用未经 Apple 公证，因此需要手动放行，仅首次打开时需要。也可以在终端执行 `xattr -dr com.apple.quarantine /Applications/Rede.app` 代替第 3 步。
+> Rede 未经 Apple 公证，也可以在终端执行 `xattr -dr com.apple.quarantine /Applications/Rede.app` 代替第 3 步
 
-## 技术栈
+## 依赖
 
 - [ZIPFoundation](https://github.com/weichsel/ZIPFoundation)
 - [ReadiumCSS](https://github.com/readium/css)
