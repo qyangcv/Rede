@@ -12,6 +12,7 @@ struct LibraryView: View {
     @State private var bookToExport: Book?
     @Environment(ReaderSession.self) private var session
     @Environment(\.openWindow) private var openWindow
+    @Bindable private var settings = Settings.shared
     
     var body: some View {
         NavigationStack {
@@ -52,6 +53,7 @@ struct LibraryView: View {
             }
             .navigationTitle("我的书库")
             .toolbar {
+                AppearanceButton(appearance: $settings.appearance)
                 Button("导入", systemImage: "plus") { isImporting = true }
             }
             .fileImporter(
@@ -155,6 +157,25 @@ struct LibraryView: View {
     }
 }
 
+struct AppearanceButton: View {
+    @Binding var appearance: Appearance
+
+    var body: some View {
+        Menu {
+            Picker("外观", selection: $appearance) {
+                ForEach(Appearance.allCases) { item in
+                    Label(item.name, systemImage: item.icon).tag(item)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label("外观", systemImage: appearance.icon)
+        }
+        .menuIndicator(.hidden)
+        .help("外观")
+    }
+}
+
 struct BookCard: View {
     let book: Book
      
@@ -246,7 +267,16 @@ struct EpubFile: FileDocument {
 }
 
 
-#Preview {
-    LibraryView()
-        .modelContainer(for: Book.self, inMemory: true)
+
+#Preview("appearanceButton") {
+    @Previewable @State var appearance = Appearance.system
+    VStack(spacing: 20) {
+        HStack(spacing: 24) {
+            ForEach(Appearance.allCases) { item in
+                Label(item.name, systemImage: item.icon)
+            }
+        }
+        AppearanceButton(appearance: $appearance)
+    }
+    .padding()
 }

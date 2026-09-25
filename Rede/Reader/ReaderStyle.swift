@@ -111,6 +111,14 @@ enum Appearance: String, CaseIterable, Identifiable, Codable {
         case .dark: "深色"
         }
     }
+    
+    var icon: String {
+           switch self {
+           case .system: "circle.lefthalf.filled"
+           case .light: "sun.max"
+           case .dark: "moon"
+           }
+       }
 
     var nsAppearance: NSAppearance? {
         switch self {
