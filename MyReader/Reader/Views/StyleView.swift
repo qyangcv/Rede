@@ -9,8 +9,11 @@ struct StyleButton: View {
     @State private var isPresented = false
 
     var body: some View {
-        Button("外观", systemImage: "textformat") {
+        Button {
             isPresented.toggle()
+        } label: {
+            Label("外观", systemImage: "textformat")
+                .environment(\.locale, Locale(identifier: "en"))
         }
         .help("外观")
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {

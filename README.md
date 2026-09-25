@@ -20,44 +20,25 @@
 - 导入电子书（EPUB 格式），开始阅读
 - 管理、重命名、删除书籍
 
-
 **阅读**
 
 - `←` / `→` 翻页
+- 单双栏视图自动切换
 - 阅读进度自动保存
 
 **样式**
 
-- 切换字体、调节字号与粗细
+- 选择字体、调节字号与字体粗细
 - 调整行距、段距
 - 切换背景色、背景图案
 
-<!-- ## 构建
+## 安装
 
-需要 Xcode 26 与 macOS 26。
+1. 从 [Releases](https://github.com/qyangcv/MyReader/releases/latest) 下载最新的 `MyReader.dmg`
+2. 打开 dmg，将 MyReader 拖入 “应用程序” 文件夹
+3. 首次打开时会被系统拦截，前往 “系统设置 > 隐私与安全性”，点击“仍要打开”
 
-```bash
-git clone <repo-url> MyReader
-open MyReader/MyReader.xcodeproj
-```
-
-> Debug 构建会把书库写在仓库根目录的 `.library/` 下，方便调试；Release 构建使用 `~/Library/Application Support/MyReader/`。 -->
-
-<!-- ## 实现
-
-```
-MyReader/
-├── Epub/        EPUB 解析：container → OPF → spine / manifest / nav·NCX
-├── Library/     书库：SwiftData 存储、导入与删除
-└── Reader/      阅读器：WKWebView 容器、JS 桥接、样式与进度
-    └── Web/     排版外壳页与 ReadiumCSS
-``` -->
-
-<!-- 几点设计上的取舍：
-
-- **不解压到磁盘。** EPUB 保持原样存放，WebView 通过自定义的 `epub://` scheme 按需从压缩包中读取资源。
-- **排版交给 CSS。** 正文样式基于 [ReadiumCSS](https://github.com/readium/css)，分页依靠 CSS 多栏布局完成，JS 只负责导航、锚点和进度。
-- **进度按字符偏移记录。** 保存的是当前页首字符在章节文本中的位置，而不是页码，调整字号或窗口大小后依然能回到同一段落。 -->
+> 应用未经 Apple 公证，因此需要手动放行，仅首次打开时需要。也可以在终端执行 `xattr -dr com.apple.quarantine /Applications/MyReader.app` 代替第 3 步。
 
 ## 技术栈
 

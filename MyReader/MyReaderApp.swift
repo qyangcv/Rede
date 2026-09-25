@@ -1,28 +1,61 @@
 import SwiftUI
 import SwiftData
+import Sparkle
 
 @main
 struct MyReaderApp: App {
     @State private var session = ReaderSession()
+    private let updaterController: SPUStandardUpdaterController = {
+           #if DEBUG
+           let startingUpdater = false
+           #else
+           let startingUpdater = true
+           #endif
+           return SPUStandardUpdaterController(
+               startingUpdater: startingUpdater, updaterDelegate: nil, userDriverDelegate: nil)
+       }()
     
     init () {
         NSApplication.shared.appearance = NSAppearance(named: .aqua)
+        NSWindow.allowsAutomaticWindowTabbing = false
+        UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
+        UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
     }
     
     var body: some Scene {
-        WindowGroup {
+        Window("书库", id: "library") {
             ContentView()
         }
         .defaultSize(width: 600, height: 400)
         .modelContainer(.localLibrary)
         .environment(session)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesView(updater: updaterController.updater)
+            }
+            CommandGroup(before: .windowList) {
+                OpenLibraryCommand()
+            }
+        }
         
-        Window("Reader Window", id: ReaderSession.windowID) {
+        Window("阅读", id: ReaderSession.windowID) {
             ReaderWindow()
         }
         .defaultSize(width: 734, height: 861)
         .environment(session)
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
+        .commandsRemoved()
+    }
+}
+
+struct OpenLibraryCommand: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("书库") {
+            openWindow(id: "library")
+        }
+        .keyboardShortcut("0", modifiers: .command)
     }
 }
