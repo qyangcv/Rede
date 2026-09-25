@@ -72,5 +72,7 @@ buildServer.json
 .dev-asserts
 MyReader/default.profraw
 dist
+build
+
 
 CLAUDE.md
