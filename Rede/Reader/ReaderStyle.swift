@@ -77,17 +77,48 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var color: String? {
-        switch self {
-        case .original: nil
-        case .grey: "#e5e5e5"
-        case .sepia: "#f4ecd8"
+    struct Palette {
+        let background: String
+        let text: String
+    }
+
+    // 浅色下“默认”为 nil，沿用书自带样式；深色下书的样式不可用，每项都必须给出具体颜色
+    func palette(for scheme: ColorScheme) -> Palette? {
+        switch (self, scheme) {
+        case (.original, .light): nil
+        case (.original, _): Palette(background: "#1e1e1e", text: "#d0d0d0")
+        case (.grey, .light): Palette(background: "#e5e5e5", text: "#2f2c28")
+        case (.grey, _): Palette(background: "#2b2b2b", text: "#c8c8c8")
+        case (.sepia, .light): Palette(background: "#f4ecd8", text: "#2f2c28")
+        case (.sepia, _): Palette(background: "#2a2620", text: "#d6cdb8")
         }
     }
 
-    var textColor: String? { color == nil ? nil : "#2f2c28" }
+    func swatch(for scheme: ColorScheme) -> Color {
+        Color(hex: palette(for: scheme)?.background ?? "#ffffff")
+    }
+}
 
-    var swatch: Color { Color(hex: color ?? "#ffffff") }
+enum Appearance: String, CaseIterable, Identifiable, Codable {
+    case system, light, dark
+
+    var id: Self { self }
+
+    var name: String {
+        switch self {
+        case .system: "系统"
+        case .light: "浅色"
+        case .dark: "深色"
+        }
+    }
+
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
 }
 
 enum BackgroundPattern: String, CaseIterable, Identifiable, Codable {
@@ -144,15 +175,20 @@ struct ReaderStyle: Equatable {
         set { fontWeights[font] = newValue }
     }
 
-    var cssVariables: [String: String] {
-        [
+    // 浅色用 --RS__textColor，会被书自带样式覆盖；深色用 --USER__textColor 强制覆盖书内颜色。
+    // 两个键始终都要给出，不用的传空串，JS 端据此移除旧值
+    func cssVariables(for scheme: ColorScheme) -> [String: String] {
+        let palette = background.palette(for: scheme)
+        let forced = scheme == .dark
+        return [
             "--USER__fontSize": "\(fontScale)%",
             "--USER__fontFamily": font.family ?? "",
             "--USER__fontWeight": fontWeight.map(String.init) ?? "",
             "--USER__lineHeight": "\(lineSpacing.lineHeight)",
             "--USER__paraSpacing": "\(paraSpacing.paraSpacing)rem",
-            "--RS__textColor": background.textColor ?? "",
-            "--reader-bg": background.color ?? "",
+            "--RS__textColor": forced ? "" : palette?.text ?? "",
+            "--USER__textColor": forced ? palette?.text ?? "" : "",
+            "--reader-bg": palette?.background ?? "",
             "--reader-pattern": pattern.css,
         ]
     }
@@ -206,14 +242,23 @@ final class Settings {
 
     var readerStyle: ReaderStyle { didSet { save() } }
 
+    var appearance: Appearance {
+        didSet {
+            NSApp.appearance = appearance.nsAppearance
+            save()
+        }
+    }
+
     private struct Snapshot: Codable {
         var readerStyle: ReaderStyle?
+        var appearance: Appearance?
     }
 
     private init() {
         let snapshot = (try? Data(contentsOf: AppPaths.settings))
             .flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) }
         readerStyle = snapshot?.readerStyle ?? .default
+        appearance = snapshot?.appearance ?? .system
     }
 
     private func save() {
@@ -222,7 +267,7 @@ final class Settings {
                                                     withIntermediateDirectories: true)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(Snapshot(readerStyle: readerStyle))
+            try encoder.encode(Snapshot(readerStyle: readerStyle, appearance: appearance))
                 .write(to: AppPaths.settings, options: .atomic)
         } catch {
             Self.log.error("保存设置失败：\(error.localizedDescription, privacy: .public)")

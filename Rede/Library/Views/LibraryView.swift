@@ -93,7 +93,7 @@ struct LibraryView: View {
     private func layout(width: CGFloat) -> (columns: [GridItem], spacing: CGFloat) {
         let n = max(1, Int((width - minSpacing) / (cardWidth + minSpacing)))
         let spacing = (width - CGFloat(n) * cardWidth) / CGFloat(n + 1)
-        let column = GridItem(.fixed(cardWidth), spacing: spacing)
+        let column = GridItem(.fixed(cardWidth), spacing: spacing, alignment: .top)
         return (columns: Array(repeating: column, count: n), spacing: spacing)
     }
     
