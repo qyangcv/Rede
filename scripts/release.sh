@@ -42,7 +42,7 @@ gum confirm "Build and release $TAG (build $BUILD_NUMBER)?" || exit 0
 
 # 2. Archive (= Xcode → Product → Archive)
 rm -rf $BUILD/MyReader.xcarchive $BUILD/dmg
-gum spin --title "Building $TAG…" --show-error -- \
+gum spin --title "Building ${TAG}…" --show-error -- \
   xcodebuild archive -quiet \
     -scheme MyReader -configuration Release \
     -archivePath $BUILD/MyReader.xcarchive \
