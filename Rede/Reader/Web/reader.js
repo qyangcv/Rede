@@ -7,7 +7,7 @@
 const XHTML_NS = "http://www.w3.org/1999/xhtml";
 const READIUM_BASE = "rede://app/";
 const ASSET_TIMEOUT_MS = 5000;
-const SPREAD_RATIO = 2 / 3;
+const MIN_COLUMN_EM = 20
 
 // 版面相关的 ReadiumCSS 变量：
 // - 左右页边距
@@ -149,10 +149,17 @@ function waitAssets(doc, links) {
   return Promise.race([ready, timeout]);
 }
 
+function columnCount() {
+  const fontPx = 16 * parseFloat(state.style["--USER__fontSize"] || "100") / 100;
+  const gutter = parseFloat(LAYOUT_VARS["--RS__pageGutter"]);
+  const columnEm = (window.innerWidth / 2 - 2 * gutter) / fontPx;
+  return columnEm >= MIN_COLUMN_EM ? 2 : 1;
+}
+
 // 把用户设置和版面变量写到外壳页和章节文档的 :root；
 // 章节只认 --USER__* / --RS__*，外壳页只认 --reader-bg / --reader-pattern，互不干扰
 function applyStyle() {
-  state.columns = window.innerWidth > screen.availWidth * SPREAD_RATIO ? 2 : 1;
+  state.columns = columnCount();
   const vars = { ...LAYOUT_VARS, ...state.style, "--USER__colCount": String(state.columns) };
   for (const root of [document.documentElement, doc?.documentElement]) {
     if (!root) continue;
