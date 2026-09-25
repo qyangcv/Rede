@@ -5,13 +5,13 @@ import CryptoKit
 
 enum AppPaths {
     #if DEBUG
-    static let root = URL(filePath: #filePath)   // .../MyReader/Library/Library.swift
-        .deletingLastPathComponent()             // .../MyReader/Library
-        .deletingLastPathComponent()             // .../MyReader
+    static let root = URL(filePath: #filePath)   // .../Rede/Library/Library.swift
+        .deletingLastPathComponent()             // .../Rede/Library
+        .deletingLastPathComponent()             // .../Rede
         .deletingLastPathComponent()             // 仓库根目录
     #else
     static let root = URL.applicationSupportDirectory
-        .appending(component: "MyReader", directoryHint: .isDirectory)
+        .appending(component: "Rede", directoryHint: .isDirectory)
     #endif
     static let library = root.appending(component: ".library", directoryHint: .isDirectory)
     static let store = library.appending(component: "library.store")

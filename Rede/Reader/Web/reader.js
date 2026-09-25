@@ -5,7 +5,7 @@
 // 分页由 ReadiumCSS 在章节 :root 上分栏，本脚本只负责导航、锚点和进度。
 
 const XHTML_NS = "http://www.w3.org/1999/xhtml";
-const READIUM_BASE = "myreader://app/";
+const READIUM_BASE = "rede://app/";
 const ASSET_TIMEOUT_MS = 5000;
 const SPREAD_RATIO = 2 / 3;
 

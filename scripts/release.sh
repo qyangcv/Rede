@@ -38,32 +38,32 @@ fi
 TAG="v$VERSION"
 BUILD_NUMBER=$(git rev-list --count HEAD)
 BUILD=build
-DMG=dist/MyReader-$VERSION.dmg
+DMG=dist/Rede-$VERSION.dmg
 
 gum confirm "Build and release $TAG (build $BUILD_NUMBER)?" || exit 0
 
 # 2. Archive (= Xcode → Product → Archive)
-rm -rf $BUILD/MyReader.xcarchive $BUILD/dmg
+rm -rf $BUILD/Rede.xcarchive $BUILD/dmg
 gum spin --title "Building ${TAG}…" --show-error -- \
   xcodebuild archive -quiet \
-    -scheme MyReader -configuration Release \
-    -archivePath $BUILD/MyReader.xcarchive \
+    -scheme Rede -configuration Release \
+    -archivePath $BUILD/Rede.xcarchive \
     -derivedDataPath $BUILD/DerivedData \
     MARKETING_VERSION=$VERSION \
     CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
 # 3. Create dmg (= Copy App + manual hdiutil)
 mkdir -p $BUILD/dmg dist
-cp -R $BUILD/MyReader.xcarchive/Products/Applications/MyReader.app $BUILD/dmg/
+cp -R $BUILD/Rede.xcarchive/Products/Applications/Rede.app $BUILD/dmg/
 ln -s /Applications $BUILD/dmg/Applications
 gum spin --title "Creating dmg…" --show-error -- \
-  hdiutil create -volname MyReader -srcfolder $BUILD/dmg -ov -format UDZO "$DMG"
+  hdiutil create -volname Rede -srcfolder $BUILD/dmg -ov -format UDZO "$DMG"
 
 # 4. Generate appcast (signs the dmg with the EdDSA key in Keychain)
 rm -rf $BUILD/appcast && mkdir -p $BUILD/appcast
 cp "$DMG" $BUILD/appcast/
 $BUILD/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast $BUILD/appcast \
-  --download-url-prefix "https://github.com/qyangcv/MyReader/releases/download/$TAG/"
+  --download-url-prefix "https://github.com/qyangcv/Rede/releases/download/$TAG/"
 
 # 5. Publish to GitHub (GitHub creates the tag together with the release)
 CHANGES=$(git log ${LATEST:+$LATEST..}HEAD --no-merges --pretty='- %s')
@@ -72,7 +72,7 @@ NOTES=$(printf '## 更新内容\n\n%s\n\n%s' "$CHANGES" "$(< scripts/release-not
 git push origin main
 gh release create "$TAG" "$DMG" $BUILD/appcast/appcast.xml \
   --target "$(git rev-parse HEAD)" \
-  --title "MyReader $VERSION" \
+  --title "Rede $VERSION" \
   --notes "$NOTES" \
   --generate-notes
 git fetch --tags --quiet

@@ -66,11 +66,11 @@ fastlane/test_output
 .library
 .settings
 
-MyReaderFont
-MyReaderTests
+RedeFont
+RedeTests
 buildServer.json
 .dev-asserts
-MyReader/default.profraw
+Rede/default.profraw
 dist
 build
 

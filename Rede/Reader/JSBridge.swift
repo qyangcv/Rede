@@ -2,7 +2,7 @@ import WebKit
 import os
 
 struct JSBridge {
-    private static let log = Logger(subsystem: "MyReader", category: "JSBridge")
+    private static let log = Logger(subsystem: "Rede", category: "JSBridge")
     let webView: WKWebView
 
     @discardableResult

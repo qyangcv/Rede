@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src=".asserts/icon.png" width="64" alt="MyReader">
+<img src=".asserts/icon.png" width="64" alt="Rede">
 
-# MyReader
+# Rede
 
 一个轻量的 macOS 原生中文阅读器，仅用 2500 行代码实现。 
 
@@ -11,7 +11,7 @@
 
 </div>
 
-![MyReader 截图](.asserts/screenshot.png)
+![Rede 截图](.asserts/screenshot.png)
 
 ## 功能
 
@@ -34,13 +34,14 @@
 
 ## 安装
 
-1. 从 [Releases](https://github.com/qyangcv/MyReader/releases/latest) 下载最新的 `MyReader.dmg`
-2. 打开 dmg，将 MyReader 拖入 “应用程序” 文件夹
+1. 从 [Releases](https://github.com/qyangcv/Rede/releases/latest) 下载最新的 `Rede.dmg`
+2. 打开 dmg，将 Rede 拖入 “应用程序” 文件夹
 3. 首次打开时会被系统拦截，前往 “系统设置 > 隐私与安全性”，点击“仍要打开”
 
-> 应用未经 Apple 公证，因此需要手动放行，仅首次打开时需要。也可以在终端执行 `xattr -dr com.apple.quarantine /Applications/MyReader.app` 代替第 3 步。
+> 应用未经 Apple 公证，因此需要手动放行，仅首次打开时需要。也可以在终端执行 `xattr -dr com.apple.quarantine /Applications/Rede.app` 代替第 3 步。
 
 ## 技术栈
 
 - [ZIPFoundation](https://github.com/weichsel/ZIPFoundation)
 - [ReadiumCSS](https://github.com/readium/css)
+- [Sparkle](https://github.com/sparkle-project/Sparkle)

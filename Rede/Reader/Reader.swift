@@ -56,7 +56,7 @@ final class EpubSchemeHandler: NSObject, WKURLSchemeHandler {
 }
 
 final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
-    static let scheme = "myreader"
+    static let scheme = "rede"
     private static let host = "app"
     private static let allowed: Set<String> = [
         "reader.html", "reader.js", "reader.css", "leaf.svg",
