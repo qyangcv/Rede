@@ -78,10 +78,12 @@ struct StylePanel: View {
                     label("外观")
                     Picker("外观", selection: $appearance) {
                         ForEach(Appearance.allCases) { item in
-                            Text(item.name).tag(item)
+                            Label(item.name, systemImage: item.icon)
+                                .tag(item)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .fixedSize()
                     .labelsHidden()
                 }
 
