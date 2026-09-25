@@ -37,6 +37,10 @@ final class Book {
     var parent: URL { AppPaths.books.appending(component: id, directoryHint: .isDirectory) }
     var url: URL { parent.appending(component: "book.epub") }
     var cover: URL { parent.appending(component: "cover.jpg") }
+    var exportName: String {
+        name.replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-") + ".epub"
+    }
 }
 
 extension ModelContainer {
