@@ -6,5 +6,20 @@
 	<string>https://github.com/qyangcv/Rede/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>zI9sCLTO6/TtfolnZJnMINdLGBJRry0f6RWx8qL2UEg=</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>EPUB</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>org.idpf.epub-container</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

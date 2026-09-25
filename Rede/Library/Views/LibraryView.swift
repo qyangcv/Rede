@@ -94,6 +94,13 @@ struct LibraryView: View {
             } message: {
                 Text(errors.joined(separator: "\n"))
             }
+            .onOpenURL { url in
+                do {
+                    open(try BookImporter.importBook(from: url, into: modelContext))
+                } catch {
+                    errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+                }
+            }
         }
     }
     

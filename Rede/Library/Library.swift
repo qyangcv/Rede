@@ -57,10 +57,11 @@ extension ModelContainer {
 }
 
 enum BookImporter {
-    static func importBook(from source: URL, into context: ModelContext) throws {
+    @discardableResult
+    static func importBook(from source: URL, into context: ModelContext) throws -> Book {
         let id = try fileID(of: source)
         let existing = FetchDescriptor<Book>(predicate: #Predicate { $0.id == id })
-        guard try context.fetchCount(existing) == 0 else { return }
+        if let book = try context.fetch(existing).first { return book }
 
         let fm = FileManager.default
         let book = Book(id: id, name: "", author: "")
@@ -77,6 +78,7 @@ enum BookImporter {
         
         context.insert(book)
         try context.save()
+        return book
     }
 
     private static func fileID(of url: URL) throws -> String {
