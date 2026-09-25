@@ -3,7 +3,7 @@ import SwiftData
 import Sparkle
 
 @main
-struct MyReaderApp: App {
+struct RedeApp: App {
     @State private var session = ReaderSession()
     private let updaterController: SPUStandardUpdaterController = {
            #if DEBUG

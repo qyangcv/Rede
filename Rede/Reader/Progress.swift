@@ -16,7 +16,7 @@ struct ReadingPosition: Codable, Equatable {
 @MainActor
 final class ProgressStore {
     private static let delay: Duration = .seconds(2)
-    private static let log = Logger(subsystem: "MyReader", category: "ReadingProgress")
+    private static let log = Logger(subsystem: "Rede", category: "ReadingProgress")
 
     private let book: Book
     private let context: ModelContext

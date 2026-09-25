@@ -202,7 +202,7 @@ extension ReaderStyle: Codable {
 @Observable
 final class Settings {
     static let shared = Settings()
-    private static let log = Logger(subsystem: "MyReader", category: "Settings")
+    private static let log = Logger(subsystem: "Rede", category: "Settings")
 
     var readerStyle: ReaderStyle { didSet { save() } }
 
