@@ -6,11 +6,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# 0. 前置检查
-[[ $(git branch --show-current) == main ]] || { echo "请在 main 分支发布"; exit 1; }
-[[ -z $(git status --porcelain) ]]         || { echo "工作区有未提交的改动"; exit 1; }
+[[ $(git branch --show-current) == main ]] || { echo "Please release from the main branch"; exit 1; }
+[[ -z $(git status --porcelain) ]]         || { echo "Working tree has uncommitted changes"; exit 1; }
 
-# 1. 选择版本号
+# 1. Choose version
 LATEST=$(git tag -l 'v*' --sort=-v:refname | head -1)
 CURRENT=${LATEST#v}
 CURRENT=${CURRENT:-0.0.0}
@@ -20,44 +19,45 @@ PATCH_V="$MAJOR.$MINOR.$((PATCH + 1))"
 MINOR_V="$MAJOR.$((MINOR + 1)).0"
 MAJOR_V="$((MAJOR + 1)).0.0"
 
-echo "当前版本：$CURRENT"
-echo "  1) $PATCH_V  修订版本（默认）"
-echo "  2) $MINOR_V  次版本"
-echo "  3) $MAJOR_V  主版本"
-echo "  4) 自定义"
-read -rp "请选择 [1]: " CHOICE
+CHOICE=$(gum choose --header "Current version: $CURRENT. Choose the version to release" \
+  --selected "$PATCH_V  patch" \
+  "$PATCH_V  patch" "$MINOR_V  minor" "$MAJOR_V  major" "custom")
 
-case ${CHOICE:-1} in
-  1) VERSION=$PATCH_V ;;
-  2) VERSION=$MINOR_V ;;
-  3) VERSION=$MAJOR_V ;;
-  4) read -rp "输入版本号: " VERSION ;;
-  *) echo "无效选择"; exit 1 ;;
+case $CHOICE in
+  custom) VERSION=$(gum input --header "Enter version" --placeholder "x.y.z") ;;
+  *)      VERSION=${CHOICE%% *} ;;
 esac
 
-[[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "版本号格式应为 x.y.z"; exit 1; }
+[[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Version must be in x.y.z format"; exit 1; }
 if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
-  echo "v$VERSION 已存在"; exit 1
+  echo "v$VERSION already exists"; exit 1
 fi
 
 TAG="v$VERSION"
+BUILD_NUMBER=$(git rev-list --count HEAD)
+BUILD=build
+DMG=dist/MyReader-$VERSION.dmg
 
-# 1. Archive（= Xcode → Product → Archive）
+gum confirm "Build and release $TAG (build $BUILD_NUMBER)?" || exit 0
+
+# 2. Archive (= Xcode → Product → Archive)
 rm -rf $BUILD/MyReader.xcarchive $BUILD/dmg
-xcodebuild archive -quiet \
-  -scheme MyReader -configuration Release \
-  -archivePath $BUILD/MyReader.xcarchive \
-  -derivedDataPath $BUILD/DerivedData \
-  MARKETING_VERSION=$VERSION \
-  CURRENT_PROJECT_VERSION=$BUILD_NUMBER
+gum spin --title "Building $TAG…" --show-error -- \
+  xcodebuild archive -quiet \
+    -scheme MyReader -configuration Release \
+    -archivePath $BUILD/MyReader.xcarchive \
+    -derivedDataPath $BUILD/DerivedData \
+    MARKETING_VERSION=$VERSION \
+    CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
-# 2. 制作 dmg（= Copy App + 手动 hdiutil）
+# 3. Create dmg (= Copy App + manual hdiutil)
 mkdir -p $BUILD/dmg dist
 cp -R $BUILD/MyReader.xcarchive/Products/Applications/MyReader.app $BUILD/dmg/
 ln -s /Applications $BUILD/dmg/Applications
-hdiutil create -volname MyReader -srcfolder $BUILD/dmg -ov -format UDZO "$DMG"
+gum spin --title "Creating dmg…" --show-error -- \
+  hdiutil create -volname MyReader -srcfolder $BUILD/dmg -ov -format UDZO "$DMG"
 
-# 3. 发布到 GitHub
+# 4. Publish to GitHub
 # git tag "$TAG"
 # git push origin main "$TAG"
 # gh release create "$TAG" "$DMG" \
@@ -65,4 +65,4 @@ hdiutil create -volname MyReader -srcfolder $BUILD/dmg -ov -format UDZO "$DMG"
 #   --notes-file scripts/release-notes.md \
 #   --generate-notes
 
-# echo "已发布 $TAG"
+echo "Released $TAG"
