@@ -4,7 +4,7 @@
 
 # Rede
 
-一个轻量的 macOS 原生中文阅读器，仅用 2500 行代码实现。 
+一个轻量的 macOS 原生中文阅读器。 
 
 ![macOS](https://img.shields.io/badge/macOS-26.0+-000?logo=apple&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-5-F05138?logo=swift&logoColor=white)
@@ -30,6 +30,7 @@
 
 - 选择字体、调节字号与字体粗细
 - 调整行距、段距
+- 切换深色模式、浅色模式
 - 切换背景色、背景图案
 
 **检查更新**
