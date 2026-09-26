@@ -11,7 +11,11 @@
 
 </div>
 
-![Rede 截图](.asserts/screenshot.png)
+## 预览
+
+![Rede 截图](.asserts/frame-1.png)
+![Rede 截图](.asserts/frame-2.png)
+
 
 ## 功能
 
