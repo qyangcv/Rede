@@ -4,7 +4,7 @@
 
 # Rede
 
-一个轻量的 macOS 原生中文阅读器。 
+一个轻量的 macOS 原生中文阅读器，仅 2 MB。 
 
 ![macOS](https://img.shields.io/badge/macOS-26.0+-000?logo=apple&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-5-F05138?logo=swift&logoColor=white)
