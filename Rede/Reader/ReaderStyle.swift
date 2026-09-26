@@ -159,23 +159,28 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
 }
 
 enum Spacing: String, CaseIterable, Identifiable, Codable {
-    case compact, standard, loose
+    case compact, snug, standard, relaxed, loose
 
     var id: Self { self }
 
     var name: String {
         switch self {
         case .compact: "小"
+        case .snug: "较小"
         case .standard: "中"
+        case .relaxed: "较大"
         case .loose: "大"
         }
     }
 
+    // 各档视觉空白（行距 lineHeight − 1，段距 paraSpacing + 行间空白）约按 1.25 倍等比递增
     private var metrics: (lineHeight: Double, paraSpacing: Double) {
         switch self {
-        case .compact: (1.4, 0.4)
-        case .standard: (1.6, 0.9)
-        case .loose: (1.9, 1.5)
+        case .compact: (1.4, 0.2)
+        case .snug: (1.5, 0.5)
+        case .standard: (1.65, 0.8)
+        case .relaxed: (1.8, 1.2)
+        case .loose: (2.0, 1.6)
         }
     }
 
@@ -190,7 +195,7 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
 
     var name: String {
         switch self {
-        case .neutral: "中性"
+        case .neutral: "白色"
         case .warm: "暖黄"
         }
     }
