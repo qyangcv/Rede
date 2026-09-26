@@ -277,16 +277,8 @@ struct EpubFile: FileDocument {
 }
 
 
-
-#Preview("appearanceButton") {
-    @Previewable @State var appearance = Appearance.system
-    VStack(spacing: 20) {
-        HStack(spacing: 24) {
-            ForEach(Appearance.allCases) { item in
-                Label(item.name, systemImage: item.icon)
-            }
-        }
-        AppearanceButton(appearance: $appearance)
-    }
-    .padding()
+#Preview("library") {
+    LibraryView()
+        .modelContainer(.localLibrary)
+        .environment(ReaderSession())
 }
