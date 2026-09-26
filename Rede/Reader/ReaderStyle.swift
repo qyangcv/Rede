@@ -184,36 +184,35 @@ enum Spacing: String, CaseIterable, Identifiable, Codable {
 }
 
 enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
-    case original, grey, sepia
+    case neutral, warm
 
     var id: Self { self }
 
     var name: String {
         switch self {
-        case .original: "默认"
-        case .grey: "浅灰"
-        case .sepia: "米黄"
+        case .neutral: "中性"
+        case .warm: "暖黄"
         }
     }
 
-    struct Palette {
-        let background: String
-        let text: String
-    }
-
-    func palette(for scheme: ColorScheme) -> Palette? {
+    func color(for scheme: ColorScheme) -> String {
         switch (self, scheme) {
-        case (.original, .light): nil
-        case (.original, _): Palette(background: "#1e1e1e", text: "#d0d0d0")
-        case (.grey, .light): Palette(background: "#e5e5e5", text: "#2f2c28")
-        case (.grey, _): Palette(background: "#2b2b2b", text: "#c8c8c8")
-        case (.sepia, .light): Palette(background: "#f4ecd8", text: "#2f2c28")
-        case (.sepia, _): Palette(background: "#2a2620", text: "#d6cdb8")
+        case (.neutral, .dark): "#1A1A1A" // 松烟
+        case (.neutral, _): "#F8F8F8"     // 素笺
+        case (.warm, .dark): "#211E16"    // 旧墨
+        case (.warm, _): "#F5F0E6"        // 缃帙
         }
     }
 
     func swatch(for scheme: ColorScheme) -> Color {
-        Color(hex: palette(for: scheme)?.background ?? "#ffffff")
+        Color(hex: color(for: scheme))
+    }
+}
+
+// 文字色不随背景变化，只分浅色、深色两种外观
+enum TextColor {
+    static func color(for scheme: ColorScheme) -> String {
+        scheme == .dark ? "#D1D1D1" : "#303030"
     }
 }
 
@@ -294,7 +293,7 @@ struct ReaderStyle: Equatable {
     static let fontScaleStep = 10
     static let `default` = ReaderStyle(fontScale: 100, font: .original, fontWeights: [:],
                                       lineSpacing: .standard, paraSpacing: .standard,
-                                      background: .original, pattern: .none)
+                                      background: .neutral, pattern: .none)
 
     var fontWeight: Int? {
         get { font.defaultWeight.map { fontWeights[font] ?? $0 } }
@@ -302,7 +301,8 @@ struct ReaderStyle: Equatable {
     }
 
     func cssVariables(for scheme: ColorScheme) -> [String: String] {
-        let palette = background.palette(for: scheme)
+        let text = TextColor.color(for: scheme)
+        // 浅色模式只设默认文字色，保留书籍自带的颜色；深色模式强制覆盖，避免深色文字落在深色背景上看不清
         let forced = scheme == .dark
         return [
             "--USER__fontSize": "\(fontScale)%",
@@ -310,9 +310,9 @@ struct ReaderStyle: Equatable {
             "--USER__fontWeight": fontWeight.map(String.init) ?? "",
             "--USER__lineHeight": "\(lineSpacing.lineHeight)",
             "--USER__paraSpacing": "\(paraSpacing.paraSpacing)rem",
-            "--RS__textColor": forced ? "" : palette?.text ?? "",
-            "--USER__textColor": forced ? palette?.text ?? "" : "",
-            "--reader-bg": palette?.background ?? "",
+            "--RS__textColor": forced ? "" : text,
+            "--USER__textColor": forced ? text : "",
+            "--reader-bg": background.color(for: scheme),
             "--reader-pattern": pattern.css,
         ]
     }
