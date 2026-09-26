@@ -53,7 +53,7 @@ struct StylePanel: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                if let weight = style.fontWeight {
+                if let weight = style.fontWeight, style.font.weights.count > 1 {
                     GridRow {
                         label("粗细")
                         FontWeightSlider(weights: style.font.weights,
