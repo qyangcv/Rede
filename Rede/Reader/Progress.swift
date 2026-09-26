@@ -18,7 +18,7 @@ struct PageInfo: Codable, Equatable {
     var pageCount: Int
 }
 
-extension EpubBook {
+nonisolated extension EpubBook {
     func chapterLengths() -> [Int] {
         model.spine.map { item in
             guard let data = try? fetcher.data(at: item.path),
@@ -27,6 +27,32 @@ extension EpubBook {
             else { return 0 }
             return nodes.reduce(0) { $0 + ($1.stringValue?.utf16.count ?? 0) }
         }
+    }
+}
+
+@MainActor
+final class ChapterLengthIndexer {
+    static let shared = ChapterLengthIndexer()
+    private var running: Set<String> = []
+
+    func ensure(_ book: Book, in context: ModelContext) {
+        guard book.chapterLengths.isEmpty, running.insert(book.id).inserted else { return }
+        let id = book.id, url = book.url
+        Task {
+            let lengths = try? await Self.compute(url)
+            running.remove(id)
+            guard let lengths,
+                  let book = try? context.fetch(FetchDescriptor<Book>(
+                      predicate: #Predicate { $0.id == id })).first
+            else { return }
+            book.chapterLengths = lengths
+            try? context.save()
+        }
+    }
+
+    @concurrent
+    nonisolated private static func compute(_ url: URL) async throws -> [Int] {
+        try parseEpub(at: url).chapterLengths()
     }
 }
 
