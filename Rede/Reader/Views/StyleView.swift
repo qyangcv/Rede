@@ -42,20 +42,22 @@ struct StylePanel: View {
 
                 GridRow {
                     label("字体")
-                    Picker("字体", selection: $style.font) {
-                        let fonts = ReaderFont.allCases.filter(\.isAvailable)
-                        Section("内置字体") {
-                            ForEach(fonts.filter(\.isBuiltin)) { Text($0.name).tag($0) }
-                        }
-                        let thirdParty = fonts.filter { !$0.isBuiltin }
-                        if !thirdParty.isEmpty {
-                            Section("三方字体") {
-                                ForEach(thirdParty) { Text($0.name).tag($0) }
+                    Menu(style.font.name) {
+                        Picker("字体", selection: $style.font) {
+                            let fonts = ReaderFont.allCases.filter(\.isAvailable)
+                            Section("内置字体") {
+                                ForEach(fonts.filter(\.isBuiltin)) { Text($0.name).tag($0) }
+                            }
+                            let thirdParty = fonts.filter { !$0.isBuiltin }
+                            if !thirdParty.isEmpty {
+                                Section("三方字体") {
+                                    ForEach(thirdParty) { Text($0.name).tag($0) }
+                                }
                             }
                         }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
                     }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
                     .fixedSize()
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
