@@ -70,7 +70,7 @@ final class FontStore {
                 try fm.removeItem(at: target)
             }
         }
-        guard package.files.values.allSatisfy({ fm.fileExists(atPath: staging.appending(component: $0).path(percentEncoded: false)) })
+        guard package.faces.allSatisfy({ fm.fileExists(atPath: staging.appending(component: $0.file).path(percentEncoded: false)) })
         else { throw CocoaError(.fileNoSuchFile) }
 
         try? fm.removeItem(at: font.directory)

@@ -9,17 +9,27 @@ struct FontPackage {
         let sha256: String
     }
 
+    // 安装后的字体文件及其覆盖的字重：静态字体为单点，可变字体为区间
+    struct Face {
+        let file: String
+        let weights: ClosedRange<Int>
+    }
+
     let author: String
     let license: String
     let repository: URL
     let assets: [Asset]
-    let files: [Int: String]  // 字重 → 安装后的文件名
+    let faces: [Face]
 
     var size: Int { assets.reduce(0) { $0 + $1.size } }
+
+    var weights: [Int] {
+        Set(faces.flatMap { stride(from: $0.weights.lowerBound, through: $0.weights.upperBound, by: 25) }).sorted()
+    }
 }
 
 enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresentable {
-    case original, system, pingfang, lxgwWenKai, zhuqueFangsong
+    case original, system, pingfang, lxgwWenKai, zhuqueFangsong, sourceHanSans, sourceHanSerif
 
     var id: Self { self }
 
@@ -30,6 +40,8 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .pingfang: "苹方"
         case .lxgwWenKai: "霞鹜文楷"
         case .zhuqueFangsong: "朱雀仿宋"
+        case .sourceHanSans: "思源黑体"
+        case .sourceHanSerif: "思源宋体"
         }
     }
 
@@ -40,6 +52,8 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .pingfang: "\"PingFang SC\""
         case .lxgwWenKai: "\"Rede LXGW WenKai\""
         case .zhuqueFangsong: "\"Rede Zhuque Fangsong\""
+        case .sourceHanSans: "\"Rede Source Han Sans\""
+        case .sourceHanSerif: "\"Rede Source Han Serif\""
         }
     }
 
@@ -49,6 +63,8 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .system: 300
         case .pingfang: 300
         case .lxgwWenKai, .zhuqueFangsong: 400
+        case .sourceHanSans: 325
+        case .sourceHanSerif: 400
         }
     }
 
@@ -57,7 +73,9 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: []
         case .system: Array(stride(from: 200, through: 500, by: 25))
         case .pingfang: [200, 300, 400, 500]
-        case .lxgwWenKai, .zhuqueFangsong: package?.files.keys.sorted() ?? []
+        case .sourceHanSans: Array(stride(from: 250, through: 500, by: 25))
+        case .sourceHanSerif: Array(stride(from: 250, through: 600, by: 25))
+        case .lxgwWenKai, .zhuqueFangsong: package?.weights ?? []
         }
     }
 
@@ -76,7 +94,9 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
                 .init(url: URL(string: "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522/LXGWWenKai-Medium.ttf")!,
                       size: 25_379_848, sha256: "d4bdeb38a39151d74d084cba5090f8cb7d20bf83eedb78c35939ae70b9f4e3f6"),
             ],
-            files: [300: "LXGWWenKai-Light.ttf", 400: "LXGWWenKai-Regular.ttf", 500: "LXGWWenKai-Medium.ttf"])
+            faces: [.init(file: "LXGWWenKai-Light.ttf", weights: 300...300),
+                    .init(file: "LXGWWenKai-Regular.ttf", weights: 400...400),
+                    .init(file: "LXGWWenKai-Medium.ttf", weights: 500...500)])
         case .zhuqueFangsong: FontPackage(
             author: "TrionesType", license: "OFL 1.1",
             repository: URL(string: "https://github.com/TrionesType/zhuque")!,
@@ -84,20 +104,38 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
                 .init(url: URL(string: "https://github.com/TrionesType/zhuque/releases/download/v0.212/ZhuqueFangsong-v0.212.zip")!,
                       size: 5_743_932, sha256: "bb8b661a7643d2296a72d9d10530a00949419c4e527fb61783f73c2ba1a8c062"),
             ],
-            files: [400: "ZhuqueFangsong-Regular.ttf"])
+            faces: [.init(file: "ZhuqueFangsong-Regular.ttf", weights: 400...400)])
+        case .sourceHanSans: FontPackage(
+            author: "Adobe", license: "OFL 1.1",
+            repository: URL(string: "https://github.com/adobe-fonts/source-han-sans")!,
+            assets: [
+                .init(url: URL(string: "https://raw.githubusercontent.com/adobe-fonts/source-han-sans/6c709ca72d3d7c46ab42ebecc1a26e7d69595a37/Variable/WOFF2/OTF/Subset/SourceHanSansCN-VF.otf.woff2")!,
+                      size: 7_995_716, sha256: "7087698d52240614659957608d8c4ad446759aee3208409dc9f566412e7af8f4"),
+            ],
+            faces: [.init(file: "SourceHanSansCN-VF.otf.woff2", weights: 250...900)])
+        case .sourceHanSerif: FontPackage(
+            author: "Adobe", license: "OFL 1.1",
+            repository: URL(string: "https://github.com/adobe-fonts/source-han-serif")!,
+            assets: [
+                .init(url: URL(string: "https://raw.githubusercontent.com/adobe-fonts/source-han-serif/7889f11bf31170b5d092a083b357c8c8130f89e0/Variable/WOFF2/OTF/Subset/SourceHanSerifCN-VF.otf.woff2")!,
+                      size: 10_421_244, sha256: "808cb3203bb9cdd6b166a8a656a0c7608a7dc2a31c41c2cd0374550cae445471"),
+            ],
+            faces: [.init(file: "SourceHanSerifCN-VF.otf.woff2", weights: 250...900)])
         }
     }
 
     var directory: URL {
         AppPaths.fonts.appending(component: rawValue, directoryHint: .isDirectory)
     }
+    
+    var isBuiltin: Bool { package == nil }
 
     var isAvailable: Bool { package == nil || FontStore.shared.downloaded.contains(self) }
 
     static var fontFaceCSS: String {
         allCases.flatMap { font in
-            (font.package?.files ?? [:]).sorted { $0.key < $1.key }.map { weight, name in
-                "@font-face { font-family: \(font.family ?? ""); font-weight: \(weight); src: url(\"fonts/\(font.rawValue)/\(name)\"); }"
+            (font.package?.faces ?? []).map { face in
+                "@font-face { font-family: \(font.family ?? ""); font-weight: \(face.weights.lowerBound) \(face.weights.upperBound); src: url(\"fonts/\(font.rawValue)/\(face.file)\"); }"
             }
         }.joined(separator: "\n")
     }
@@ -107,7 +145,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         guard parts.count == 3, parts[0] == "fonts",
               let font = ReaderFont(rawValue: parts[1]),
               let package = font.package,
-              package.files.values.contains(parts[2]) else { return nil }
+              package.faces.contains(where: { $0.file == parts[2] }) else { return nil }
         return font.directory.appending(component: parts[2])
     }
 }
