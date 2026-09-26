@@ -3,7 +3,7 @@
 import Foundation
 import ZIPFoundation
 
-struct EpubModel {
+nonisolated struct EpubModel {
     let opfPath: String
     let metadata: EpubMetadata
     let manifest: [String: EpubManifestItem]
@@ -12,20 +12,20 @@ struct EpubModel {
     let cover: EpubManifestItem?
 }
 
-struct EpubMetadata {
+nonisolated struct EpubMetadata {
     let title: String
     let author: String
     let language: String
 }
 
-struct EpubManifestItem {
+nonisolated struct EpubManifestItem {
     let id: String
     let path: String
     let mediaType: String
     let properties: Set<String>
 }
 
-struct EpubTocEntry: Identifiable {
+nonisolated struct EpubTocEntry: Identifiable {
     let id: String
     let title: String
     let path: String
@@ -33,18 +33,18 @@ struct EpubTocEntry: Identifiable {
     let children: [EpubTocEntry]
 }
 
-struct EpubBook {
+nonisolated struct EpubBook {
     let model: EpubModel
     let fetcher: EpubFetcher
 }
 
-enum EpubParsingError: Error {
+nonisolated enum EpubParsingError: Error {
     case containerNotFound
     case opfNotFound
     case entryNotFound(String)
 }
 
-func parseEpub(at fileURL: URL) throws -> EpubBook {
+nonisolated func parseEpub(at fileURL: URL) throws -> EpubBook {
     let archive = try Archive(url: fileURL, accessMode: .read)
     let fetcher = EpubFetcher(archive: archive)
 
@@ -70,7 +70,7 @@ func parseEpub(at fileURL: URL) throws -> EpubBook {
     return EpubBook(model: model, fetcher: fetcher)
 }
 
-private func parseMetadata(_ opfXML: XMLDocument) throws -> EpubMetadata {
+nonisolated private func parseMetadata(_ opfXML: XMLDocument) throws -> EpubMetadata {
     let title = try opfXML.nodes(forXPath: "//*[local-name()='title']").first?.stringValue ?? ""
     let author = try opfXML.nodes(forXPath: "//*[local-name()='creator']").first?.stringValue ?? ""
     let language = try opfXML.nodes(forXPath: "//*[local-name()='language']").first?.stringValue ?? ""
@@ -78,7 +78,7 @@ private func parseMetadata(_ opfXML: XMLDocument) throws -> EpubMetadata {
                         language: language.trimmingCharacters(in: .whitespacesAndNewlines))
 }
 
-private func parseManifest(_ opfXML: XMLDocument, opfPath: String) throws -> [String: EpubManifestItem] {
+nonisolated private func parseManifest(_ opfXML: XMLDocument, opfPath: String) throws -> [String: EpubManifestItem] {
     var manifest: [String: EpubManifestItem] = [:]
 
     let items = try opfXML.nodes(forXPath: "//*[local-name()='manifest']/*[local-name()='item']")
@@ -95,7 +95,7 @@ private func parseManifest(_ opfXML: XMLDocument, opfPath: String) throws -> [St
     return manifest
 }
 
-private func parseSpine(_ opfXML: XMLDocument, manifest: [String: EpubManifestItem]) throws -> [EpubManifestItem] {
+nonisolated private func parseSpine(_ opfXML: XMLDocument, manifest: [String: EpubManifestItem]) throws -> [EpubManifestItem] {
     var spine: [EpubManifestItem] = []
 
     let itemrefs = try opfXML.nodes(forXPath: "//*[local-name()='spine']/*[local-name()='itemref']")
@@ -108,7 +108,7 @@ private func parseSpine(_ opfXML: XMLDocument, manifest: [String: EpubManifestIt
     return spine
 }
 
-private func parseToc(fetcher: EpubFetcher, opfXML: XMLDocument,
+nonisolated private func parseToc(fetcher: EpubFetcher, opfXML: XMLDocument,
                       manifest: [String: EpubManifestItem]) -> [EpubTocEntry] {
     if let nav = manifest.values.first(where: { $0.properties.contains("nav") }),
        let toc = try? parseNavToc(fetcher: fetcher, navPath: nav.path), !toc.isEmpty {
@@ -119,7 +119,7 @@ private func parseToc(fetcher: EpubFetcher, opfXML: XMLDocument,
     return toc
 }
 
-private func findNcxPath(_ opfXML: XMLDocument, manifest: [String: EpubManifestItem]) -> String? {
+nonisolated private func findNcxPath(_ opfXML: XMLDocument, manifest: [String: EpubManifestItem]) -> String? {
     guard let tocId = try? opfXML
         .nodes(forXPath: "//*[local-name()='spine']/@toc")
         .first?.stringValue else { return nil }
@@ -127,7 +127,7 @@ private func findNcxPath(_ opfXML: XMLDocument, manifest: [String: EpubManifestI
 }
 
 
-private func findCover(_ opfXML: XMLDocument, manifest: [String: EpubManifestItem]) -> EpubManifestItem? {
+nonisolated private func findCover(_ opfXML: XMLDocument, manifest: [String: EpubManifestItem]) -> EpubManifestItem? {
     if let item = manifest.values.first(where: { $0.properties.contains("cover-image") }) {
         return item
     }
@@ -137,13 +137,13 @@ private func findCover(_ opfXML: XMLDocument, manifest: [String: EpubManifestIte
     return manifest[coverId]
 }
 
-private func parseNcxToc(fetcher: EpubFetcher, ncxPath: String) throws -> [EpubTocEntry] {
+nonisolated private func parseNcxToc(fetcher: EpubFetcher, ncxPath: String) throws -> [EpubTocEntry] {
     let ncxXML = try XMLDocument(data: fetcher.data(at: ncxPath))
     guard let navMap = try ncxXML.nodes(forXPath: "//*[local-name()='navMap']").first else { return [] }
     return try parseNavPoints(navMap, ncxPath: ncxPath, idPrefix: "")
 }
 
-private func parseNavPoints(_ parent: XMLNode, ncxPath: String, idPrefix: String) throws -> [EpubTocEntry] {
+nonisolated private func parseNavPoints(_ parent: XMLNode, ncxPath: String, idPrefix: String) throws -> [EpubTocEntry] {
     var toc: [EpubTocEntry] = []
 
     let navPoints = try parent.nodes(forXPath: "./*[local-name()='navPoint']")
@@ -165,7 +165,7 @@ private func parseNavPoints(_ parent: XMLNode, ncxPath: String, idPrefix: String
     return toc
 }
 
-private func parseNavToc(fetcher: EpubFetcher, navPath: String) throws -> [EpubTocEntry] {
+nonisolated private func parseNavToc(fetcher: EpubFetcher, navPath: String) throws -> [EpubTocEntry] {
     let navXML = try XMLDocument(data: fetcher.data(at: navPath))
     guard let list = try navXML.nodes(forXPath:
         "//*[local-name()='nav'][@*[local-name()='type']='toc']/*[local-name()='ol']").first
@@ -173,7 +173,7 @@ private func parseNavToc(fetcher: EpubFetcher, navPath: String) throws -> [EpubT
     return try parseNavList(list, navPath: navPath, idPrefix: "")
 }
 
-private func parseNavList(_ list: XMLNode, navPath: String, idPrefix: String) throws -> [EpubTocEntry] {
+nonisolated private func parseNavList(_ list: XMLNode, navPath: String, idPrefix: String) throws -> [EpubTocEntry] {
     var toc: [EpubTocEntry] = []
 
     let items = try list.nodes(forXPath: "./*[local-name()='li']")
@@ -197,7 +197,7 @@ private func parseNavList(_ list: XMLNode, navPath: String, idPrefix: String) th
     return toc
 }
 
-private func resolveHref(_ href: String, relativeTo documentPath: String) -> (path: String, fragment: String?) {
+nonisolated private func resolveHref(_ href: String, relativeTo documentPath: String) -> (path: String, fragment: String?) {
     let parts = href.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
     let rawPath = parts.first.map(String.init) ?? ""
     let fragment = parts.count > 1 ? String(parts[1]) : nil
@@ -212,7 +212,7 @@ private func resolveHref(_ href: String, relativeTo documentPath: String) -> (pa
     return (normalizePath(joined), fragment)
 }
 
-private func normalizePath(_ path: String) -> String {
+nonisolated private func normalizePath(_ path: String) -> String {
     // remove first `/`
     // remove `.`
     // resolve `..`
@@ -230,7 +230,7 @@ private func normalizePath(_ path: String) -> String {
     return components.joined(separator: "/")
 }
 
-struct EpubFetcher {
+nonisolated struct EpubFetcher {
     let archive: Archive
 
     func exist(at path: String) -> Bool {

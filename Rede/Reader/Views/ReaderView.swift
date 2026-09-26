@@ -92,10 +92,8 @@ final class ReaderSession {
         store?.flush()
 
         let epub = try parseEpub(at: book.url)
-        // 早于字数统计功能导入的书，首次打开时补算
-        if book.chapterLengths.isEmpty {
-            book.chapterLengths = epub.chapterLengths()
-        }
+        // 早于字数统计功能导入的书，首次打开时在后台补算
+        ChapterLengthIndexer.shared.ensure(book, in: context)
         let store = ProgressStore(book: book, context: context)
         let reader = Reader(book: epub, start: book.position)
         reader.onProgress = { [weak self] position, page in

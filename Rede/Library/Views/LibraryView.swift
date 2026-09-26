@@ -203,12 +203,15 @@ struct BookCard: View {
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if let progress = book.progress {
-                    // 向下取整，避免未读完就四舍五入成 100%
-                    Text("\(Int(progress * 100))%")
-                        .font(.caption)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .fixedSize()
+                    Text(progress.formatted(
+                        .percent
+                            .precision(.fractionLength(0...1))
+                            .rounded(rule: .down)
+                    ))
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
                 }
             }
             Text(book.author)

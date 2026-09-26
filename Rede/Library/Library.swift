@@ -84,12 +84,12 @@ enum BookImporter {
         let title = epub.model.metadata.title.trimmingCharacters(in: .whitespacesAndNewlines)
         book.name = title.isEmpty ? source.deletingPathExtension().lastPathComponent : title
         book.author = epub.model.metadata.author
-        book.chapterLengths = epub.chapterLengths()
 
         saveCover(of: epub, to: book.cover)
-        
+
         context.insert(book)
         try context.save()
+        ChapterLengthIndexer.shared.ensure(book, in: context)
         return book
     }
 
