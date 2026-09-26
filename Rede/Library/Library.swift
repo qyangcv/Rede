@@ -27,6 +27,7 @@ final class Book {
     var author: String
     var date: Date
     var position: ReadingPosition?
+    var chapterLengths: [Int] = []   // 每章字符数，用于计算全书阅读百分比
 
     init(id: String, name: String, author: String, date: Date = .now) {
         self.id = id
@@ -38,6 +39,15 @@ final class Book {
     var parent: URL { AppPaths.books.appending(component: id, directoryHint: .isDirectory) }
     var url: URL { parent.appending(component: "book.epub") }
     var cover: URL { parent.appending(component: "cover.jpg") }
+
+    // 全书阅读百分比 = 当前页首字符之前的字数 / 全书字数；未读或尚未统计字数时为 nil
+    var progress: Double? {
+        guard let position, position.chapter < chapterLengths.count else { return nil }
+        let total = chapterLengths.reduce(0, +)
+        guard total > 0 else { return nil }
+        let read = chapterLengths[..<position.chapter].reduce(0, +) + max(position.offset, 0)
+        return min(Double(read) / Double(total), 1)
+    }
     var exportName: String {
         name.replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-") + ".epub"
@@ -74,7 +84,8 @@ enum BookImporter {
         let title = epub.model.metadata.title.trimmingCharacters(in: .whitespacesAndNewlines)
         book.name = title.isEmpty ? source.deletingPathExtension().lastPathComponent : title
         book.author = epub.model.metadata.author
-        
+        book.chapterLengths = epub.chapterLengths()
+
         saveCover(of: epub, to: book.cover)
         
         context.insert(book)
