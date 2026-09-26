@@ -46,6 +46,10 @@ struct RedeApp: App {
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
         .commandsRemoved()
+        
+        SwiftUI.Settings {
+            SettingsView()
+        }
     }
 }
 

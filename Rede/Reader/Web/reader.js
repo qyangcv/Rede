@@ -114,23 +114,24 @@ async function prepare(doc) {
 
   const head = doc.head ?? root.insertBefore(doc.createElementNS(XHTML_NS, "head"), root.firstChild);
   const unstyled = !doc.querySelector('link[rel~="stylesheet"], style');
+  const fonts = stylesheet(doc, "fonts.css");
   const before = stylesheet(doc, "ReadiumCSS-before.css");
   const after = [
     ...(unstyled ? [stylesheet(doc, "ReadiumCSS-default.css")] : []),
     stylesheet(doc, "ReadiumCSS-after.css"),
   ];
-  head.prepend(before);
+  head.prepend(fonts, before);
   head.append(...after);
 
-  // 放在 body 之外，不进入文本流，不影响字符偏移
   pad = doc.createElementNS(XHTML_NS, "div");
   pad.style.cssText = "break-before: column; height: 1px;";
   root.append(pad);
 
   applyStyle();
   doc.addEventListener("click", onClick);
-  doc.addEventListener("load", reflow, true);  // 图片等资源迟到时重新分页
-  await waitAssets(doc, [before, ...after]);
+  doc.addEventListener("load", reflow, true);
+  doc.fonts.addEventListener("loadingdone", reflow);
+  await waitAssets(doc, [fonts, before, ...after]);
 }
 
 function stylesheet(doc, name) {

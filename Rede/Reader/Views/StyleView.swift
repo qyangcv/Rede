@@ -43,12 +43,13 @@ struct StylePanel: View {
                 GridRow {
                     label("字体")
                     Picker("字体", selection: $style.font) {
-                        ForEach(ReaderFont.allCases) { font in
+                        ForEach(ReaderFont.allCases.filter(\.isAvailable)) { font in
                             Text(font.name).tag(font)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                     .labelsHidden()
+                    .fixedSize()
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
