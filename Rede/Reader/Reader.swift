@@ -116,7 +116,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     static let progressChannel = "reading_progress"
     private let start: ReadingPosition?
-    var onProgress: ((ReadingPosition) -> Void)?
+    var onProgress: ((ReadingPosition, PageInfo) -> Void)?
     
     init(book: EpubBook, start: ReadingPosition? = nil) {
         self.book = book
@@ -226,8 +226,9 @@ private final class ProgressRelay: NSObject, WKScriptMessageHandler {
     func userContentController(_ controller: WKUserContentController,
                                didReceive message: WKScriptMessage) {
         guard let data = try? JSONSerialization.data(withJSONObject: message.body),
-              let position = try? JSONDecoder().decode(ReadingPosition.self, from: data)
+              let position = try? JSONDecoder().decode(ReadingPosition.self, from: data),
+              let page = try? JSONDecoder().decode(PageInfo.self, from: data)
         else { return }
-        reader?.onProgress?(position)
+        reader?.onProgress?(position, page)
     }
 }

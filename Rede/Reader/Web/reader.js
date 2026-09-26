@@ -277,16 +277,19 @@ function report() {
     offset: state.offset,
     total: state.total,
     ratio: state.spreadCount > 1 ? state.spread / (state.spreadCount - 1) : 0,
+    page: state.spread,
+    pageCount: state.spreadCount,
   });
 }
 
-// 窗口缩放、改设置、图片加载后重新测量，回到锚点所在页；锚点本身不重算，所以反复缩放不会累积漂移
+// 窗口缩放、改设置、图片加载后重新测量，回到锚点所在页并上报新页码；锚点本身不重算，所以反复缩放不会累积漂移
 function reflow() {
   applyStyle();
   if (!doc || frame.classList.contains("loading")) return;
   measure();
   const spread = spreadAt(state.offset);
   scrollToSpread(spread >= 0 ? spread : state.spread);
+  report();
 }
 
 // 拦截章节内的链接，站内链接转成章节跳转；站外链接放行，交给原生导航策略

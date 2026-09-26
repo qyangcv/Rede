@@ -13,6 +13,23 @@ struct ReadingPosition: Codable, Equatable {
     }
 }
 
+struct PageInfo: Codable, Equatable {
+    var page: Int
+    var pageCount: Int
+}
+
+extension EpubBook {
+    func chapterLengths() -> [Int] {
+        model.spine.map { item in
+            guard let data = try? fetcher.data(at: item.path),
+                  let xml = try? XMLDocument(data: data, options: .nodePreserveWhitespace),
+                  let nodes = try? xml.nodes(forXPath: "//*[local-name()='body']//text()")
+            else { return 0 }
+            return nodes.reduce(0) { $0 + ($1.stringValue?.utf16.count ?? 0) }
+        }
+    }
+}
+
 @MainActor
 final class ProgressStore {
     private static let delay: Duration = .seconds(2)

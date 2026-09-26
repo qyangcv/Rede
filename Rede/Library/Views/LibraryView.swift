@@ -197,9 +197,20 @@ struct BookCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
                 .shadow(color: .black.opacity(0.15), radius: 3, y: 2)
             
-            Text(book.name)
-                .font(.callout)
-                .lineLimit(2)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(book.name)
+                    .font(.callout)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let progress = book.progress {
+                    // 向下取整，避免未读完就四舍五入成 100%
+                    Text("\(Int(progress * 100))%")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                }
+            }
             Text(book.author)
                 .font(.caption)
                 .foregroundStyle(.secondary)

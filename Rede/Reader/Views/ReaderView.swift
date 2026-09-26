@@ -24,6 +24,7 @@ struct ReaderWebViewContainer: NSViewRepresentable {
 
 struct ReaderView: View {
     let reader: Reader
+    let page: PageInfo?
 
     @Bindable private var settings = Settings.shared
     @Environment(\.colorScheme) private var colorScheme
@@ -41,6 +42,15 @@ struct ReaderView: View {
                         .gesture(WindowDragGesture())
                         .allowsWindowActivationEvents(true)
                 }
+            .overlay(alignment: .bottom) {
+                if let page {
+                    Text("\(page.page + 1) / \(page.pageCount)")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, 18)
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .navigation) {
                     TOCButton(toc: reader.book.model.toc, onSelect: reader.go(to:))
@@ -66,6 +76,7 @@ final class ReaderSession {
     
     private(set) var reader: Reader?
     private(set) var book: Book?
+    private(set) var page: PageInfo?
     private var store: ProgressStore?
     
     init() {
@@ -81,15 +92,23 @@ final class ReaderSession {
         store?.flush()
 
         let epub = try parseEpub(at: book.url)
+        // 早于字数统计功能导入的书，首次打开时补算
+        if book.chapterLengths.isEmpty {
+            book.chapterLengths = epub.chapterLengths()
+        }
         let store = ProgressStore(book: book, context: context)
         let reader = Reader(book: epub, start: book.position)
-        reader.onProgress = { position in
-            MainActor.assumeIsolated { store.record(position) }
+        reader.onProgress = { [weak self] position, page in
+            MainActor.assumeIsolated {
+                store.record(position)
+                self?.page = page
+            }
         }
 
         self.store = store
         self.reader = reader
         self.book = book
+        self.page = nil
     }
 
     func close() {
@@ -97,6 +116,7 @@ final class ReaderSession {
         store = nil
         reader = nil
         book = nil
+        page = nil
     }
 }
 
@@ -106,7 +126,7 @@ struct ReaderWindow: View {
     var body: some View {
         ZStack {
             if let reader = session.reader {
-                ReaderView(reader: reader)
+                ReaderView(reader: reader, page: session.page)
                     .id(ObjectIdentifier(reader))
             } else {
                 ContentUnavailableView("No book opened", systemImage: "book")
