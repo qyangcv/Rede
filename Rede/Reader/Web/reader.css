@@ -14,7 +14,7 @@ html, body {
 }
 
 html {
-  background-color: var(--reader-bg, #fff);
+  background-color: var(--reader-bg);
   background-image: var(--reader-pattern, none);
   background-repeat: no-repeat;
   background-position: right top;

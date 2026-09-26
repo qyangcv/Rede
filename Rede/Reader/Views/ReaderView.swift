@@ -30,7 +30,11 @@ struct ReaderView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     private var cssVariables: [String: String] {
-        settings.readerStyle.cssVariables(for: colorScheme)
+        var vars = settings.readerStyle.cssVariables(for: colorScheme)
+        #if DEBUG
+        PaletteTuner.shared.apply(to: &vars, scheme: colorScheme)
+        #endif
+        return vars
     }
 
     var body: some View {
@@ -56,6 +60,13 @@ struct ReaderView: View {
                     TOCButton(toc: reader.book.model.toc, onSelect: reader.go(to:))
                 }
                 .sharedBackgroundVisibility(.hidden)
+
+                #if DEBUG
+                ToolbarItem(placement: .primaryAction) {
+                    PaletteTunerButton(onDismiss: reader.focus)
+                }
+                .sharedBackgroundVisibility(.hidden)
+                #endif
 
                 ToolbarItem(placement: .primaryAction) {
                     StyleButton(style: $settings.readerStyle, appearance: $settings.appearance,
