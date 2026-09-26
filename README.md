@@ -15,6 +15,7 @@
 
 ![Rede 截图](.asserts/frame-1.png)
 ![Rede 截图](.asserts/frame-2.png)
+![Rede 截图](.asserts/frame-3.png)
 
 
 ## 功能
