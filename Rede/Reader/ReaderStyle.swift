@@ -29,7 +29,7 @@ struct FontPackage {
 }
 
 enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresentable {
-    case original, system, pingfang, lxgwWenKai, zhuqueFangsong, sourceHanSans, sourceHanSerif
+    case original, system, pingfang, songti, hiragino, lxgwWenKai, zhuqueFangsong, sourceHanSans, sourceHanSerif
 
     var id: Self { self }
 
@@ -38,6 +38,8 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: "默认"
         case .system: "系统"
         case .pingfang: "苹方"
+        case .songti: "宋体"
+        case .hiragino: "冬青黑体"
         case .lxgwWenKai: "霞鹜文楷"
         case .zhuqueFangsong: "朱雀仿宋"
         case .sourceHanSans: "思源黑体"
@@ -50,6 +52,8 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: nil
         case .system: "-apple-system"
         case .pingfang: "\"PingFang SC\""
+        case .songti: "\"Songti SC\""
+        case .hiragino: "\"Hiragino Sans GB\""
         case .lxgwWenKai: "\"Rede LXGW WenKai\""
         case .zhuqueFangsong: "\"Rede Zhuque Fangsong\""
         case .sourceHanSans: "\"Rede Source Han Sans\""
@@ -62,6 +66,8 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: nil
         case .system: 350
         case .pingfang: 400
+        case .songti: 700
+        case .hiragino: 400
         case .lxgwWenKai, .zhuqueFangsong: 400
         case .sourceHanSans: 325
         case .sourceHanSerif: 400
@@ -73,6 +79,8 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: []
         case .system: Array(stride(from: 200, through: 500, by: 25))
         case .pingfang: [200, 300, 400, 500]
+        case .songti: [400, 700, 900]
+        case .hiragino: [400, 600]
         case .sourceHanSans: Array(stride(from: 250, through: 500, by: 25))
         case .sourceHanSerif: Array(stride(from: 250, through: 600, by: 25))
         case .lxgwWenKai, .zhuqueFangsong: package?.weights ?? []
@@ -82,7 +90,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
     // 需要下载的字体；内置字体为 nil
     var package: FontPackage? {
         switch self {
-        case .original, .system, .pingfang: nil
+        case .original, .system, .pingfang, .songti, .hiragino: nil
         case .lxgwWenKai: FontPackage(
             author: "LXGW", license: "OFL 1.1",
             repository: URL(string: "https://github.com/lxgw/LxgwWenKai")!,
