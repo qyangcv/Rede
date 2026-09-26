@@ -60,8 +60,8 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
     var defaultWeight: Int? {
         switch self {
         case .original: nil
-        case .system: 300
-        case .pingfang: 300
+        case .system: 350
+        case .pingfang: 400
         case .lxgwWenKai, .zhuqueFangsong: 400
         case .sourceHanSans: 325
         case .sourceHanSerif: 400
