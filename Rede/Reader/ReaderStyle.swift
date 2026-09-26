@@ -2,8 +2,9 @@ import SwiftUI
 import os
 
 struct FontPackage {
-    struct File {
-        let name: String
+    // 下载物，sha256 校验的是它本身；zip 下载后解压到字体目录
+    struct Asset {
+        let url: URL
         let size: Int
         let sha256: String
     }
@@ -11,14 +12,14 @@ struct FontPackage {
     let author: String
     let license: String
     let repository: URL
-    let release: URL
-    let files: [Int: File]
+    let assets: [Asset]
+    let files: [Int: String]  // 字重 → 安装后的文件名
 
-    var size: Int { files.values.reduce(0) { $0 + $1.size } }
+    var size: Int { assets.reduce(0) { $0 + $1.size } }
 }
 
 enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresentable {
-    case original, system, pingfang, lxgwWenKai
+    case original, system, pingfang, lxgwWenKai, zhuqueFangsong
 
     var id: Self { self }
 
@@ -28,6 +29,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .system: "系统"
         case .pingfang: "苹方"
         case .lxgwWenKai: "霞鹜文楷"
+        case .zhuqueFangsong: "朱雀仿宋"
         }
     }
 
@@ -37,6 +39,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .system: "-apple-system"
         case .pingfang: "\"PingFang SC\""
         case .lxgwWenKai: "\"Rede LXGW WenKai\""
+        case .zhuqueFangsong: "\"Rede Zhuque Fangsong\""
         }
     }
 
@@ -45,7 +48,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: nil
         case .system: 300
         case .pingfang: 300
-        case .lxgwWenKai: 400
+        case .lxgwWenKai, .zhuqueFangsong: 400
         }
     }
 
@@ -54,7 +57,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: []
         case .system: Array(stride(from: 200, through: 500, by: 25))
         case .pingfang: [200, 300, 400, 500]
-        case .lxgwWenKai: package?.files.keys.sorted() ?? []
+        case .lxgwWenKai, .zhuqueFangsong: package?.files.keys.sorted() ?? []
         }
     }
 
@@ -65,15 +68,23 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .lxgwWenKai: FontPackage(
             author: "LXGW", license: "OFL 1.1",
             repository: URL(string: "https://github.com/lxgw/LxgwWenKai")!,
-            release: URL(string: "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522")!,
-            files: [
-                300: .init(name: "LXGWWenKai-Light.ttf", size: 28_267_156,
-                           sha256: "526ec70cbb0118e871d481f8179e03ff045f0e4d72d080dcca87950c4ab27cca"),
-                400: .init(name: "LXGWWenKai-Regular.ttf", size: 25_575_676,
-                           sha256: "39ad71264b588165b469e35e6afb162a378dacd1f95348160240ba9038ac3009"),
-                500: .init(name: "LXGWWenKai-Medium.ttf", size: 25_379_848,
-                           sha256: "d4bdeb38a39151d74d084cba5090f8cb7d20bf83eedb78c35939ae70b9f4e3f6"),
-            ])
+            assets: [
+                .init(url: URL(string: "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522/LXGWWenKai-Light.ttf")!,
+                      size: 28_267_156, sha256: "526ec70cbb0118e871d481f8179e03ff045f0e4d72d080dcca87950c4ab27cca"),
+                .init(url: URL(string: "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522/LXGWWenKai-Regular.ttf")!,
+                      size: 25_575_676, sha256: "39ad71264b588165b469e35e6afb162a378dacd1f95348160240ba9038ac3009"),
+                .init(url: URL(string: "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522/LXGWWenKai-Medium.ttf")!,
+                      size: 25_379_848, sha256: "d4bdeb38a39151d74d084cba5090f8cb7d20bf83eedb78c35939ae70b9f4e3f6"),
+            ],
+            files: [300: "LXGWWenKai-Light.ttf", 400: "LXGWWenKai-Regular.ttf", 500: "LXGWWenKai-Medium.ttf"])
+        case .zhuqueFangsong: FontPackage(
+            author: "TrionesType", license: "OFL 1.1",
+            repository: URL(string: "https://github.com/TrionesType/zhuque")!,
+            assets: [
+                .init(url: URL(string: "https://github.com/TrionesType/zhuque/releases/download/v0.212/ZhuqueFangsong-v0.212.zip")!,
+                      size: 5_743_932, sha256: "bb8b661a7643d2296a72d9d10530a00949419c4e527fb61783f73c2ba1a8c062"),
+            ],
+            files: [400: "ZhuqueFangsong-Regular.ttf"])
         }
     }
 
@@ -85,8 +96,8 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
 
     static var fontFaceCSS: String {
         allCases.flatMap { font in
-            (font.package?.files ?? [:]).sorted { $0.key < $1.key }.map { weight, file in
-                "@font-face { font-family: \(font.family ?? ""); font-weight: \(weight); src: url(\"fonts/\(font.rawValue)/\(file.name)\"); }"
+            (font.package?.files ?? [:]).sorted { $0.key < $1.key }.map { weight, name in
+                "@font-face { font-family: \(font.family ?? ""); font-weight: \(weight); src: url(\"fonts/\(font.rawValue)/\(name)\"); }"
             }
         }.joined(separator: "\n")
     }
@@ -96,7 +107,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         guard parts.count == 3, parts[0] == "fonts",
               let font = ReaderFont(rawValue: parts[1]),
               let package = font.package,
-              package.files.values.contains(where: { $0.name == parts[2] }) else { return nil }
+              package.files.values.contains(parts[2]) else { return nil }
         return font.directory.appending(component: parts[2])
     }
 }

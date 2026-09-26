@@ -60,17 +60,32 @@ final class FontStore {
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: staging) }
 
-        for file in package.files.values {
-            try await Self.fetch(package.release.appending(component: file.name),
-                                 to: staging.appending(component: file.name),
-                                 sha256: file.sha256) { bytes in
+        for asset in package.assets {
+            let target = staging.appending(component: asset.url.lastPathComponent)
+            try await Self.fetch(asset.url, to: target, sha256: asset.sha256) { bytes in
                 self.received[font, default: 0] += bytes
             }
+            if asset.url.pathExtension == "zip" {
+                try await Self.unzip(target, into: staging)
+                try fm.removeItem(at: target)
+            }
         }
+        guard package.files.values.allSatisfy({ fm.fileExists(atPath: staging.appending(component: $0).path(percentEncoded: false)) })
+        else { throw CocoaError(.fileNoSuchFile) }
 
         try? fm.removeItem(at: font.directory)
         try fm.createDirectory(at: AppPaths.fonts, withIntermediateDirectories: true)
         try fm.moveItem(at: staging, to: font.directory)
+    }
+
+    @concurrent nonisolated
+    private static func unzip(_ zip: URL, into directory: URL) async throws {
+        let process = Process()
+        process.executableURL = URL(filePath: "/usr/bin/ditto")
+        process.arguments = ["-x", "-k", zip.path(percentEncoded: false), directory.path(percentEncoded: false)]
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw CocoaError(.fileReadCorruptFile) }
     }
 
     @concurrent nonisolated
