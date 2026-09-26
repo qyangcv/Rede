@@ -72,6 +72,8 @@ final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     static func data(named name: String) throws -> Data {
+        if name == "fonts.css" { return Data(ReaderFont.fontFaceCSS.utf8) }
+        if let url = ReaderFont.fontFile(at: name) { return try Data(contentsOf: url, options: .mappedIfSafe) }
         guard allowed.contains(name),
               let url = Bundle.main.url(forResource: name, withExtension: nil)
         else { throw URLError(.fileDoesNotExist) }
@@ -88,8 +90,11 @@ final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
             let data = try Self.data(named: name)
             let ext = (name as NSString).pathExtension
             let mime = UTType(filenameExtension: ext)?.preferredMIMEType ?? "application/octet-stream"
-            let response = URLResponse(url: url, mimeType: mime,
-                                       expectedContentLength: data.count, textEncodingName: "utf-8")
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: [
+                "Content-Type": name.hasPrefix("fonts/") ? mime : "\(mime); charset=utf-8",
+                "Content-Length": String(data.count),
+                "Access-Control-Allow-Origin": "*",
+            ])!
             urlSchemeTask.didReceive(response)
             urlSchemeTask.didReceive(data)
             urlSchemeTask.didFinish()

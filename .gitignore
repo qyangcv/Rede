@@ -74,5 +74,6 @@ Rede/default.profraw
 dist
 build
 *.profraw
+.fonts
 
 CLAUDE.md

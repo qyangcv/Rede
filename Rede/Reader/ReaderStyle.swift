@@ -1,8 +1,24 @@
 import SwiftUI
 import os
 
+struct FontPackage {
+    struct File {
+        let name: String
+        let size: Int
+        let sha256: String
+    }
+
+    let author: String
+    let license: String
+    let repository: URL
+    let release: URL
+    let files: [Int: File]
+
+    var size: Int { files.values.reduce(0) { $0 + $1.size } }
+}
+
 enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresentable {
-    case original, system, pingfang
+    case original, system, pingfang, lxgwWenKai
 
     var id: Self { self }
 
@@ -11,6 +27,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: "默认"
         case .system: "系统"
         case .pingfang: "苹方"
+        case .lxgwWenKai: "霞鹜文楷"
         }
     }
 
@@ -19,6 +36,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: nil
         case .system: "-apple-system"
         case .pingfang: "\"PingFang SC\""
+        case .lxgwWenKai: "\"Rede LXGW WenKai\""
         }
     }
 
@@ -27,6 +45,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: nil
         case .system: 300
         case .pingfang: 300
+        case .lxgwWenKai: 400
         }
     }
 
@@ -35,7 +54,50 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .original: []
         case .system: Array(stride(from: 200, through: 500, by: 25))
         case .pingfang: [200, 300, 400, 500]
+        case .lxgwWenKai: package?.files.keys.sorted() ?? []
         }
+    }
+
+    // 需要下载的字体；内置字体为 nil
+    var package: FontPackage? {
+        switch self {
+        case .original, .system, .pingfang: nil
+        case .lxgwWenKai: FontPackage(
+            author: "LXGW", license: "OFL 1.1",
+            repository: URL(string: "https://github.com/lxgw/LxgwWenKai")!,
+            release: URL(string: "https://github.com/lxgw/LxgwWenKai/releases/download/v1.522")!,
+            files: [
+                300: .init(name: "LXGWWenKai-Light.ttf", size: 28_267_156,
+                           sha256: "526ec70cbb0118e871d481f8179e03ff045f0e4d72d080dcca87950c4ab27cca"),
+                400: .init(name: "LXGWWenKai-Regular.ttf", size: 25_575_676,
+                           sha256: "39ad71264b588165b469e35e6afb162a378dacd1f95348160240ba9038ac3009"),
+                500: .init(name: "LXGWWenKai-Medium.ttf", size: 25_379_848,
+                           sha256: "d4bdeb38a39151d74d084cba5090f8cb7d20bf83eedb78c35939ae70b9f4e3f6"),
+            ])
+        }
+    }
+
+    var directory: URL {
+        AppPaths.fonts.appending(component: rawValue, directoryHint: .isDirectory)
+    }
+
+    var isAvailable: Bool { package == nil || FontStore.shared.downloaded.contains(self) }
+
+    static var fontFaceCSS: String {
+        allCases.flatMap { font in
+            (font.package?.files ?? [:]).sorted { $0.key < $1.key }.map { weight, file in
+                "@font-face { font-family: \(font.family ?? ""); font-weight: \(weight); src: url(\"fonts/\(font.rawValue)/\(file.name)\"); }"
+            }
+        }.joined(separator: "\n")
+    }
+
+    static func fontFile(at path: String) -> URL? {
+        let parts = path.split(separator: "/").map(String.init)
+        guard parts.count == 3, parts[0] == "fonts",
+              let font = ReaderFont(rawValue: parts[1]),
+              let package = font.package,
+              package.files.values.contains(where: { $0.name == parts[2] }) else { return nil }
+        return font.directory.appending(component: parts[2])
     }
 }
 
@@ -82,7 +144,6 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
         let text: String
     }
 
-    // 浅色下“默认”为 nil，沿用书自带样式；深色下书的样式不可用，每项都必须给出具体颜色
     func palette(for scheme: ColorScheme) -> Palette? {
         switch (self, scheme) {
         case (.original, .light): nil
@@ -183,8 +244,6 @@ struct ReaderStyle: Equatable {
         set { fontWeights[font] = newValue }
     }
 
-    // 浅色用 --RS__textColor，会被书自带样式覆盖；深色用 --USER__textColor 强制覆盖书内颜色。
-    // 两个键始终都要给出，不用的传空串，JS 端据此移除旧值
     func cssVariables(for scheme: ColorScheme) -> [String: String] {
         let palette = background.palette(for: scheme)
         let forced = scheme == .dark

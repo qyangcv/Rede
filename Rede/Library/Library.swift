@@ -17,6 +17,7 @@ enum AppPaths {
     static let store = library.appending(component: "library.store")
     static let books = library.appending(component: "books", directoryHint: .isDirectory)
     static let settings = root.appending(components: ".settings", "settings.json")
+    static let fonts = root.appending(component: ".fonts", directoryHint: .isDirectory)
 }
 
 @Model
