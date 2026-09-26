@@ -53,8 +53,18 @@ struct LibraryView: View {
             }
             .navigationTitle("我的书库")
             .toolbar {
-                AppearanceButton(appearance: $settings.appearance)
-                Button("导入", systemImage: "plus") { isImporting = true }
+                ToolbarItem {
+                    SettingsLink {
+                        Label("设置", systemImage: "gearshape")
+                    }
+                    .help("设置")
+                }
+                .sharedBackgroundVisibility(.hidden)
+
+                ToolbarItemGroup {
+                    AppearanceButton(appearance: $settings.appearance)
+                    Button("导入", systemImage: "plus") { isImporting = true }
+                }
             }
             .fileImporter(
                 isPresented: $isImporting,
