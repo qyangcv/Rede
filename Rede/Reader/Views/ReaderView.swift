@@ -103,6 +103,7 @@ final class ReaderSession {
         store?.flush()
 
         let epub = try parseEpub(at: book.url)
+        book.lastRead = .now
         ChapterLengthIndexer.shared.ensure(book, in: context)
         let store = ProgressStore(book: book, context: context)
         let reader = Reader(book: epub, start: book.position)

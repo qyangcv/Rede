@@ -13,9 +13,13 @@ nonisolated struct EpubModel {
 }
 
 nonisolated struct EpubMetadata {
+    let version: String?
     let title: String
     let author: String
     let language: String
+    let publisher: String?
+    let date: String?
+    let isbn: String?
 }
 
 nonisolated struct EpubManifestItem {
@@ -71,11 +75,27 @@ nonisolated func parseEpub(at fileURL: URL) throws -> EpubBook {
 }
 
 nonisolated private func parseMetadata(_ opfXML: XMLDocument) throws -> EpubMetadata {
-    let title = try opfXML.nodes(forXPath: "//*[local-name()='title']").first?.stringValue ?? ""
-    let author = try opfXML.nodes(forXPath: "//*[local-name()='creator']").first?.stringValue ?? ""
-    let language = try opfXML.nodes(forXPath: "//*[local-name()='language']").first?.stringValue ?? ""
-    return EpubMetadata(title: title, author: author,
-                        language: language.trimmingCharacters(in: .whitespacesAndNewlines))
+    func values(_ name: String) throws -> [String] {
+        try opfXML.nodes(forXPath: "//*[local-name()='metadata']/*[local-name()='\(name)']")
+            .compactMap { $0.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+    let version = try opfXML.nodes(forXPath: "/*[local-name()='package']/@version").first?.stringValue
+    return EpubMetadata(
+        version: version,
+        title: try values("title").first ?? "",
+        author: try values("creator").joined(separator: "、"),
+        language: try values("language").first ?? "",
+        publisher: try values("publisher").first,
+        date: try values("date").first.map { String($0.prefix(10)) },
+        isbn: try values("identifier").lazy.compactMap(isbn(from:)).first)
+}
+
+nonisolated private func isbn(from identifier: String) -> String? {
+    var raw = identifier
+    if raw.lowercased().hasPrefix("urn:isbn:") { raw = String(raw.dropFirst(9)) }
+    let compact = raw.replacingOccurrences(of: "-", with: "").replacingOccurrences(of: " ", with: "")
+    return compact.wholeMatch(of: /\d{13}|\d{9}[\dXx]/) != nil ? compact : nil
 }
 
 nonisolated private func parseManifest(_ opfXML: XMLDocument, opfPath: String) throws -> [String: EpubManifestItem] {

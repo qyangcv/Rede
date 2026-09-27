@@ -28,6 +28,8 @@ final class Book {
     var date: Date
     var position: ReadingPosition?
     var chapterLengths: [Int] = []   // 每章字符数，用于计算全书阅读百分比
+    var wordCount: Int?
+    var lastRead: Date?
 
     init(id: String, name: String, author: String, date: Date = .now) {
         self.id = id
