@@ -228,44 +228,44 @@ function textLength() {
   return total;
 }
 
-// 第 offset 个字符的 Range，越界返回 null
-function rangeAt(offset) {
-  if (offset < 0 || offset >= state.total) return null;
-  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
-  let seen = 0;
-  while (walker.nextNode()) {
-    const node = walker.currentNode;
-    if (seen + node.length > offset) {
-      const range = doc.createRange();
-      range.setStart(node, offset - seen);
-      range.setEnd(node, offset - seen + 1);
-      return range;
-    }
-    seen += node.length;
-  }
-  return null;
-}
-
 // 矩形 → 页码（矩形是章节视口坐标，加上横向滚动量得到文档坐标）
 function spreadOfRect(rect) {
   const offset = rect.left + frame.contentWindow.scrollX;
   return Math.floor((offset + 1) / stride());
 }
 
-// 字符偏移 → 页码；字符不可见（空白折叠等）返回 -1
+// 字符偏移 → 页码：不可见字符（折叠的空白、隐藏元素）沿用其后第一个可见字符的页码，
+// 保证页码随偏移量单调非递减；其后再无可见字符返回 -1
 function spreadAt(offset) {
-  const rect = rangeAt(offset)?.getClientRects()[0];
-  return rect ? spreadOfRect(rect) : -1;
+  if (offset < 0) return -1;
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  const range = doc.createRange();
+  let seen = 0;
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    const start = seen;
+    seen += node.length;
+    if (seen <= offset) continue;
+    range.selectNodeContents(node);
+    if (range.getClientRects().length === 0) continue;  // 整个节点不渲染，直接跳过
+    for (let i = Math.max(offset - start, 0); i < node.length; i++) {
+      range.setStart(node, i);
+      range.setEnd(node, i + 1);
+      const rect = range.getClientRects()[0];
+      if (rect) return spreadOfRect(rect);
+    }
+  }
+  return -1;
 }
 
-// 二分查找当前页的第一个字符：分栏版面里页码随偏移量单调非递减
+// 二分查找当前页的第一个字符（spreadAt 单调，-1 只出现在章末）
 function anchorOffset() {
   let lo = 0, hi = state.total - 1, found = -1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
     const spread = spreadAt(mid);
-    if (spread < 0 || spread < state.spread) lo = mid + 1;
-    else { found = mid; hi = mid - 1; }
+    if (spread >= 0 && spread < state.spread) lo = mid + 1;
+    else { if (spread >= 0) found = mid; hi = mid - 1; }
   }
   return found;
 }
