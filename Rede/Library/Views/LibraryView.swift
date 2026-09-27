@@ -270,7 +270,8 @@ struct BookCard: View {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(book.name)
                     .font(.callout)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .help(book.name)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if let progress = book.progress {
                     Text(progress.formatted(
