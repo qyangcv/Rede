@@ -7,7 +7,10 @@ struct LibraryView: View {
     @Query(sort: \Book.date, order: .reverse) private var books: [Book]
     @State private var isImporting = false
     @State private var errors: [String] = []
-    @State private var bookToDelete: Book?
+    @State private var booksToDelete: [Book] = []
+    @State private var selection: Set<Book.ID> = []
+    @State private var anchor: Book.ID?
+    @FocusState private var focused: Bool
     @State private var bookToEdit: Book?
     @State private var bookToExport: Book?
     @State private var bookToShowInfo: Book?
@@ -22,22 +25,28 @@ struct LibraryView: View {
                 ScrollView {
                     LazyVGrid(columns: grid.columns, spacing: 28) {
                         ForEach(books) { book in
-                            BookCard(book: book)
+                            BookCard(book: book, isSelected: selection.contains(book.id))
                                 .onTapGesture(count: 2) { open(book) }
-                                .contextMenu {
-                                    Button("打开", systemImage: "book") { open(book) }
-                                    Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
-                                    Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
-                                    Button("导出", systemImage: "square.and.arrow.up") { bookToExport = book }
-                                    Button("删除", systemImage: "trash", role: .destructive) {
-                                        bookToDelete = book
-                                   }
-                               }
+                                .simultaneousGesture(TapGesture().onEnded { click(book) })
+                                .contextMenu { menu(for: book) }
                        }
                    }
                    .padding(.horizontal, grid.spacing)
                    .padding(.vertical, 28)
+                   .frame(minHeight: proxy.size.height, alignment: .top)
+                   .background {
+                       Color.clear
+                           .contentShape(Rectangle())
+                           .onTapGesture { selection = [] }
+                   }
                }
+               .focusable()
+               .focusEffectDisabled()
+               .focused($focused)
+               .onCommand(#selector(NSResponder.selectAll(_:))) { selection = Set(books.map(\.id)) }
+               .onExitCommand { selection = [] }
+               .onDeleteCommand { booksToDelete = selectedBooks }
+               .onAppear { focused = true }
             }
             .overlay {
                 if books.isEmpty {
@@ -95,12 +104,13 @@ struct LibraryView: View {
                 BookInfoView(book: book)
             }
             .confirmationDialog(
-                "删除：\(bookToDelete?.name ?? "") ？",
-                isPresented: Binding(get: { bookToDelete != nil },
-                                     set: { if !$0 { bookToDelete = nil } }),
-                presenting: bookToDelete
-            ) { book in
-                Button("确认", role: .destructive) { delete(book) }
+                booksToDelete.count > 1 ? "删除选中的 \(booksToDelete.count) 本书？"
+                                        : "删除：\(booksToDelete.first?.name ?? "") ？",
+                isPresented: Binding(get: { !booksToDelete.isEmpty },
+                                     set: { if !$0 { booksToDelete = [] } }),
+                presenting: booksToDelete
+            ) { books in
+                Button("确认", role: .destructive) { books.forEach(delete) }
             }
             .alert(
                 "操作失败",
@@ -139,7 +149,61 @@ struct LibraryView: View {
         }
     }
     
+    private var selectedBooks: [Book] {
+        books.filter { selection.contains($0.id) }
+    }
+
+    private func click(_ book: Book) {
+        focused = true
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.command) {
+            if selection.remove(book.id) == nil { selection.insert(book.id) }
+            anchor = book.id
+        } else if flags.contains(.shift), let anchor,
+                  let a = books.firstIndex(where: { $0.id == anchor }),
+                  let b = books.firstIndex(where: { $0.id == book.id }) {
+            selection = Set(books[min(a, b)...max(a, b)].map(\.id))
+        } else {
+            selection = [book.id]
+            anchor = book.id
+        }
+    }
+
+    @ViewBuilder
+    private func menu(for book: Book) -> some View {
+        let targets = selection.contains(book.id) ? selectedBooks : [book]
+        if targets.count > 1 {
+            Button("导出 \(targets.count) 本", systemImage: "square.and.arrow.up") { export(targets) }
+            Button("删除 \(targets.count) 本", systemImage: "trash", role: .destructive) {
+                booksToDelete = targets
+            }
+        } else {
+            Button("打开", systemImage: "book") { open(book) }
+            Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
+            Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
+            Button("导出", systemImage: "square.and.arrow.up") { bookToExport = book }
+            Button("删除", systemImage: "trash", role: .destructive) { booksToDelete = [book] }
+        }
+    }
+
+    private func export(_ books: [Book]) {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.prompt = "导出"
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+        for book in books {
+            do {
+                try FileManager.default.copyItem(at: book.url, to: folder.appending(component: book.exportName))
+            } catch {
+                errors.append("\(book.name)：\(error.localizedDescription)")
+            }
+        }
+    }
+
     private func delete(_ book: Book) {
+        selection.remove(book.id)
         if session.book?.id == book.id { session.close() }
         do {
             try withAnimation {
@@ -193,7 +257,8 @@ struct AppearanceButton: View {
 
 struct BookCard: View {
     let book: Book
-     
+    let isSelected: Bool
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Color.clear
@@ -224,8 +289,15 @@ struct BookCard: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+        .contentShape(Rectangle())
+        .background {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.quaternary)
+                .padding(-8)
+                .opacity(isSelected ? 1 : 0)
+        }
     }
-    
+
     @ViewBuilder
     private var cover: some View {
         if let image = NSImage(contentsOf: book.cover) {
