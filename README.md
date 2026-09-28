@@ -55,3 +55,7 @@
 - [ZIPFoundation](https://github.com/weichsel/ZIPFoundation)
 - [ReadiumCSS](https://github.com/readium/css)
 - [Sparkle](https://github.com/sparkle-project/Sparkle)
+
+## 后续开发方向
+
+- Rede for iOS，双端 iCloud 云同步
