@@ -25,6 +25,7 @@ struct ReaderWebViewContainer: NSViewRepresentable {
 struct ReaderView: View {
     let reader: Reader
     let page: PageInfo?
+    let chapter: TOCItem?
 
     @Bindable private var settings = Settings.shared
     @Environment(\.colorScheme) private var colorScheme
@@ -57,7 +58,7 @@ struct ReaderView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigation) {
-                    TOCButton(toc: reader.book.model.toc, onSelect: reader.go(to:))
+                    TOCButton(toc: reader.toc, current: chapter?.id, onSelect: reader.go(to:))
                 }
                 .sharedBackgroundVisibility(.hidden)
 
@@ -88,6 +89,7 @@ final class ReaderSession {
     private(set) var reader: Reader?
     private(set) var book: Book?
     private(set) var page: PageInfo?
+    private(set) var chapter: TOCItem?
     private var store: ProgressStore?
     
     init() {
@@ -107,10 +109,11 @@ final class ReaderSession {
         ChapterLengthIndexer.shared.ensure(book, in: context)
         let store = ProgressStore(book: book, context: context)
         let reader = Reader(book: epub, start: book.position)
-        reader.onProgress = { [weak self] position, page in
+        reader.onProgress = { [weak self] position, page, chapter in
             MainActor.assumeIsolated {
                 store.record(position)
                 self?.page = page
+                self?.chapter = chapter
             }
         }
 
@@ -118,6 +121,7 @@ final class ReaderSession {
         self.reader = reader
         self.book = book
         self.page = nil
+        self.chapter = nil
     }
 
     func close() {
@@ -126,6 +130,7 @@ final class ReaderSession {
         reader = nil
         book = nil
         page = nil
+        chapter = nil
     }
 }
 
@@ -135,7 +140,7 @@ struct ReaderWindow: View {
     var body: some View {
         ZStack {
             if let reader = session.reader {
-                ReaderView(reader: reader, page: session.page)
+                ReaderView(reader: reader, page: session.page, chapter: session.chapter)
                     .id(ObjectIdentifier(reader))
             } else {
                 ContentUnavailableView("No book opened", systemImage: "book")
@@ -143,7 +148,7 @@ struct ReaderWindow: View {
         }
         .ignoresSafeArea()
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .navigationTitle(session.book?.name ?? "Reader Window")
+        .navigationTitle(session.chapter?.path.map(\.title).joined(separator: " › ") ?? session.book?.name ?? "Reader Window")
         .onDisappear { session.close() }
     }
 }

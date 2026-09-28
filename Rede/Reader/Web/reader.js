@@ -32,6 +32,8 @@ const state = {
   navId: 0,
   offset: 0,   // 当前页首字符在本章文本流中的偏移量（阅读锚点）
   total: 0,    // 本章文本流总字符数
+  tocAnchors: [],
+  anchors: {},
 };
 
 let doc = null;  // 当前章节文档
@@ -41,8 +43,9 @@ let pad = null;  // 当前章节的补白列，见 measure()
 
 const reader = {
   // 入口：保存 paths、绑定事件、恢复到 start（null 则从头开始）
-  open(paths, language, style = {}, start = null) {
+  open(paths, language, style = {}, start = null, tocAnchors = []) {
     state.spinePaths = paths;
+    state.tocAnchors = tocAnchors;
     state.language = language;
     state.style = style;
     applyStyle();
@@ -86,6 +89,7 @@ async function goto(chapter, at) {
     await prepare(doc);
     if (token !== state.navId) return;
     state.total = textLength();
+    state.anchors = anchorOffsets(state.tocAnchors[chapter] ?? []);
   }
 
   measure();
@@ -212,10 +216,13 @@ function locate(at) {
     return spread >= 0 ? spread : Math.round((at.ratio || 0) * (state.spreadCount - 1));
   }
 
-  const id = CSS.escape(at);
-  const el = doc.querySelector(`#${id}, a[name="${id}"]`);
-  const rect = el?.getClientRects()[0];
+  const rect = findAnchor(at)?.getClientRects()[0];
   return rect ? spreadOfRect(rect) : 0;
+}
+
+function findAnchor(anchor) {
+  const id = CSS.escape(anchor);
+  return doc.querySelector(`#${id}, a[name="${id}"]`);
 }
 
 // ---------- 阅读位置 ----------
@@ -226,6 +233,19 @@ function textLength() {
   let total = 0;
   while (walker.nextNode()) total += walker.currentNode.length;
   return total;
+}
+
+function anchorOffsets(ids) {
+  const range = doc.createRange();
+  const offsets = {};
+  for (const id of ids) {
+    const el = findAnchor(id);
+    if (!el || el === doc.body || !doc.body.contains(el)) continue;
+    range.setStart(doc.body, 0);
+    range.setEndBefore(el);
+    offsets[id] = range.toString().length;
+  }
+  return offsets;
 }
 
 // 矩形 → 页码（矩形是章节视口坐标，加上横向滚动量得到文档坐标）
@@ -279,6 +299,7 @@ function report() {
     ratio: state.spreadCount > 1 ? state.spread / (state.spreadCount - 1) : 0,
     page: state.spread,
     pageCount: state.spreadCount,
+    anchors: state.anchors,
   });
 }
 

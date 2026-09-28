@@ -109,6 +109,8 @@ final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
 final class Reader: NSObject,  WKNavigationDelegate {
     let book: EpubBook
     let webView: ReaderWebView
+    let toc: [TOCItem]
+    private let spineIndex: [String: Int]
 
     private let bridge: JSBridge
     private var shellNavigation: WKNavigation?
@@ -116,11 +118,14 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     static let progressChannel = "reading_progress"
     private let start: ReadingPosition?
-    var onProgress: ((ReadingPosition, PageInfo) -> Void)?
+    var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
     
     init(book: EpubBook, start: ReadingPosition? = nil) {
         self.book = book
         self.start = start
+        self.toc = TOCItem.flatten(book.model.toc)
+        self.spineIndex = Dictionary(book.model.spine.enumerated().map { ($1.path, $0) },
+                                     uniquingKeysWith: { first, _ in first })
         
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(EpubSchemeHandler(book: book), forURLScheme: EpubSchemeHandler.scheme)
@@ -175,7 +180,13 @@ final class Reader: NSObject,  WKNavigationDelegate {
         let paths = book.model.spine.map(\.path)
         let language = book.model.metadata.language
         let style = style
-        Task { await bridge.open(paths: paths, language: language, style: style, start: start) }
+        let tocAnchors = book.model.spine.map { item in
+            toc.compactMap { $0.entry.path == item.path ? $0.entry.fragment : nil }
+        }
+        Task {
+            await bridge.open(paths: paths, language: language, style: style, start: start,
+                              tocAnchors: tocAnchors)
+        }
     }
 
     func webView(_ webView: WKWebView,
@@ -212,11 +223,25 @@ final class Reader: NSObject,  WKNavigationDelegate {
     }
 
     func go(to entry: EpubTocEntry) {
-        guard let index = book.model.spine.firstIndex(where: { $0.path == entry.path }) else { return }
+        guard let index = spineIndex[entry.path] else { return }
         Task {
             await bridge.jump(chapter: index, anchor: entry.fragment)
             webView.window?.makeFirstResponder(webView)
         }
+    }
+
+    fileprivate func receive(_ position: ReadingPosition, _ page: PageInfo, anchors: [String: Int]) {
+        onProgress?(position, page, tocItem(at: position, anchors: anchors))
+    }
+
+    private func tocItem(at position: ReadingPosition, anchors: [String: Int]) -> TOCItem? {
+        let target = (position.chapter, position.offset < 0 ? Int.max : position.offset)
+        let keys = toc.indices.compactMap { i -> (Int, Int, Int)? in
+            let entry = toc[i].entry
+            guard let spine = spineIndex[entry.path] else { return nil }
+            return (spine, entry.fragment.flatMap { anchors[$0] } ?? 0, i)
+        }
+        return keys.filter { ($0.0, $0.1) <= target }.max { $0 < $1 }.map { toc[$0.2] }
     }
 }
 
@@ -227,8 +252,9 @@ private final class ProgressRelay: NSObject, WKScriptMessageHandler {
                                didReceive message: WKScriptMessage) {
         guard let data = try? JSONSerialization.data(withJSONObject: message.body),
               let position = try? JSONDecoder().decode(ReadingPosition.self, from: data),
-              let page = try? JSONDecoder().decode(PageInfo.self, from: data)
+              let page = try? JSONDecoder().decode(PageInfo.self, from: data),
+              let chapter = try? JSONDecoder().decode(ChapterAnchors.self, from: data)
         else { return }
-        reader?.onProgress?(position, page)
+        reader?.receive(position, page, anchors: chapter.anchors)
     }
 }

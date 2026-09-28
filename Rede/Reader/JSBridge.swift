@@ -17,10 +17,11 @@ struct JSBridge {
 }
 
 extension JSBridge {
-    func open(paths: [String], language: String, style: [String: String], start: ReadingPosition?) async {
-        await call("reader.open(paths, language, style, start)",
+    func open(paths: [String], language: String, style: [String: String], start: ReadingPosition?,
+              tocAnchors: [[String]]) async {
+        await call("reader.open(paths, language, style, start, tocAnchors)",
                    ["paths": paths, "language": language, "style": style,
-                    "start": start?.jsObject ?? NSNull()])
+                    "start": start?.jsObject ?? NSNull(), "tocAnchors": tocAnchors])
     }
     func setStyle(_ vars: [String: String]) async {
         await call("reader.setStyle(vars)", ["vars": vars])

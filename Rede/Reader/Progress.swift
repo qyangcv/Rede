@@ -18,6 +18,10 @@ struct PageInfo: Codable, Equatable {
     var pageCount: Int
 }
 
+struct ChapterAnchors: Codable {
+    var anchors: [String: Int]
+}
+
 nonisolated extension EpubBook {
     func textStats() -> (chapterLengths: [Int], wordCount: Int) {
         var wordCount = 0
