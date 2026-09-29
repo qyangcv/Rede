@@ -81,7 +81,7 @@ $BUILD/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast
 
 # 5. Publish to GitHub (GitHub creates the tag together with the release)
 CHANGES=$(git log ${LATEST:+$LATEST..}HEAD --no-merges --pretty='- %s')
-NOTES=$(printf '## 更新内容\n\n%s\n\n%s' "$CHANGES" "$(< scripts/release-notes.md)")
+NOTES=$(printf '## 更新内容\n\n%s' "$CHANGES")
 
 git push origin main
 gh release create "$TAG" "$DMG" $BUILD/appcast/appcast.xml \

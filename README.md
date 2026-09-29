@@ -46,9 +46,6 @@
 
 1. 从 [Releases](https://github.com/qyangcv/Rede/releases/latest) 下载最新的 `Rede.dmg`
 2. 打开 dmg，将 Rede 拖入 “应用程序” 文件夹
-3. 首次打开时会被系统拦截，前往 “系统设置 > 隐私与安全性 > 安全性”，找到 “已阻止 Rede.app 以保护 Mac”，点击“仍要打开”
-
-> Rede 未经 Apple 公证，也可以在终端执行 `xattr -dr com.apple.quarantine /Applications/Rede.app` 代替第 3 步
 
 ## 使用的开源工具
 
