@@ -1,6 +1,7 @@
 // Parser Layer for epub2 & epub3
 
 import Foundation
+import Kanna
 import ZIPFoundation
 
 nonisolated struct EpubModel {
@@ -52,20 +53,17 @@ nonisolated func parseEpub(at fileURL: URL) throws -> EpubBook {
     let archive = try Archive(url: fileURL, accessMode: .read)
     let fetcher = EpubFetcher(archive: archive)
 
-    let containerData = try fetcher.data(at: "META-INF/container.xml")
-    let containerXML = try XMLDocument(data: containerData)
-    guard let opfPath = try containerXML
-        .nodes(forXPath: "//*[local-name()='rootfile']/@full-path")
-        .first?.stringValue else {
+    let containerXML = try XML(xml: fetcher.data(at: "META-INF/container.xml"), encoding: .utf8)
+    guard let opfPath = containerXML
+        .at_xpath("//*[local-name()='rootfile']/@full-path")?.text else {
         throw EpubParsingError.opfNotFound
     }
 
-    let opfData = try fetcher.data(at: opfPath)
-    let opfXML = try XMLDocument(data: opfData)
+    let opfXML = try XML(xml: fetcher.data(at: opfPath), encoding: .utf8)
 
-    let metadata = try parseMetadata(opfXML)
-    let manifest = try parseManifest(opfXML, opfPath: opfPath)
-    let spine = try parseSpine(opfXML, manifest: manifest)
+    let metadata = parseMetadata(opfXML)
+    let manifest = parseManifest(opfXML, opfPath: opfPath)
+    let spine = parseSpine(opfXML, manifest: manifest)
     let toc = parseToc(fetcher: fetcher, opfXML: opfXML, manifest: manifest)
     let cover = findCover(opfXML, manifest: manifest)
 
@@ -74,21 +72,21 @@ nonisolated func parseEpub(at fileURL: URL) throws -> EpubBook {
     return EpubBook(model: model, fetcher: fetcher)
 }
 
-nonisolated private func parseMetadata(_ opfXML: XMLDocument) throws -> EpubMetadata {
-    func values(_ name: String) throws -> [String] {
-        try opfXML.nodes(forXPath: "//*[local-name()='metadata']/*[local-name()='\(name)']")
-            .compactMap { $0.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) }
+nonisolated private func parseMetadata(_ opfXML: Searchable) -> EpubMetadata {
+    func values(_ name: String) -> [String] {
+        opfXML.xpath("//*[local-name()='metadata']/*[local-name()='\(name)']")
+            .compactMap { $0.text?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
-    let version = try opfXML.nodes(forXPath: "/*[local-name()='package']/@version").first?.stringValue
+    let version = opfXML.at_xpath("/*[local-name()='package']/@version")?.text
     return EpubMetadata(
         version: version,
-        title: try values("title").first ?? "",
-        author: try values("creator").joined(separator: "、"),
-        language: try values("language").first ?? "",
-        publisher: try values("publisher").first,
-        date: try values("date").first.map { String($0.prefix(10)) },
-        isbn: try values("identifier").lazy.compactMap(isbn(from:)).first)
+        title: values("title").first ?? "",
+        author: values("creator").joined(separator: "、"),
+        language: values("language").first ?? "",
+        publisher: values("publisher").first,
+        date: values("date").first.map { String($0.prefix(10)) },
+        isbn: values("identifier").lazy.compactMap(isbn(from:)).first)
 }
 
 nonisolated private func isbn(from identifier: String) -> String? {
@@ -98,16 +96,15 @@ nonisolated private func isbn(from identifier: String) -> String? {
     return compact.wholeMatch(of: /\d{13}|\d{9}[\dXx]/) != nil ? compact : nil
 }
 
-nonisolated private func parseManifest(_ opfXML: XMLDocument, opfPath: String) throws -> [String: EpubManifestItem] {
+nonisolated private func parseManifest(_ opfXML: Searchable, opfPath: String) -> [String: EpubManifestItem] {
     var manifest: [String: EpubManifestItem] = [:]
 
-    let items = try opfXML.nodes(forXPath: "//*[local-name()='manifest']/*[local-name()='item']")
-    for case let element as XMLElement in items {
-        guard let id = element.attribute(forName: "id")?.stringValue,
-              let href = element.attribute(forName: "href")?.stringValue,
-              let mediaType = element.attribute(forName: "media-type")?.stringValue else { continue }
+    for element in opfXML.xpath("//*[local-name()='manifest']/*[local-name()='item']") {
+        guard let id = element["id"],
+              let href = element["href"],
+              let mediaType = element["media-type"] else { continue }
         let path = resolveHref(href, relativeTo: opfPath).path
-        let properties = element.attribute(forName: "properties")?.stringValue?
+        let properties = element["properties"]?
             .split(whereSeparator: \.isWhitespace).map(String.init) ?? []
         manifest[id] = EpubManifestItem(id: id, path: path, mediaType: mediaType,
                                         properties: Set(properties))
@@ -115,20 +112,12 @@ nonisolated private func parseManifest(_ opfXML: XMLDocument, opfPath: String) t
     return manifest
 }
 
-nonisolated private func parseSpine(_ opfXML: XMLDocument, manifest: [String: EpubManifestItem]) throws -> [EpubManifestItem] {
-    var spine: [EpubManifestItem] = []
-
-    let itemrefs = try opfXML.nodes(forXPath: "//*[local-name()='spine']/*[local-name()='itemref']")
-    for node in itemrefs {
-        guard let element = node as? XMLElement,
-              let idref = element.attribute(forName: "idref")?.stringValue,
-              let item  = manifest[idref] else {continue}
-        spine.append(item)
-    }
-    return spine
+nonisolated private func parseSpine(_ opfXML: Searchable, manifest: [String: EpubManifestItem]) -> [EpubManifestItem] {
+    opfXML.xpath("//*[local-name()='spine']/*[local-name()='itemref']")
+        .compactMap { $0["idref"].flatMap { manifest[$0] } }
 }
 
-nonisolated private func parseToc(fetcher: EpubFetcher, opfXML: XMLDocument,
+nonisolated private func parseToc(fetcher: EpubFetcher, opfXML: Searchable,
                       manifest: [String: EpubManifestItem]) -> [EpubTocEntry] {
     if let nav = manifest.values.first(where: { $0.properties.contains("nav") }),
        let toc = try? parseNavToc(fetcher: fetcher, navPath: nav.path), !toc.isEmpty {
@@ -139,45 +128,40 @@ nonisolated private func parseToc(fetcher: EpubFetcher, opfXML: XMLDocument,
     return toc
 }
 
-nonisolated private func findNcxPath(_ opfXML: XMLDocument, manifest: [String: EpubManifestItem]) -> String? {
-    guard let tocId = try? opfXML
-        .nodes(forXPath: "//*[local-name()='spine']/@toc")
-        .first?.stringValue else { return nil }
+nonisolated private func findNcxPath(_ opfXML: Searchable, manifest: [String: EpubManifestItem]) -> String? {
+    guard let tocId = opfXML.at_xpath("//*[local-name()='spine']/@toc")?.text else { return nil }
     return manifest[tocId]?.path
 }
 
 
-nonisolated private func findCover(_ opfXML: XMLDocument, manifest: [String: EpubManifestItem]) -> EpubManifestItem? {
+nonisolated private func findCover(_ opfXML: Searchable, manifest: [String: EpubManifestItem]) -> EpubManifestItem? {
     if let item = manifest.values.first(where: { $0.properties.contains("cover-image") }) {
         return item
     }
-    guard let coverId = try? opfXML
-        .nodes(forXPath: "//*[local-name()='meta'][@name='cover']/@content")
-        .first?.stringValue else { return nil }
+    guard let coverId = opfXML.at_xpath("//*[local-name()='meta'][@name='cover']/@content")?.text
+    else { return nil }
     return manifest[coverId]
 }
 
 nonisolated private func parseNcxToc(fetcher: EpubFetcher, ncxPath: String) throws -> [EpubTocEntry] {
-    let ncxXML = try XMLDocument(data: fetcher.data(at: ncxPath))
-    guard let navMap = try ncxXML.nodes(forXPath: "//*[local-name()='navMap']").first else { return [] }
-    return try parseNavPoints(navMap, ncxPath: ncxPath, idPrefix: "")
+    let ncxXML = try XML(xml: fetcher.data(at: ncxPath), encoding: .utf8)
+    guard let navMap = ncxXML.at_xpath("//*[local-name()='navMap']") else { return [] }
+    return parseNavPoints(navMap, ncxPath: ncxPath, idPrefix: "")
 }
 
-nonisolated private func parseNavPoints(_ parent: XMLNode, ncxPath: String, idPrefix: String) throws -> [EpubTocEntry] {
+nonisolated private func parseNavPoints(_ parent: Searchable, ncxPath: String, idPrefix: String) -> [EpubTocEntry] {
     var toc: [EpubTocEntry] = []
 
-    let navPoints = try parent.nodes(forXPath: "./*[local-name()='navPoint']")
-    for (index, node) in navPoints.enumerated() {
+    for (index, node) in parent.xpath("./*[local-name()='navPoint']").enumerated() {
         let id = idPrefix.isEmpty ? "\(index)" : "\(idPrefix).\(index)"
 
-        let title = try node.nodes(forXPath: "./*[local-name()='navLabel']/*[local-name()='text']")
-            .first?.stringValue ?? ""
-        let src = try node.nodes(forXPath: "./*[local-name()='content']/@src").first?.stringValue ?? ""
+        let title = node.at_xpath("./*[local-name()='navLabel']/*[local-name()='text']")?.text ?? ""
+        let src = node.at_xpath("./*[local-name()='content']/@src")?.text ?? ""
         let (path, fragment) = resolveHref(src, relativeTo: ncxPath)
 
-        let children = try parseNavPoints(node, ncxPath: ncxPath, idPrefix: id)
+        let children = parseNavPoints(node, ncxPath: ncxPath, idPrefix: id)
         toc.append(EpubTocEntry(id: id,
-                              title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                              title: normalizeTitle(title),
                               path: path,
                               fragment: fragment,
                               children: children))
@@ -186,35 +170,39 @@ nonisolated private func parseNavPoints(_ parent: XMLNode, ncxPath: String, idPr
 }
 
 nonisolated private func parseNavToc(fetcher: EpubFetcher, navPath: String) throws -> [EpubTocEntry] {
-    let navXML = try XMLDocument(data: fetcher.data(at: navPath))
-    guard let list = try navXML.nodes(forXPath:
-        "//*[local-name()='nav'][@*[local-name()='type']='toc']/*[local-name()='ol']").first
+    let navXML = try XML(xml: fetcher.data(at: navPath), encoding: .utf8)
+    guard let list = navXML.at_xpath(
+        "//*[local-name()='nav'][@*[local-name()='type']='toc']/*[local-name()='ol']")
     else { return [] }
-    return try parseNavList(list, navPath: navPath, idPrefix: "")
+    return parseNavList(list, navPath: navPath, idPrefix: "")
 }
 
-nonisolated private func parseNavList(_ list: XMLNode, navPath: String, idPrefix: String) throws -> [EpubTocEntry] {
+nonisolated private func parseNavList(_ list: Searchable, navPath: String, idPrefix: String) -> [EpubTocEntry] {
     var toc: [EpubTocEntry] = []
 
-    let items = try list.nodes(forXPath: "./*[local-name()='li']")
-    for (index, li) in items.enumerated() {
+    for (index, li) in list.xpath("./*[local-name()='li']").enumerated() {
         let id = idPrefix.isEmpty ? "\(index)" : "\(idPrefix).\(index)"
 
         // <li> 下是 <a href>（可跳转）或 <span>（仅分组标题），可选跟一个子 <ol>
-        let label = try li.nodes(forXPath: "./*[local-name()='a' or local-name()='span']").first
-        let title = label?.stringValue ?? ""
-        let href = try label?.nodes(forXPath: "@href").first?.stringValue ?? ""
+        let label = li.at_xpath("./*[local-name()='a' or local-name()='span']")
+        let title = label?.text ?? ""
+        let href = label?["href"] ?? ""
         let (path, fragment) = resolveHref(href, relativeTo: navPath)
 
-        let children = try li.nodes(forXPath: "./*[local-name()='ol']").first
-            .map { try parseNavList($0, navPath: navPath, idPrefix: id) } ?? []
+        let children = li.at_xpath("./*[local-name()='ol']")
+            .map { parseNavList($0, navPath: navPath, idPrefix: id) } ?? []
         toc.append(EpubTocEntry(id: id,
-                                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                                title: normalizeTitle(title),
                                 path: path,
                                 fragment: fragment,
                                 children: children))
     }
     return toc
+}
+
+// 按 HTML 渲染规则折叠空白（同 XPath normalize-space()）：源码缩进不算标题内容
+nonisolated private func normalizeTitle(_ title: String) -> String {
+    title.split(whereSeparator: \.isWhitespace).joined(separator: " ")
 }
 
 nonisolated private func resolveHref(_ href: String, relativeTo documentPath: String) -> (path: String, fragment: String?) {

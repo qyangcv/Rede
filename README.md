@@ -52,6 +52,7 @@
 - [ZIPFoundation](https://github.com/weichsel/ZIPFoundation)
 - [ReadiumCSS](https://github.com/readium/css)
 - [Sparkle](https://github.com/sparkle-project/Sparkle)
+- [Kanna](https://github.com/tid-kijyun/Kanna)
 
 ## 后续开发方向
 

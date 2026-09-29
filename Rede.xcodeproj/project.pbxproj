@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		2F62D3763055C33000626E1E /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 2F62D3753055C33000626E1E /* ZIPFoundation */; };
+		2F9F3D42306C389300DE863C /* Kanna in Frameworks */ = {isa = PBXBuildFile; productRef = 2F9F3D41306C389300DE863C /* Kanna */; };
+		2F9F3D45306C38AF00DE863C /* Kanna in Frameworks */ = {isa = PBXBuildFile; productRef = 2F9F3D44306C38AF00DE863C /* Kanna */; };
 		2FB0A00130700000000A0016 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 2FB0A00130700000000A0015 /* ZIPFoundation */; };
 		2FF960A430663CA600AFB10E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 2FF960A330663CA600AFB10E /* Sparkle */; };
 /* End PBXBuildFile section */
@@ -46,11 +48,6 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		2F62D37C3056A5CB00626E1E /* RedeTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RedeTests;
-			sourceTree = "<group>";
-		};
 		2FB0A00130700000000A0002 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Shared;
@@ -84,6 +81,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2F9F3D42306C389300DE863C /* Kanna in Frameworks */,
 				2F62D3763055C33000626E1E /* ZIPFoundation in Frameworks */,
 				2FF960A430663CA600AFB10E /* Sparkle in Frameworks */,
 			);
@@ -100,6 +98,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2F9F3D45306C38AF00DE863C /* Kanna in Frameworks */,
 				2FB0A00130700000000A0016 /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -111,7 +110,7 @@
 			isa = PBXGroup;
 			children = (
 				2FB0A00130700000000A0001 /* Rede */,
-				2F62D37C3056A5CB00626E1E /* RedeTests */,
+				2F9F3D43306C38AF00DE863C /* Frameworks */,
 				2F442E7630525751000DD248 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -124,6 +123,13 @@
 				2FB0A00130700000000A0011 /* Rede.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		2F9F3D43306C38AF00DE863C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		2FB0A00130700000000A0001 /* Rede */ = {
@@ -161,6 +167,7 @@
 			packageProductDependencies = (
 				2F62D3753055C33000626E1E /* ZIPFoundation */,
 				2FF960A330663CA600AFB10E /* Sparkle */,
+				2F9F3D41306C389300DE863C /* Kanna */,
 			);
 			productName = Rede;
 			productReference = 2F442E7530525751000DD248 /* Rede.app */;
@@ -178,9 +185,6 @@
 			);
 			dependencies = (
 				2F62D3803056A5CB00626E1E /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				2F62D37C3056A5CB00626E1E /* RedeTests */,
 			);
 			name = RedeTests;
 			packageProductDependencies = (
@@ -209,6 +213,7 @@
 			name = "Rede iOS";
 			packageProductDependencies = (
 				2FB0A00130700000000A0015 /* ZIPFoundation */,
+				2F9F3D44306C38AF00DE863C /* Kanna */,
 			);
 			productName = Rede;
 			productReference = 2FB0A00130700000000A0011 /* Rede.app */;
@@ -249,6 +254,7 @@
 			packageReferences = (
 				2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 				2FF960A230663CA600AFB10E /* XCRemoteSwiftPackageReference "Sparkle" */,
+				2F9F3D40306C389300DE863C /* XCRemoteSwiftPackageReference "Kanna" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2F442E7630525751000DD248 /* Products */;
@@ -656,6 +662,14 @@
 				minimumVersion = 0.9.20;
 			};
 		};
+		2F9F3D40306C389300DE863C /* XCRemoteSwiftPackageReference "Kanna" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/tid-kijyun/Kanna";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.1.0;
+			};
+		};
 		2FF960A230663CA600AFB10E /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
@@ -671,6 +685,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
 			productName = ZIPFoundation;
+		};
+		2F9F3D41306C389300DE863C /* Kanna */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F9F3D40306C389300DE863C /* XCRemoteSwiftPackageReference "Kanna" */;
+			productName = Kanna;
+		};
+		2F9F3D44306C38AF00DE863C /* Kanna */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F9F3D40306C389300DE863C /* XCRemoteSwiftPackageReference "Kanna" */;
+			productName = Kanna;
 		};
 		2FB0A00130700000000A0015 /* ZIPFoundation */ = {
 			isa = XCSwiftPackageProductDependency;

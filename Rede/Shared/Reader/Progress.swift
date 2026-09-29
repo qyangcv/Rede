@@ -1,4 +1,5 @@
 import Foundation
+import Kanna
 import SwiftData
 import os
 
@@ -27,10 +28,9 @@ nonisolated extension EpubBook {
         var wordCount = 0
         let lengths = model.spine.map { item -> Int in
             guard let data = try? fetcher.data(at: item.path),
-                  let xml = try? XMLDocument(data: data, options: .nodePreserveWhitespace),
-                  let nodes = try? xml.nodes(forXPath: "//*[local-name()='body']//text()")
+                  let xml = try? XML(xml: data, encoding: .utf8)
             else { return 0 }
-            let texts = nodes.compactMap(\.stringValue)
+            let texts = xml.xpath("//*[local-name()='body']//text()").compactMap { $0.text }
             wordCount += countWords(texts.joined(separator: " "))
             return texts.reduce(0) { $0 + $1.utf16.count }
         }
