@@ -43,21 +43,35 @@ DMG=dist/Rede-$VERSION.dmg
 gum confirm "Build and release $TAG (build $BUILD_NUMBER)?" || exit 0
 
 # 2. Archive (= Xcode → Product → Archive)
-rm -rf $BUILD/Rede.xcarchive $BUILD/dmg
+rm -rf $BUILD/Rede.xcarchive $BUILD/export $BUILD/dmg
 gum spin --title "Building ${TAG}…" --show-error -- \
-  xcodebuild archive -quiet \
+  xcodebuild archive -quiet -allowProvisioningUpdates \
     -scheme Rede -configuration Release \
     -archivePath $BUILD/Rede.xcarchive \
     -derivedDataPath $BUILD/DerivedData \
     MARKETING_VERSION=$VERSION \
     CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
+# 2b. Export with Developer ID (= Organizer → Distribute App → Direct Distribution)
+gum spin --title "Exporting…" --show-error -- \
+  xcodebuild -exportArchive -quiet -allowProvisioningUpdates \
+    -archivePath $BUILD/Rede.xcarchive \
+    -exportOptionsPlist scripts/ExportOptions.plist \
+    -exportPath $BUILD/export
+
 # 3. Create dmg (= Copy App + manual hdiutil)
 mkdir -p $BUILD/dmg dist
-cp -R $BUILD/Rede.xcarchive/Products/Applications/Rede.app $BUILD/dmg/
+cp -R $BUILD/export/Rede.app $BUILD/dmg/
 ln -s /Applications $BUILD/dmg/Applications
 gum spin --title "Creating dmg…" --show-error -- \
   hdiutil create -volname Rede -srcfolder $BUILD/dmg -ov -format UDZO "$DMG"
+
+# 3b. Sign, notarize and staple the dmg (must happen before generate_appcast,
+#     since stapling modifies the dmg and would invalidate its EdDSA signature)
+codesign --sign "Developer ID Application: Quan Yang (BTW6LD2Q74)" --timestamp "$DMG"
+gum spin --title "Notarizing…" --show-error -- \
+  xcrun notarytool submit "$DMG" --keychain-profile rede-notary --wait
+xcrun stapler staple "$DMG"
 
 # 4. Generate appcast (signs the dmg with the EdDSA key in Keychain)
 rm -rf $BUILD/appcast && mkdir -p $BUILD/appcast
