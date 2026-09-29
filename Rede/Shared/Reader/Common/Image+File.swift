@@ -5,7 +5,7 @@ import AppKit
 import UIKit
 #endif
 
-extension Image {
+nonisolated extension Image {
     init?(fileURL url: URL) {
         #if os(macOS)
         guard let image = NSImage(contentsOf: url) else { return nil }

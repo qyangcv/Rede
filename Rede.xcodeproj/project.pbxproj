@@ -8,7 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		2F62D3763055C33000626E1E /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 2F62D3753055C33000626E1E /* ZIPFoundation */; };
-		2FF960A430663CA600AFB10E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; platformFilters = (macos, ); productRef = 2FF960A330663CA600AFB10E /* Sparkle */; };
+		2FB0A00130700000000A0016 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 2FB0A00130700000000A0015 /* ZIPFoundation */; };
+		2FF960A430663CA600AFB10E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 2FF960A330663CA600AFB10E /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -24,37 +25,56 @@
 /* Begin PBXFileReference section */
 		2F442E7530525751000DD248 /* Rede.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rede.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F62D37B3056A5CB00626E1E /* RedeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RedeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2FB0A00130700000000A0011 /* Rede.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rede.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		2FF960A630663DF200AFB10E /* Exceptions for "Rede" folder in "Rede" target */ = {
+		2FB0A00130700000000A0006 /* Exceptions for "macOS" folder in "Rede" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			platformFiltersByRelativePath = {
-				macOS/CheckForUpdatesView.swift = (macos, );
-				macOS/ContentView.swift = (macos, );
-				macOS/LibraryView.swift = (macos, );
-				macOS/RedeApp.swift = (macos, );
-				macOS/SettingsView.swift = (macos, );
-			};
 			target = 2F442E7430525751000DD248 /* Rede */;
+		};
+		2FB0A00130700000000A0007 /* Exceptions for "iOS" folder in "Rede iOS" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2FB0A00130700000000A0010 /* Rede iOS */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		2F442E7730525751000DD248 /* Rede */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				2FF960A630663DF200AFB10E /* Exceptions for "Rede" folder in "Rede" target */,
-			);
-			path = Rede;
-			sourceTree = "<group>";
-		};
 		2F62D37C3056A5CB00626E1E /* RedeTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = RedeTests;
+			sourceTree = "<group>";
+		};
+		2FB0A00130700000000A0002 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		2FB0A00130700000000A0003 /* macOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2FB0A00130700000000A0006 /* Exceptions for "macOS" folder in "Rede" target */,
+			);
+			path = macOS;
+			sourceTree = "<group>";
+		};
+		2FB0A00130700000000A0004 /* iOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2FB0A00130700000000A0007 /* Exceptions for "iOS" folder in "Rede iOS" target */,
+			);
+			path = iOS;
+			sourceTree = "<group>";
+		};
+		2FB0A00130700000000A0005 /* Assets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Assets;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -76,13 +96,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2FB0A00130700000000A0013 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2FB0A00130700000000A0016 /* ZIPFoundation in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		2F442E6C30525751000DD248 = {
 			isa = PBXGroup;
 			children = (
-				2F442E7730525751000DD248 /* Rede */,
+				2FB0A00130700000000A0001 /* Rede */,
 				2F62D37C3056A5CB00626E1E /* RedeTests */,
 				2F442E7630525751000DD248 /* Products */,
 			);
@@ -93,8 +121,20 @@
 			children = (
 				2F442E7530525751000DD248 /* Rede.app */,
 				2F62D37B3056A5CB00626E1E /* RedeTests.xctest */,
+				2FB0A00130700000000A0011 /* Rede.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		2FB0A00130700000000A0001 /* Rede */ = {
+			isa = PBXGroup;
+			children = (
+				2FB0A00130700000000A0002 /* Shared */,
+				2FB0A00130700000000A0003 /* macOS */,
+				2FB0A00130700000000A0004 /* iOS */,
+				2FB0A00130700000000A0005 /* Assets */,
+			);
+			path = Rede;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -113,7 +153,9 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				2F442E7730525751000DD248 /* Rede */,
+				2FB0A00130700000000A0002 /* Shared */,
+				2FB0A00130700000000A0003 /* macOS */,
+				2FB0A00130700000000A0005 /* Assets */,
 			);
 			name = Rede;
 			packageProductDependencies = (
@@ -147,6 +189,31 @@
 			productReference = 2F62D37B3056A5CB00626E1E /* RedeTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		2FB0A00130700000000A0010 /* Rede iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2FB0A00130700000000A0017 /* Build configuration list for PBXNativeTarget "Rede iOS" */;
+			buildPhases = (
+				2FB0A00130700000000A0012 /* Sources */,
+				2FB0A00130700000000A0013 /* Frameworks */,
+				2FB0A00130700000000A0014 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				2FB0A00130700000000A0002 /* Shared */,
+				2FB0A00130700000000A0004 /* iOS */,
+				2FB0A00130700000000A0005 /* Assets */,
+			);
+			name = "Rede iOS";
+			packageProductDependencies = (
+				2FB0A00130700000000A0015 /* ZIPFoundation */,
+			);
+			productName = Rede;
+			productReference = 2FB0A00130700000000A0011 /* Rede.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -163,6 +230,9 @@
 					2F62D37A3056A5CB00626E1E = {
 						CreatedOnToolsVersion = 26.6;
 						TestTargetID = 2F442E7430525751000DD248;
+					};
+					2FB0A00130700000000A0010 = {
+						CreatedOnToolsVersion = 26.6;
 					};
 				};
 			};
@@ -187,6 +257,7 @@
 			targets = (
 				2F442E7430525751000DD248 /* Rede */,
 				2F62D37A3056A5CB00626E1E /* RedeTests */,
+				2FB0A00130700000000A0010 /* Rede iOS */,
 			);
 		};
 /* End PBXProject section */
@@ -206,6 +277,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2FB0A00130700000000A0014 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -217,6 +295,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		2F62D3773056A5CB00626E1E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2FB0A00130700000000A0012 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -267,7 +352,9 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = BTW6LD2Q74;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -287,14 +374,22 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
@@ -331,7 +426,9 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = BTW6LD2Q74;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -345,12 +442,20 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
@@ -360,10 +465,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = BTW6LD2Q74;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -379,27 +481,15 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Rede/Info.plist;
+				INFOPLIST_FILE = Rede/macOS/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.qyang.Rede;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -409,10 +499,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = BTW6LD2Q74;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
@@ -428,27 +515,15 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Rede/Info.plist;
+				INFOPLIST_FILE = Rede/macOS/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.qyang.Rede;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -456,18 +531,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = BTW6LD2Q74;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.qyang.RedeTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Rede.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Rede";
 			};
 			name = Debug;
@@ -476,19 +545,64 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = BTW6LD2Q74;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.qyang.RedeTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Rede.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Rede";
+			};
+			name = Release;
+		};
+		2FB0A00130700000000A0018 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Rede/iOS/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.qyang.Rede;
+				PRODUCT_NAME = Rede;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		2FB0A00130700000000A0019 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Rede/iOS/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.qyang.Rede;
+				PRODUCT_NAME = Rede;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -522,6 +636,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		2FB0A00130700000000A0017 /* Build configuration list for PBXNativeTarget "Rede iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2FB0A00130700000000A0018 /* Debug */,
+				2FB0A00130700000000A0019 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -545,6 +668,11 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		2F62D3753055C33000626E1E /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
+		2FB0A00130700000000A0015 /* ZIPFoundation */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
 			productName = ZIPFoundation;
