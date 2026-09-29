@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import ZIPFoundation
 import os
 
 @Observable
@@ -80,12 +81,7 @@ final class FontStore {
 
     @concurrent nonisolated
     private static func unzip(_ zip: URL, into directory: URL) async throws {
-        let process = Process()
-        process.executableURL = URL(filePath: "/usr/bin/ditto")
-        process.arguments = ["-x", "-k", zip.path(percentEncoded: false), directory.path(percentEncoded: false)]
-        try process.run()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { throw CocoaError(.fileReadCorruptFile) }
+        try FileManager.default.unzipItem(at: zip, to: directory)
     }
 
     @concurrent nonisolated

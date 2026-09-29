@@ -16,8 +16,6 @@ macOS 26.0+ and iOS 26.0+ only. Don't add availability checks or fallbacks for o
 - `Rede/Shared/Reader/Web/` — the rendering layer. Each chapter loads into an iframe inside `reader.html`; ReadiumCSS handles pagination and typography, and `reader.js` only handles navigation, anchors, and progress.
 - Swift talks to JS exclusively through `JSBridge.swift`, which calls `window.reader.*`. Any change to that interface must land on both sides.
 - `Web/readium/` is vendored ReadiumCSS — never edit it. Override in `reader.css` or through ReadiumCSS variables instead.
-- `RedeFont/` holds font experiments and sample material; it is not part of the app.
-- `RedeTests/` holds unit tests; currently only EPUB parsing is covered.
 
 ## Working with me
 

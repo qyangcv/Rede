@@ -73,6 +73,10 @@ extension ModelContainer {
 enum BookImporter {
     @discardableResult
     static func importBook(from source: URL, into context: ModelContext) throws -> Book {
+        // 文件选择器、拖放、"打开方式"传来的 URL 可能在沙盒外，读之前要先申请访问权限
+        let granted = source.startAccessingSecurityScopedResource()
+        defer { if granted { source.stopAccessingSecurityScopedResource() } }
+
         let id = try fileID(of: source)
         let existing = FetchDescriptor<Book>(predicate: #Predicate { $0.id == id })
         if let book = try context.fetch(existing).first { return book }

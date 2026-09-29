@@ -111,6 +111,14 @@ final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
     func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
 }
 
+// 手势由 reader.js 识别后上报，怎样响应由各平台决定
+enum ReaderGesture {
+    enum Direction { case left, right }
+
+    case tap(x: Double)   // 点击位置占 WebView 宽度的比例，0 为最左
+    case swipe(Direction) // 手指滑动的方向
+}
+
 final class Reader: NSObject,  WKNavigationDelegate {
     let book: EpubBook
     let webView: ReaderWebView
@@ -122,12 +130,15 @@ final class Reader: NSObject,  WKNavigationDelegate {
     private var style: [String: String] = [:]
 
     static let progressChannel = "reading_progress"
-    private let start: ReadingPosition?
+    static let gestureChannel = "gesture"
+    // 最近一次上报的阅读位置；重新加载外壳页（WebContent 进程被系统回收后）从这里恢复
+    private var position: ReadingPosition?
     var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
+    var onGesture: ((ReaderGesture) -> Void)?
     
     init(book: EpubBook, start: ReadingPosition? = nil) {
         self.book = book
-        self.start = start
+        self.position = start
         self.toc = TOCItem.flatten(book.model.toc)
         self.spineIndex = Dictionary(book.model.spine.enumerated().map { ($1.path, $0) },
                                      uniquingKeysWith: { first, _ in first })
@@ -136,8 +147,9 @@ final class Reader: NSObject,  WKNavigationDelegate {
         config.setURLSchemeHandler(EpubSchemeHandler(book: book), forURLScheme: EpubSchemeHandler.scheme)
         config.setURLSchemeHandler(AppResourceSchemeHandler(), forURLScheme: AppResourceSchemeHandler.scheme)
 
-        let relay = ProgressRelay()
+        let relay = MessageRelay()
         config.userContentController.add(relay, name: Self.progressChannel)
+        config.userContentController.add(relay, name: Self.gestureChannel)
         
         self.webView = ReaderWebView(frame: .zero, configuration: config)
         
@@ -184,9 +196,13 @@ final class Reader: NSObject,  WKNavigationDelegate {
             toc.compactMap { $0.entry.path == item.path ? $0.entry.fragment : nil }
         }
         Task {
-            await bridge.open(paths: paths, language: language, style: style, start: start,
+            await bridge.open(paths: paths, language: language, style: style, start: position,
                               tocAnchors: tocAnchors)
         }
+    }
+
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        open(style: style)
     }
 
     func webView(_ webView: WKWebView,
@@ -199,7 +215,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
             #if os(macOS)
             NSWorkspace.shared.open(url)
             #else
-            UIApplication.shared.open(url)
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
             #endif
         }
         return .cancel
@@ -223,6 +239,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
     func prev() { Task { await bridge.prev() } }
 
     fileprivate func receive(_ position: ReadingPosition, _ page: PageInfo, anchors: [String: Int]) {
+        self.position = position
         onProgress?(position, page, tocItem(at: position, anchors: anchors))
     }
 
@@ -237,16 +254,34 @@ final class Reader: NSObject,  WKNavigationDelegate {
     }
 }
 
-private final class ProgressRelay: NSObject, WKScriptMessageHandler {
+private final class MessageRelay: NSObject, WKScriptMessageHandler {
     weak var reader: Reader?
 
     func userContentController(_ controller: WKUserContentController,
                                didReceive message: WKScriptMessage) {
-        guard let data = try? JSONSerialization.data(withJSONObject: message.body),
+        switch message.name {
+        case Reader.progressChannel: receiveProgress(message.body)
+        case Reader.gestureChannel: receiveGesture(message.body)
+        default: break
+        }
+    }
+
+    private func receiveProgress(_ body: Any) {
+        guard let data = try? JSONSerialization.data(withJSONObject: body),
               let position = try? JSONDecoder().decode(ReadingPosition.self, from: data),
               let page = try? JSONDecoder().decode(PageInfo.self, from: data),
               let chapter = try? JSONDecoder().decode(ChapterAnchors.self, from: data)
         else { return }
         reader?.receive(position, page, anchors: chapter.anchors)
+    }
+
+    private func receiveGesture(_ body: Any) {
+        guard let body = body as? [String: Any] else { return }
+        let gesture: ReaderGesture? = switch body["type"] as? String {
+        case "tap": (body["x"] as? Double).map { .tap(x: $0) }
+        case "swipe": (body["direction"] as? String == "left") ? .swipe(.left) : .swipe(.right)
+        default: nil
+        }
+        if let gesture { reader?.onGesture?(gesture) }
     }
 }

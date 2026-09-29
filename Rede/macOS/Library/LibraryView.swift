@@ -225,8 +225,6 @@ struct LibraryView: View {
     
     private func importBooks(_ urls: [URL]) {
         for url in urls {
-            let granted = url.startAccessingSecurityScopedResource()
-            defer { if granted { url.stopAccessingSecurityScopedResource() } }
             do {
                 try BookImporter.importBook(from: url, into: modelContext)
             } catch {

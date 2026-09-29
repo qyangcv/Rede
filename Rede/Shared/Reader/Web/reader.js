@@ -3,11 +3,14 @@
 // 每个章节作为完整文档加载进 iframe，样式层交给 ReadiumCSS（cjk-horizontal）：
 //   ReadiumCSS-before → 书自带样式 → [ReadiumCSS-default，仅当书没有样式] → ReadiumCSS-after
 // 分页由 ReadiumCSS 在章节 :root 上分栏，本脚本只负责导航、锚点和进度。
+// 手势只做识别并上报 Swift，是否翻页由各平台决定。
 
 const XHTML_NS = "http://www.w3.org/1999/xhtml";
 const READIUM_BASE = "rede://app/";
 const ASSET_TIMEOUT_MS = 5000;
 const MIN_COLUMN_EM = 20
+const SWIPE_MIN_PX = 30;
+const SWIPE_MAX_MS = 500;
 
 // 版面相关的 ReadiumCSS 变量：
 // - 左右页边距
@@ -38,6 +41,7 @@ const state = {
 
 let doc = null;  // 当前章节文档
 let pad = null;  // 当前章节的补白列，见 measure()
+let touch = null;  // 当前单指触摸的起点，见 onTouchStart()
 
 // Swift 调用接口
 
@@ -50,6 +54,7 @@ const reader = {
     state.style = style;
     applyStyle();
     window.addEventListener("resize", reflow);
+    watchGestures(document);
     goto(start ? start.chapter : 0, start ?? 0);
   },
 
@@ -133,6 +138,7 @@ async function prepare(doc) {
 
   applyStyle();
   doc.addEventListener("click", onClick);
+  watchGestures(doc);
   doc.addEventListener("load", reflow, true);
   doc.fonts.addEventListener("loadingdone", reflow);
   await waitAssets(doc, [fonts, before, ...after]);
@@ -332,4 +338,45 @@ function onClick(event) {
   event.preventDefault();
   const chapter = state.spinePaths.indexOf(path);
   if (chapter >= 0) reader.jump(chapter, anchor);
+}
+
+// ---------- 手势 ----------
+
+// 外壳页和每个章节文档各自绑定：iframe 里的事件不会冒泡到外壳页，上下页边距上的点击落在外壳页
+function watchGestures(target) {
+  target.addEventListener("click", onTap);
+  target.addEventListener("touchstart", onTouchStart, { passive: true });
+  target.addEventListener("touchend", onTouchEnd, { passive: true });
+  target.addEventListener("touchcancel", () => { touch = null; }, { passive: true });
+}
+
+// 点在链接上交给 onClick 和原生导航；有选区时这次点击是在取消选中，都不上报
+function onTap(event) {
+  if (event.target.closest("a[href]") || !event.view.getSelection().isCollapsed) return;
+  const left = event.view === window ? 0 : frame.getBoundingClientRect().left;
+  window.webkit?.messageHandlers?.gesture?.postMessage({
+    type: "tap",
+    x: (event.clientX + left) / window.innerWidth,
+  });
+}
+
+function onTouchStart(event) {
+  const t = event.touches.length === 1 ? event.touches[0] : null;
+  touch = t && { x: t.screenX, y: t.screenY, time: event.timeStamp };
+}
+
+// 单指、以横向为主、距离够长且足够快才算轻扫；正在选字时不算
+function onTouchEnd(event) {
+  const start = touch;
+  touch = null;
+  if (!start || event.touches.length > 0 || !event.view.getSelection().isCollapsed) return;
+  const t = event.changedTouches[0];
+  const dx = t.screenX - start.x;
+  const dy = t.screenY - start.y;
+  if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= Math.abs(dy)
+      || event.timeStamp - start.time > SWIPE_MAX_MS) return;
+  window.webkit?.messageHandlers?.gesture?.postMessage({
+    type: "swipe",
+    direction: dx < 0 ? "left" : "right",
+  });
 }
