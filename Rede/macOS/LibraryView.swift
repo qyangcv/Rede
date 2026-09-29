@@ -236,87 +236,6 @@ struct LibraryView: View {
     }
 }
 
-struct AppearanceButton: View {
-    @Binding var appearance: Appearance
-
-    var body: some View {
-        Menu {
-            Picker("外观", selection: $appearance) {
-                ForEach(Appearance.allCases) { item in
-                    Label(item.name, systemImage: item.icon).tag(item)
-                }
-            }
-            .pickerStyle(.inline)
-        } label: {
-            Label("外观", systemImage: appearance.icon)
-        }
-        .menuIndicator(.hidden)
-        .help("外观")
-    }
-}
-
-struct BookCard: View {
-    let book: Book
-    let isSelected: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Color.clear
-                .aspectRatio(2 / 3, contentMode: .fit)
-                .overlay { cover }
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .shadow(color: .black.opacity(0.15), radius: 3, y: 2)
-            
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(book.name)
-                    .font(.callout)
-                    .lineLimit(1)
-                    .help(book.name)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                if let progress = book.progress {
-                    Text(progress.formatted(
-                        .percent
-                            .precision(.fractionLength(0...1))
-                            .rounded(rule: .down)
-                    ))
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .fixedSize()
-                }
-            }
-            Text(book.author)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .contentShape(Rectangle())
-        .background {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.quaternary)
-                .padding(-8)
-                .opacity(isSelected ? 1 : 0)
-        }
-    }
-
-    @ViewBuilder
-    private var cover: some View {
-        if let image = NSImage(contentsOf: book.cover) {
-            Image(nsImage: image)
-                .resizable()
-                .scaledToFill()
-       } else {
-           Rectangle()
-               .fill(.quaternary)
-               .overlay {
-                   Image(systemName: "book.closed")
-                       .font(.largeTitle)
-                       .foregroundStyle(.secondary)
-               }
-       }
-    }
-}
-
 struct BookInfoEditor: View {
     let book: Book
     let onSave: () -> Void
@@ -374,7 +293,7 @@ struct BookInfoView: View {
                 row("ISBN", metadata?.isbn)
                 row("EPUB 版本", metadata?.version)
                 row("文件大小", fileSize.map { Int64($0).formatted(.byteCount(style: .file)) })
-                row("总字数", book.wordCount?.formatted())
+                row("字数", book.wordCount?.formatted())
                 row("导入时间", book.date.formatted(date: .abbreviated, time: .shortened))
                 row("最后阅读", book.lastRead?.formatted(date: .abbreviated, time: .shortened))
             }
@@ -400,17 +319,6 @@ struct BookInfoView: View {
     }
 }
 
-struct EpubFile: FileDocument {
-    static let readableContentTypes: [UTType] = [.epub]
-    let url: URL
-
-    init(url: URL) { self.url = url }
-    init(configuration: ReadConfiguration) throws { throw CocoaError(.featureUnsupported) }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        try FileWrapper(url: url)
-    }
-}
 
 
 #Preview("library") {

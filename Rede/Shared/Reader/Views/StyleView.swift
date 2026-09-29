@@ -231,10 +231,10 @@ private struct PatternSwatch: View {
     let isSelected: Bool
     let action: () -> Void
 
-    private var image: NSImage? {
+    private var image: Image? {
         pattern.file
             .flatMap { Bundle.main.url(forResource: $0, withExtension: nil) }
-            .flatMap(NSImage.init(contentsOf:))
+            .flatMap(Image.init(fileURL:))
     }
 
     var body: some View {
@@ -244,7 +244,7 @@ private struct PatternSwatch: View {
                 .frame(width: 36, height: 20)
                 .overlay(alignment: .topTrailing) {
                     if let image {
-                        Image(nsImage: image)
+                        image
                             .resizable()
                             .scaledToFit()
                             .frame(width: 32) // 背景缩略图放大倍数

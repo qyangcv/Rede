@@ -47,6 +47,7 @@ rm -rf $BUILD/Rede.xcarchive $BUILD/export $BUILD/dmg
 gum spin --title "Building ${TAG}…" --show-error -- \
   xcodebuild archive -quiet -allowProvisioningUpdates \
     -scheme Rede -configuration Release \
+    -destination 'generic/platform=macOS' \
     -archivePath $BUILD/Rede.xcarchive \
     -derivedDataPath $BUILD/DerivedData \
     MARKETING_VERSION=$VERSION \

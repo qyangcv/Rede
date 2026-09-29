@@ -158,6 +158,28 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
     }
 }
 
+enum Appearance: String, CaseIterable, Identifiable, Codable {
+    case system, light, dark
+
+    var id: Self { self }
+
+    var name: String {
+        switch self {
+        case .system: "系统"
+        case .light: "浅色"
+        case .dark: "深色"
+        }
+    }
+    
+    var icon: String {
+           switch self {
+           case .system: "circle.lefthalf.filled"
+           case .light: "sun.max"
+           case .dark: "moon"
+           }
+       }
+}
+
 enum Spacing: String, CaseIterable, Identifiable, Codable {
     case compact, snug, standard, relaxed, loose
 
@@ -218,36 +240,6 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
 enum TextColor {
     static func color(for scheme: ColorScheme) -> String {
         scheme == .dark ? "#D1D1D1" : "#303030"
-    }
-}
-
-enum Appearance: String, CaseIterable, Identifiable, Codable {
-    case system, light, dark
-
-    var id: Self { self }
-
-    var name: String {
-        switch self {
-        case .system: "系统"
-        case .light: "浅色"
-        case .dark: "深色"
-        }
-    }
-    
-    var icon: String {
-           switch self {
-           case .system: "circle.lefthalf.filled"
-           case .light: "sun.max"
-           case .dark: "moon"
-           }
-       }
-
-    var nsAppearance: NSAppearance? {
-        switch self {
-        case .system: nil
-        case .light: NSAppearance(named: .aqua)
-        case .dark: NSAppearance(named: .darkAqua)
-        }
     }
 }
 
@@ -373,7 +365,7 @@ final class Settings {
 
     var appearance: Appearance {
         didSet {
-            NSApp.appearance = appearance.nsAppearance
+            appearance.apply()
             save()
         }
     }

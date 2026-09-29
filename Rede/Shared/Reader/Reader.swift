@@ -1,5 +1,10 @@
 import WebKit
 import UniformTypeIdentifiers
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 final class EpubSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "epub"
@@ -136,8 +141,6 @@ final class Reader: NSObject,  WKNavigationDelegate {
         
         self.webView = ReaderWebView(frame: .zero, configuration: config)
         
-        self.webView.setValue(false, forKey: "drawsBackground")
-        
         #if DEBUG
         self.webView.isInspectable = true
         #endif
@@ -148,9 +151,6 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
         relay.reader = self
         webView.navigationDelegate = self
-        webView.onKeyDown = { [weak self] event in
-            self?.handleKeyDown(event) ?? false
-        }
     }
 
     func open(style: [String: String]) {
@@ -196,7 +196,11 @@ final class Reader: NSObject,  WKNavigationDelegate {
               ["http", "https", "mailto"].contains(scheme) else { return .allow }
 
         if navigationAction.navigationType == .linkActivated {
+            #if os(macOS)
             NSWorkspace.shared.open(url)
+            #else
+            UIApplication.shared.open(url)
+            #endif
         }
         return .cancel
     }
@@ -206,29 +210,17 @@ final class Reader: NSObject,  WKNavigationDelegate {
         Task { await bridge.setStyle(style) }
     }
 
-    func focus() {
-        webView.window?.makeFirstResponder(webView)
-    }
-    
-    private func handleKeyDown(_ event: NSEvent) -> Bool {
-        guard event.modifierFlags.isDisjoint(with: [.command, .option, .control]),
-              let key = event.specialKey else { return false }
-
-        switch key {
-        case .leftArrow: Task { await bridge.prev() }
-        case .rightArrow: Task { await bridge.next() }
-        default: return false
-        }
-        return true
-    }
-
     func go(to entry: EpubTocEntry) {
         guard let index = spineIndex[entry.path] else { return }
         Task {
             await bridge.jump(chapter: index, anchor: entry.fragment)
-            webView.window?.makeFirstResponder(webView)
+            focus()
         }
     }
+    
+    func next() { Task { await bridge.next() } }
+    
+    func prev() { Task { await bridge.prev() } }
 
     fileprivate func receive(_ position: ReadingPosition, _ page: PageInfo, anchors: [String: Int]) {
         onProgress?(position, page, tocItem(at: position, anchors: anchors))

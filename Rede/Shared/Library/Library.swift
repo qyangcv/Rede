@@ -1,15 +1,16 @@
 import Foundation
 import SwiftData
-import AppKit
 import CryptoKit
+import ImageIO
+import UniformTypeIdentifiers
 
 enum AppPaths {
     #if DEBUG
-    static let root = URL(filePath: #filePath)   // .../Rede/Library/Library.swift
-        .deletingLastPathComponent()             // .../Rede/Library
-        .deletingLastPathComponent()             // .../Rede
-        .deletingLastPathComponent()             // 仓库根目录
+    // ~/Library/Application\ Support/Rede-Debug
+    static let root = URL.applicationSupportDirectory
+        .appending(component: "Rede-Debug", directoryHint: .isDirectory)
     #else
+    // ~/Library/Application\ Support/Rede
     static let root = URL.applicationSupportDirectory
         .appending(component: "Rede", directoryHint: .isDirectory)
     #endif
@@ -104,18 +105,22 @@ enum BookImporter {
 
     private static func saveCover(of epub: EpubBook, to url: URL) {
         guard let cover = epub.model.cover,
-              let data =  try? epub.fetcher.data(at: cover.path) else { return }
-        
-        let jpeg: Data?
-        if cover.mediaType == "image/jpeg" {
-            jpeg = data
-        } else {
-            let bitmap = NSBitmapImageRep(data: data)
-            jpeg = bitmap?.representation(using: .jpeg, properties: [.compressionFactor: 1.0])
-        }
-        
+              let data = try? epub.fetcher.data(at: cover.path) else { return }
+
+        let jpeg = cover.mediaType == "image/jpeg" ? data : jpegData(from: data)
         guard let jpeg else { return }
         try? jpeg.write(to: url)
+    }
+
+    private static func jpegData(from data: Data) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            output as CFMutableData, UTType.jpeg.identifier as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(destination, image,
+                                   [kCGImageDestinationLossyCompressionQuality: 1.0] as CFDictionary)
+        return CGImageDestinationFinalize(destination) ? output as Data : nil
     }
 }
 

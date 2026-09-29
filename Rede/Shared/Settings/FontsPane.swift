@@ -1,15 +1,5 @@
 import SwiftUI
 
-struct SettingsView: View {
-    var body: some View {
-        TabView {
-            Tab("字体", systemImage: "f.cursive") {
-                FontsPane()
-            }
-        }
-    }
-}
-
 struct FontsPane: View {
     var body: some View {
         Form {
@@ -22,7 +12,6 @@ struct FontsPane: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 300)
     }
 }
 
@@ -64,8 +53,4 @@ private struct FontRow: View {
             Button("下载") { store.download(font) }
         }
     }
-}
-
-#Preview {
-    SettingsView()
 }
