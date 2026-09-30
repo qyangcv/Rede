@@ -70,6 +70,11 @@ const reader = {
     goto(chapter, anchor || 0);
   },
 
+  // 跳到保存的阅读位置，用于跟随其他设备同步来的进度
+  restore(position) {
+    goto(position.chapter, position);
+  },
+
   setStyle(vars) {
     Object.assign(state.style, vars);
     reflow();

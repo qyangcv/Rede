@@ -36,4 +36,7 @@ extension JSBridge {
     {
         await call("reader.jump(chapter, anchor)", ["chapter": chapter, "anchor": anchor ?? ""])
     }
+    func restore(_ position: ReadingPosition) async {
+        await call("reader.restore(position)", ["position": position.jsObject])
+    }
 }

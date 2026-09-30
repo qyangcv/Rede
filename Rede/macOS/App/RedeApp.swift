@@ -4,7 +4,8 @@ import Sparkle
 
 @main
 struct RedeApp: App {
-    @State private var session = ReaderSession()
+    @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
+    private var session: ReaderSession { appDelegate.session }
     private let updaterController: SPUStandardUpdaterController = {
            #if DEBUG
            let startingUpdater = false
@@ -17,6 +18,7 @@ struct RedeApp: App {
     
     init () {
         Settings.shared.appearance.apply()
+        SyncMonitor.shared.start()
         NSWindow.allowsAutomaticWindowTabbing = false
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
         UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
@@ -27,7 +29,7 @@ struct RedeApp: App {
             ContentView()
         }
         .defaultSize(width: 600, height: 400)
-        .modelContainer(.localLibrary)
+        .modelContainer(.library)
         .environment(session)
         .commands {
             CommandGroup(after: .appInfo) {
@@ -50,6 +52,23 @@ struct RedeApp: App {
         SwiftUI.Settings {
             SettingsView()
         }
+    }
+}
+
+// 退出时先让窗口消失，进程再留一会儿把刚保存的改动传到 iCloud，用户不用等
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let session = ReaderSession()
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let start = Date.now
+        session.flush()
+        guard CloudSync.isActive else { return .terminateNow }
+        for window in sender.windows { window.orderOut(nil) }
+        Task {
+            await SyncMonitor.shared.waitForExport(since: start, timeout: .seconds(10))
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 }
 

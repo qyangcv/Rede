@@ -135,6 +135,8 @@ final class Reader: NSObject,  WKNavigationDelegate {
     private var position: ReadingPosition?
     var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
     var onGesture: ((ReaderGesture) -> Void)?
+    // 用户是否主动翻过页或跳过章节
+    private(set) var navigated = false
     
     init(book: EpubBook, start: ReadingPosition? = nil) {
         self.book = book
@@ -228,15 +230,26 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     func go(to entry: EpubTocEntry) {
         guard let index = spineIndex[entry.path] else { return }
+        navigated = true
         Task {
             await bridge.jump(chapter: index, anchor: entry.fragment)
             focus()
         }
     }
     
-    func next() { Task { await bridge.next() } }
-    
-    func prev() { Task { await bridge.prev() } }
+    func next() {
+        navigated = true
+        Task { await bridge.next() }
+    }
+
+    func prev() {
+        navigated = true
+        Task { await bridge.prev() }
+    }
+
+    func restore(_ position: ReadingPosition) {
+        Task { await bridge.restore(position) }
+    }
 
     fileprivate func receive(_ position: ReadingPosition, _ page: PageInfo, anchors: [String: Int]) {
         self.position = position

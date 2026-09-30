@@ -86,8 +86,9 @@ struct BookInfoView: View {
         .presentationDetents([.medium, .large])
         .task {
             ChapterLengthIndexer.shared.ensure(book, in: modelContext)
-            metadata = try? parseEpub(at: book.url).model.metadata
-            fileSize = try? book.url.resourceValues(forKeys: [.fileSizeKey]).fileSize
+            let data = try? book.epubData()
+            metadata = try? data.map(parseEpub)?.model.metadata
+            fileSize = data?.count
         }
     }
 

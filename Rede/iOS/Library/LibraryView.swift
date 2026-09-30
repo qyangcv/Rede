@@ -34,6 +34,8 @@ struct LibraryView: View {
                 .padding(.vertical, 16)
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            // 同步前在两台设备上各自导入的同一本书会变成两条记录，书库一有变化就合并
+            .onChange(of: books.map(\.id), initial: true) { BookMerger.merge(in: modelContext) }
             .overlay {
                 if books.isEmpty {
                     ContentUnavailableView("书架是空的", systemImage: "books.vertical",
@@ -41,7 +43,13 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("我的书库")
+            .overlay(alignment: .top) { SyncBanner() }
             .toolbar {
+                if SyncMonitor.shared.hasProblem {
+                    ToolbarItem { SyncAlertButton() }
+                    ToolbarSpacer(.fixed)
+                }
+
                 ToolbarItem {
                     Button("设置", systemImage: "gearshape") { showSettings = true }
                 }
@@ -103,8 +111,10 @@ struct LibraryView: View {
     private func menu(for book: Book) -> some View {
         Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
         Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
-        ShareLink(item: EpubFile(book), preview: SharePreview(book.name)) {
-            Label("分享", systemImage: "square.and.arrow.up")
+        if let file = EpubFile(book) {
+            ShareLink(item: file, preview: SharePreview(book.name)) {
+                Label("分享", systemImage: "square.and.arrow.up")
+            }
         }
         Button("删除", systemImage: "trash", role: .destructive) { bookToDelete = book }
     }

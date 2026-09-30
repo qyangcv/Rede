@@ -62,10 +62,11 @@ final class ChapterLengthIndexer {
 
     func ensure(_ book: Book, in context: ModelContext) {
         guard book.chapterLengths.isEmpty || book.wordCount == nil,
+              let data = try? book.epubData(),
               running.insert(book.id).inserted else { return }
-        let id = book.id, url = book.url
+        let id = book.id
         Task {
-            let stats = try? await Self.compute(url)
+            let stats = try? await Self.compute(data)
             running.remove(id)
             guard let stats,
                   let book = try? context.fetch(FetchDescriptor<Book>(
@@ -78,8 +79,8 @@ final class ChapterLengthIndexer {
     }
 
     @concurrent
-    nonisolated private static func compute(_ url: URL) async throws -> (chapterLengths: [Int], wordCount: Int) {
-        try parseEpub(at: url).textStats()
+    nonisolated private static func compute(_ data: Data) async throws -> (chapterLengths: [Int], wordCount: Int) {
+        try parseEpub(data).textStats()
     }
 }
 
@@ -114,6 +115,8 @@ final class ProgressStore {
         task = nil
         guard let position = pending else { return }
         pending = nil
+        // 书可能已在其他设备上删除，或作为重复记录被合并掉
+        guard book.modelContext != nil else { return }
 
         book.position = position
         do {

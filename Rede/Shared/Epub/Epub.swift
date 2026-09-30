@@ -49,8 +49,8 @@ nonisolated enum EpubParsingError: Error {
     case entryNotFound(String)
 }
 
-nonisolated func parseEpub(at fileURL: URL) throws -> EpubBook {
-    let archive = try Archive(url: fileURL, accessMode: .read)
+nonisolated func parseEpub(_ data: Data) throws -> EpubBook {
+    let archive = try Archive(data: data, accessMode: .read)
     let fetcher = EpubFetcher(archive: archive)
 
     let containerXML = try XML(xml: fetcher.data(at: "META-INF/container.xml"), encoding: .utf8)

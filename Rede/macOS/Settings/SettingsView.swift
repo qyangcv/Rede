@@ -7,6 +7,10 @@ struct SettingsView: View {
                 FontsPane()
                     .frame(width: 480, height: 300)
             }
+            Tab("同步", systemImage: "icloud") {
+                SyncPane()
+                    .frame(width: 480, height: 300)
+            }
         }
     }
 }

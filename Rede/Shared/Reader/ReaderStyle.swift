@@ -378,9 +378,19 @@ final class Settings {
         }
     }
 
+    // 书库在启动时按这个开关创建，改动下次启动生效，见 CloudSync
+    var iCloudSync: Bool { didSet { save() } }
+
+    #if DEBUG
+    private static let defaultICloudSync = true
+    #else
+    private static let defaultICloudSync = false
+    #endif
+
     private struct Snapshot: Codable {
         var readerStyle: ReaderStyle?
         var appearance: Appearance?
+        var iCloudSync: Bool?
     }
 
     private init() {
@@ -388,6 +398,7 @@ final class Settings {
             .flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) }
         readerStyle = snapshot?.readerStyle ?? .default
         appearance = snapshot?.appearance ?? .system
+        iCloudSync = snapshot?.iCloudSync ?? Self.defaultICloudSync
     }
 
     private func save() {
@@ -396,7 +407,8 @@ final class Settings {
                                                     withIntermediateDirectories: true)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(Snapshot(readerStyle: readerStyle, appearance: appearance))
+            try encoder.encode(Snapshot(readerStyle: readerStyle, appearance: appearance,
+                                    iCloudSync: iCloudSync))
                 .write(to: AppPaths.settings, options: .atomic)
         } catch {
             Self.log.error("保存设置失败：\(error.localizedDescription, privacy: .public)")

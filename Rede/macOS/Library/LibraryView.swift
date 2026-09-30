@@ -57,13 +57,20 @@ struct LibraryView: View {
                     )
                 }
             }
+            // 同步前在两台设备上各自导入的同一本书会变成两条记录，书库一有变化就合并
+            .onChange(of: books.map(\.id), initial: true) { BookMerger.merge(in: modelContext) }
             .dropDestination(for: URL.self) { urls, _ in
                 let epubs = urls.filter { $0.pathExtension.lowercased() == "epub" }
                 importBooks(epubs)
                 return !epubs.isEmpty
             }
             .navigationTitle("我的书库")
+            .overlay(alignment: .top) { SyncBanner() }
             .toolbar {
+                if SyncMonitor.shared.hasProblem {
+                    ToolbarItem { SyncAlertButton() }
+                }
+
                 ToolbarItem {
                     SettingsLink {
                         Label("设置", systemImage: "gearshape")
@@ -91,7 +98,7 @@ struct LibraryView: View {
             .fileExporter(
                 isPresented: Binding(get: { bookToExport != nil },
                                      set: { if !$0 { bookToExport = nil } }),
-                document: bookToExport.map(EpubFile.init),
+                document: bookToExport.flatMap(EpubFile.init),
                 contentType: .epub,
                 defaultFilename: bookToExport?.exportName
             ) { result in
@@ -185,7 +192,7 @@ struct LibraryView: View {
         guard panel.runModal() == .OK, let folder = panel.url else { return }
         for book in books {
             do {
-                try FileManager.default.copyItem(at: book.url, to: folder.appending(component: book.exportName))
+                try book.epubData().write(to: folder.appending(component: book.exportName))
             } catch {
                 errors.append("\(book.name)：\(error.localizedDescription)")
             }
@@ -226,6 +233,6 @@ struct LibraryView: View {
 
 #Preview("library") {
     LibraryView()
-        .modelContainer(.localLibrary)
+        .modelContainer(.library)
         .environment(ReaderSession())
 }
