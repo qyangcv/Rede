@@ -11,7 +11,7 @@ macOS 26.0+ and iOS 26.0+ only. Don't add availability checks or fallbacks for o
   - `Library/` — book library and import
   - `Reader/` — reading session, progress, styling
   - `Settings/` — settings panes
-- `Rede/macOS/`, `Rede/iOS/` — per-platform app entry, windows, and views. iOS is an empty shell for now.
+- `Rede/macOS/`, `Rede/iOS/` — per-platform app entry, windows, and views.
 - Put platform-specific code in `macOS/` or `iOS/`. When it has to live in `Shared/`, fence it with `#if os(macOS)` / `#if os(iOS)`.
 - `Rede/Shared/Reader/Web/` — the rendering layer. Each chapter loads into an iframe inside `reader.html`; ReadiumCSS handles pagination and typography, and `reader.js` only handles navigation, anchors, and progress.
 - Swift talks to JS exclusively through `JSBridge.swift`, which calls `window.reader.*`. Any change to that interface must land on both sides.

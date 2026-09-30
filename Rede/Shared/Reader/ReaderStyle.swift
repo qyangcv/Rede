@@ -138,7 +138,15 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
     
     var isBuiltin: Bool { package == nil }
 
-    var isAvailable: Bool { package == nil || FontStore.shared.downloaded.contains(self) }
+    #if os(macOS)
+    private static let preinstalled: Set<ReaderFont> = [.original, .system, .pingfang, .songti, .hiragino]
+    #else
+    private static let preinstalled: Set<ReaderFont> = [.original, .system, .pingfang]
+    #endif
+
+    var isAvailable: Bool {
+        isBuiltin ? Self.preinstalled.contains(self) : FontStore.shared.downloaded.contains(self)
+    }
 
     static var fontFaceCSS: String {
         allCases.flatMap { font in

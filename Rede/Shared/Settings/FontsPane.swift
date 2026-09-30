@@ -3,12 +3,16 @@ import SwiftUI
 struct FontsPane: View {
     var body: some View {
         Form {
-            Section("第三方字体") {
+            Section {
                 ForEach(ReaderFont.allCases) { font in
                     if let package = font.package {
                         FontRow(font: font, package: package)
                     }
                 }
+            } header: {
+                Text("第三方字体")
+            } footer: {
+                Text("下载字体需要确保网络能够访问 GitHub")
             }
         }
         .formStyle(.grouped)
@@ -26,7 +30,9 @@ private struct FontRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(font.name)
                 HStack(spacing: 0) {
+                    // 行内的按钮都要显式指定样式：iOS 列表行里的默认样式按钮会让整行变成一个点击区域，点"下载"也会打开链接
                     Link(package.author, destination: package.repository)
+                        .buttonStyle(.borderless)
                     Text(" · \(package.license) · \(package.size.formatted(.byteCount(style: .file)))").foregroundStyle(.secondary)
                 }
                 .font(.caption)
@@ -46,11 +52,13 @@ private struct FontRow: View {
                 .buttonStyle(.borderless)
         } else if store.downloaded.contains(font) {
             Button("删除", role: .destructive) { store.delete(font) }
+                .buttonStyle(.bordered)
         } else {
             if store.failed.contains(font) {
                 Text("下载失败").font(.caption).foregroundStyle(.red)
             }
             Button("下载") { store.download(font) }
+                .buttonStyle(.bordered)
         }
     }
 }

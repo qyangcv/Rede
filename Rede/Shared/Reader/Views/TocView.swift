@@ -31,6 +31,7 @@ struct TOCButton: View {
                 showTOC = false
                 onSelect(entry)
             }
+            .frame(width: 300, height: 460)
         }
     }
 }
@@ -71,7 +72,6 @@ struct TOCList: View {
                 }
             }
         }
-        .frame(width: 300, height: 460)
     }
 }
 

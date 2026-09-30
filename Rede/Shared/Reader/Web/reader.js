@@ -12,12 +12,10 @@ const MIN_COLUMN_EM = 20
 const SWIPE_MIN_PX = 30;
 const SWIPE_MAX_MS = 500;
 
-// 版面相关的 ReadiumCSS 变量：
-// - 左右页边距
+// 版面相关的 ReadiumCSS 变量（页边距随 style 从 Swift 传入）：
 // - 背景色设为 transparent：ReadiumCSS 以 !important 强制章节根元素的背景色，设为透明才能透出外壳页绘制的背景；
 //   书内其他元素（含 body）的背景不受影响
 const LAYOUT_VARS = {
-  "--RS__pageGutter": "48px",
   "--RS__backgroundColor": "transparent",
 };
 
@@ -165,8 +163,8 @@ function waitAssets(doc, links) {
 
 function columnCount() {
   const fontPx = 16 * parseFloat(state.style["--USER__fontSize"] || "100") / 100;
-  const gutter = parseFloat(LAYOUT_VARS["--RS__pageGutter"]);
-  const columnEm = (window.innerWidth / 2 - 2 * gutter) / fontPx;
+  const gutter = parseFloat(state.style["--RS__pageGutter"]);
+  const columnEm = (frame.clientWidth / 2 - 2 * gutter) / fontPx;
   return columnEm >= MIN_COLUMN_EM ? 2 : 1;
 }
 

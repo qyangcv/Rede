@@ -1,10 +1,6 @@
 /* 外壳页：只负责背景和章节 iframe 的位置，正文排版全部交给 ReadiumCSS */
 :root {
   --leaf-size: 320px;
-
-  /* 上下页边距；左右页边距由章节内的 --RS__pageGutter 提供 */
-  --page-margin-top: 60px;
-  --page-margin-bottom: 50px;
 }
 
 html, body {
@@ -21,12 +17,17 @@ html {
   background-size: var(--leaf-size) auto;
 }
 
+/* 正文区域先避开安全区（刘海、灵动岛、Home 条；Mac 上为 0），再留出上下页边距；
+   页边距由 Swift 按平台传入（ReaderLayout），左右页边距由章节内的 --RS__pageGutter 提供 */
 #chapter {
+  --inset-top: calc(env(safe-area-inset-top) + var(--page-margin-top));
+  --inset-bottom: calc(env(safe-area-inset-bottom) + var(--page-margin-bottom));
   position: fixed;
-  top: var(--page-margin-top);
-  left: 0;
-  width: 100%;
-  height: calc(100% - var(--page-margin-top) - var(--page-margin-bottom));
+  top: var(--inset-top);
+  left: env(safe-area-inset-left);
+  /* iframe 是替换元素，宽高为 auto 时取默认的 300×150，不会被 left/right 撑开，只能显式算出 */
+  width: calc(100% - env(safe-area-inset-left) - env(safe-area-inset-right));
+  height: calc(100% - var(--inset-top) - var(--inset-bottom));
   border: 0;
 }
 

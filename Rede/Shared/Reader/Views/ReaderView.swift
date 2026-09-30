@@ -3,53 +3,37 @@ import SwiftUI
 struct ReaderView: View {
     let reader: Reader
     let page: PageInfo?
-    let chapter: TOCItem?
 
-    @Bindable private var settings = Settings.shared
     @Environment(\.colorScheme) private var colorScheme
+
+    private var settings: Settings { .shared }
 
     private var cssVariables: [String: String] {
         var vars = settings.readerStyle.cssVariables(for: colorScheme)
-        #if DEBUG
+        vars.merge(ReaderLayout.cssVariables) { $1 }
+        #if DEBUG && os(macOS)
         PaletteTuner.shared.apply(to: &vars, scheme: colorScheme)
         #endif
         return vars
     }
 
     var body: some View {
-        ReaderWebViewContainer(reader: reader)
-            .overlay(alignment: .bottom) {
-                if let page {
-                    Text("\(page.page + 1) / \(page.pageCount)")
-                        .font(.caption)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, 18)
-                }
+        // WebView 铺满全屏，背景画到屏幕边缘，正文避开安全区交给 reader.css；页码按安全区摆放
+        ZStack(alignment: .bottom) {
+            ReaderWebViewContainer(reader: reader)
+                .ignoresSafeArea()
+            if let page {
+                Text("\(page.page + 1) / \(page.pageCount)")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, ReaderLayout.pageNumberBottom)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    TOCButton(toc: reader.toc, current: chapter?.id, onSelect: reader.go(to:))
-                }
-                .sharedBackgroundVisibility(.hidden)
-
-                #if DEBUG
-                ToolbarItem(placement: .primaryAction) {
-                    PaletteTunerButton(onDismiss: reader.focus)
-                }
-                .sharedBackgroundVisibility(.hidden)
-                #endif
-
-                ToolbarItem(placement: .primaryAction) {
-                    StyleButton(style: $settings.readerStyle, appearance: $settings.appearance,
-                                onDismiss: reader.focus)
-                }
-                .sharedBackgroundVisibility(.hidden)
-            }
-            .onAppear { reader.open(style: cssVariables) }
-            .onChange(of: cssVariables) { _, new in
-                reader.apply(new)
-            }
+        }
+        .onAppear { reader.open(style: cssVariables) }
+        .onChange(of: cssVariables) { _, new in
+            reader.apply(new)
+        }
     }
 }
 

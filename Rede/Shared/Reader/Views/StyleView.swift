@@ -19,6 +19,7 @@ struct StyleButton: View {
         .help("样式")
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             StylePanel(style: $style, appearance: $appearance)
+                .frame(width: 290)
         }
         .onChange(of: isPresented) { _, shown in
             if !shown { onDismiss() }
@@ -133,7 +134,6 @@ struct StylePanel: View {
             }
         }
         .padding(16)
-        .frame(width: 290)
     }
 
     private func label(_ text: String) -> some View {

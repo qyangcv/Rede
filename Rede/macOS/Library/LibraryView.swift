@@ -21,7 +21,7 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let grid = layout(width: proxy.size.width)
+                let grid = BookGrid.layout(width: proxy.size.width, cardWidth: 150, minSpacing: 24)
                 ScrollView {
                     LazyVGrid(columns: grid.columns, spacing: 28) {
                         ForEach(books) { book in
@@ -91,7 +91,7 @@ struct LibraryView: View {
             .fileExporter(
                 isPresented: Binding(get: { bookToExport != nil },
                                      set: { if !$0 { bookToExport = nil } }),
-                document: bookToExport.map { EpubFile(url: $0.url) },
+                document: bookToExport.map(EpubFile.init),
                 contentType: .epub,
                 defaultFilename: bookToExport?.exportName
             ) { result in
@@ -129,16 +129,6 @@ struct LibraryView: View {
                 }
             }
         }
-    }
-    
-    private let cardWidth: CGFloat = 150
-    private let minSpacing: CGFloat = 24
-
-    private func layout(width: CGFloat) -> (columns: [GridItem], spacing: CGFloat) {
-        let n = max(1, Int((width - minSpacing) / (cardWidth + minSpacing)))
-        let spacing = (width - CGFloat(n) * cardWidth) / CGFloat(n + 1)
-        let column = GridItem(.fixed(cardWidth), spacing: spacing, alignment: .top)
-        return (columns: Array(repeating: column, count: n), spacing: spacing)
     }
     
     private func save() {
@@ -233,91 +223,6 @@ struct LibraryView: View {
         }
     }
 }
-
-struct BookInfoEditor: View {
-    let book: Book
-    let onSave: () -> Void
-    
-    @State private var name: String
-    @State private var author: String
-    @Environment(\.dismiss) private var dismiss
-    
-    init(book: Book, onSave: @escaping () -> Void) {
-        self.book = book
-        self.onSave = onSave
-        _name = State(initialValue: book.name)
-        _author = State(initialValue: book.author)
-    }
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            Form {
-                TextField("书名", text: $name)
-                TextField("作者", text: $author)
-            }
-            HStack {
-                Spacer()
-                Button("取消") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button("保存") {
-                    book.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                    book.author = author.trimmingCharacters(in: .whitespacesAndNewlines)
-                    onSave()
-                    dismiss()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-        }
-        .padding()
-        .frame(width: 360)
-    }
-}
-
-struct BookInfoView: View {
-    let book: Book
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
-    @State private var metadata: EpubMetadata?
-    @State private var fileSize: Int?
-
-    var body: some View {
-        VStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                row("书名", book.name)
-                row("作者", book.author)
-                row("出版社", metadata?.publisher)
-                row("出版日期", metadata?.date)
-                row("ISBN", metadata?.isbn)
-                row("EPUB 版本", metadata?.version)
-                row("文件大小", fileSize.map { Int64($0).formatted(.byteCount(style: .file)) })
-                row("字数", book.wordCount?.formatted())
-                row("导入时间", book.date.formatted(date: .abbreviated, time: .shortened))
-                row("最后阅读", book.lastRead?.formatted(date: .abbreviated, time: .shortened))
-            }
-            .textSelection(.enabled)
-            Button("完成") { dismiss() }
-                .keyboardShortcut(.defaultAction)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-        .padding()
-        .frame(width: 360)
-        .task {
-            ChapterLengthIndexer.shared.ensure(book, in: modelContext)
-            metadata = try? parseEpub(at: book.url).model.metadata
-            fileSize = try? book.url.resourceValues(forKeys: [.fileSizeKey]).fileSize
-        }
-    }
-
-    @ViewBuilder
-    private func row(_ label: String, _ value: String?) -> some View {
-        if let value, !value.isEmpty {
-            Text(label + "：" + value)
-        }
-    }
-}
-
-
 
 #Preview("library") {
     LibraryView()
