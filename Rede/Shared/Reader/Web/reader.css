@@ -18,15 +18,16 @@ html {
 }
 
 /* 正文区域先避开安全区（刘海、灵动岛、Home 条；Mac 上为 0），再留出上下页边距；
-   页边距由 Swift 按平台传入（ReaderLayout），左右页边距由章节内的 --RS__pageGutter 提供 */
+   安全区和页边距都由 Swift 传入（ReaderLayout），左右页边距由章节内的 --RS__pageGutter 提供。
+   不用 env(safe-area-inset-*)：相邻页渲染器的 WebView 拿到的系统安全区是 0，会和主 WebView 分页不一致 */
 #chapter {
-  --inset-top: calc(env(safe-area-inset-top) + var(--page-margin-top));
-  --inset-bottom: calc(env(safe-area-inset-bottom) + var(--page-margin-bottom));
+  --inset-top: calc(var(--safe-top) + var(--page-margin-top));
+  --inset-bottom: calc(var(--safe-bottom) + var(--page-margin-bottom));
   position: fixed;
   top: var(--inset-top);
-  left: env(safe-area-inset-left);
+  left: var(--safe-left);
   /* iframe 是替换元素，宽高为 auto 时取默认的 300×150，不会被 left/right 撑开，只能显式算出 */
-  width: calc(100% - env(safe-area-inset-left) - env(safe-area-inset-right));
+  width: calc(100% - var(--safe-left) - var(--safe-right));
   height: calc(100% - var(--inset-top) - var(--inset-bottom));
   border: 0;
 }

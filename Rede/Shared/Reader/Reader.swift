@@ -111,12 +111,10 @@ final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
     func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
 }
 
-// 手势由 reader.js 识别后上报，怎样响应由各平台决定
+// 阅读区的输入：点击由 reader.js 识别后上报，按键由各平台的 WebView 识别；怎样响应由各平台决定
 enum ReaderGesture {
-    enum Direction { case left, right }
-
-    case tap(x: Double)   // 点击位置占 WebView 宽度的比例，0 为最左
-    case swipe(Direction) // 手指滑动的方向
+    case tap(x: Double)        // 点击位置占 WebView 宽度的比例，0 为最左
+    case turn(PageDirection)   // 方向键等要求翻页
 }
 
 final class Reader: NSObject,  WKNavigationDelegate {
@@ -132,7 +130,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
     static let progressChannel = "reading_progress"
     static let gestureChannel = "gesture"
     // 最近一次上报的阅读位置；重新加载外壳页（WebContent 进程被系统回收后）从这里恢复
-    private var position: ReadingPosition?
+    private(set) var position: ReadingPosition?
     var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
     var onGesture: ((ReaderGesture) -> Void)?
     // 用户是否主动翻过页或跳过章节
@@ -237,23 +235,44 @@ final class Reader: NSObject,  WKNavigationDelegate {
         }
     }
     
-    func next() {
+    // 前后翻 step 页
+    func turn(_ step: Int) {
         navigated = true
-        Task { await bridge.next() }
+        Task { await bridge.turn(step) }
     }
 
-    func prev() {
+    // 仿真翻页翻完后，把主 WebView 同步到卷页层停下的那一页，等画好再返回
+    func show(_ position: ReadingPosition) async {
         navigated = true
-        Task { await bridge.prev() }
+        await bridge.restore(position)
+        await painted()
+    }
+
+    // 等页面渲染出两帧：刚翻页、刚落位时直接截图或显示，时常还是上一帧的画面
+    private func painted() async {
+        await bridge.call("await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
+    }
+
+    func snapshot() async -> PlatformImage? {
+        await painted()
+        return try? await webView.takeSnapshot(configuration: nil)
     }
 
     func restore(_ position: ReadingPosition) {
         Task { await bridge.restore(position) }
     }
 
-    fileprivate func receive(_ position: ReadingPosition, _ page: PageInfo, anchors: [String: Int]) {
-        self.position = position
-        onProgress?(position, page, tocItem(at: position, anchors: anchors))
+    fileprivate func receive(_ report: ProgressReport) {
+        position = report.position
+        onProgress?(report.position, report.page, tocItem(at: report.position, anchors: report.anchors))
+    }
+
+    // 相邻页渲染器用：落到 position 再翻 step 页并截图；没有相邻页或被后续渲染打断时返回 nil
+    func peek(from position: ReadingPosition, step: Int) async -> RenderedPage? {
+        guard let report = await bridge.peek(from: position, step: step),
+              let image = await snapshot() else { return nil }
+        return RenderedPage(image: image, position: report.position, page: report.page,
+                            chapter: tocItem(at: report.position, anchors: report.anchors))
     }
 
     private func tocItem(at position: ReadingPosition, anchors: [String: Int]) -> TOCItem? {
@@ -280,19 +299,14 @@ private final class MessageRelay: NSObject, WKScriptMessageHandler {
     }
 
     private func receiveProgress(_ body: Any) {
-        guard let data = try? JSONSerialization.data(withJSONObject: body),
-              let position = try? JSONDecoder().decode(ReadingPosition.self, from: data),
-              let page = try? JSONDecoder().decode(PageInfo.self, from: data),
-              let chapter = try? JSONDecoder().decode(ChapterAnchors.self, from: data)
-        else { return }
-        reader?.receive(position, page, anchors: chapter.anchors)
+        guard let report = ProgressReport(body) else { return }
+        reader?.receive(report)
     }
 
     private func receiveGesture(_ body: Any) {
         guard let body = body as? [String: Any] else { return }
         let gesture: ReaderGesture? = switch body["type"] as? String {
         case "tap": (body["x"] as? Double).map { .tap(x: $0) }
-        case "swipe": (body["direction"] as? String == "left") ? .swipe(.left) : .swipe(.right)
         default: nil
         }
         if let gesture { reader?.onGesture?(gesture) }

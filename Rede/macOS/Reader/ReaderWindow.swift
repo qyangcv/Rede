@@ -7,7 +7,7 @@ struct ReaderWindow: View {
     var body: some View {
         ZStack {
             if let reader = session.reader {
-                ReaderView(reader: reader, page: session.page)
+                ReaderView(reader: reader, pages: session.turner?.pages, page: session.page)
                     .overlay(alignment: .top) {
                         Color.clear
                             .frame(height: 28)
@@ -30,10 +30,16 @@ struct ReaderWindow: View {
 
                         ToolbarItem(placement: .primaryAction) {
                             StyleButton(style: $settings.readerStyle, appearance: $settings.appearance,
-                                        onDismiss: reader.focus)
+                                        transition: $settings.pageTransition, onDismiss: reader.focus)
                         }
                         .sharedBackgroundVisibility(.hidden)
                     }
+                    .onAppear {
+                        reader.onGesture = { gesture in
+                            if case .turn(let direction) = gesture { session.turner?.turn(direction) }
+                        }
+                    }
+                    .onChange(of: settings.pageTransition) { _, new in session.setTransition(new) }
                     .id(ObjectIdentifier(reader))
             } else {
                 ContentUnavailableView("No book opened", systemImage: "book")

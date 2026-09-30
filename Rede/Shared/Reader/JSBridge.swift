@@ -26,17 +26,19 @@ extension JSBridge {
     func setStyle(_ vars: [String: String]) async {
         await call("reader.setStyle(vars)", ["vars": vars])
     }
-    func next() async {
-        await call("reader.next()") 
-    }
-    func prev() async {
-        await call("reader.prev()") 
+    func turn(_ step: Int) async {
+        await call("reader.turn(step)", ["step": step])
     }
     func jump(chapter: Int, anchor: String?) async 
     {
         await call("reader.jump(chapter, anchor)", ["chapter": chapter, "anchor": anchor ?? ""])
     }
     func restore(_ position: ReadingPosition) async {
-        await call("reader.restore(position)", ["position": position.jsObject])
+        await call("return reader.restore(position)", ["position": position.jsObject])
+    }
+    // 函数体里必须 return，callAsyncJavaScript 才会等 Promise 完成
+    func peek(from position: ReadingPosition, step: Int) async -> ProgressReport? {
+        await call("return reader.peek(position, step)", ["position": position.jsObject, "step": step])
+            .flatMap(ProgressReport.init)
     }
 }

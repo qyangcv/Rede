@@ -12,6 +12,7 @@ final class ReaderSession {
     static let windowID = "reader"
 
     private(set) var reader: Reader?
+    private(set) var turner: (any PageTurner)?
     private(set) var book: Book?
     private(set) var page: PageInfo?
     private(set) var chapter: TOCItem?
@@ -43,10 +44,12 @@ final class ReaderSession {
         ChapterLengthIndexer.shared.ensure(book, in: context)
         let store = ProgressStore(book: book, context: context)
         let reader = Reader(book: epub, start: book.position)
+        let turner = Settings.shared.pageTransition.makeTurner(reader: reader)
         reader.onProgress = { [weak self, weak reader] position, page, chapter in
             MainActor.assumeIsolated {
                 // 翻页之前的上报只是落位（打开、窗口缩放、跟随同步来的进度），不算阅读进度
                 if reader?.navigated == true { store.record(position) }
+                self?.turner?.pages?.prepare(position, page: page, chapter: chapter)
                 self?.page = page
                 self?.chapter = chapter
             }
@@ -54,6 +57,7 @@ final class ReaderSession {
 
         self.store = store
         self.reader = reader
+        self.turner = turner
         self.book = book
         self.page = nil
         self.chapter = nil
@@ -68,10 +72,22 @@ final class ReaderSession {
         store?.flush()
         store = nil
         reader = nil
+        turner = nil
         book = nil
         page = nil
         chapter = nil
         shownPosition = nil
+    }
+
+    // 阅读中切换翻页方式：换掉翻页器，新的相邻页窗口围绕当前页建立
+    func setTransition(_ transition: PageTransition) {
+        guard let reader else { return }
+        turner?.detach()
+        let turner = transition.makeTurner(reader: reader)
+        if let position = reader.position, let page {
+            turner.pages?.prepare(position, page: page, chapter: chapter)
+        }
+        self.turner = turner
     }
 
     // 刚打开、还没翻页时，其他设备同步来了这本书更新的进度：直接跳过去

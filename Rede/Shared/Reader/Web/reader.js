@@ -9,8 +9,6 @@ const XHTML_NS = "http://www.w3.org/1999/xhtml";
 const READIUM_BASE = "rede://app/";
 const ASSET_TIMEOUT_MS = 5000;
 const MIN_COLUMN_EM = 20
-const SWIPE_MIN_PX = 30;
-const SWIPE_MAX_MS = 500;
 
 // 版面相关的 ReadiumCSS 变量（页边距随 style 从 Swift 传入）：
 // - 背景色设为 transparent：ReadiumCSS 以 !important 强制章节根元素的背景色，设为透明才能透出外壳页绘制的背景；
@@ -39,7 +37,6 @@ const state = {
 
 let doc = null;  // 当前章节文档
 let pad = null;  // 当前章节的补白列，见 measure()
-let touch = null;  // 当前单指触摸的起点，见 onTouchStart()
 
 // Swift 调用接口
 
@@ -56,23 +53,25 @@ const reader = {
     goto(start ? start.chapter : 0, start ?? 0);
   },
 
-  next() {
-    if (state.spread < state.spreadCount - 1) settle(state.spread + 1);
-    else goto(state.chapterId + 1, 0);
+  // 前后翻 delta 页，返回是否落位
+  turn(delta) {
+    return turn(delta);
   },
 
-  prev() {
-    if (state.spread > 0) settle(state.spread - 1);
-    else goto(state.chapterId - 1, -1);
+  // 相邻页渲染用：先落到 position 所在页，再翻 delta 页，返回落位后的进度；
+  // 到书头书尾或被后续导航打断时返回 null
+  async peek(position, delta) {
+    const moved = await goto(position.chapter, position) && await turn(delta);
+    return moved ? progress() : null;
   },
 
   jump(chapter, anchor) {
     goto(chapter, anchor || 0);
   },
 
-  // 跳到保存的阅读位置，用于跟随其他设备同步来的进度
+  // 跳到保存的阅读位置：跟随其他设备同步来的进度，或仿真翻页翻完后同步到卷页层停下的那一页
   restore(position) {
-    goto(position.chapter, position);
+    return goto(position.chapter, position);
   },
 
   setStyle(vars) {
@@ -81,21 +80,31 @@ const reader = {
   },
 };
 
-// 导航，at 为数字（页码）、字符串（锚点）或位置对象
+// 翻一页，到章首章尾时载入相邻章节；返回是否落位
+async function turn(delta) {
+  const spread = state.spread + delta;
+  if (spread >= 0 && spread < state.spreadCount) {
+    settle(spread);
+    return true;
+  }
+  return goto(state.chapterId + delta, delta > 0 ? 0 : -1);
+}
+
+// 导航，at 为数字（页码）、字符串（锚点）或位置对象；返回是否落位（被后续导航打断时为 false）
 async function goto(chapter, at) {
   const path = state.spinePaths[chapter];
-  if (path === undefined) return;
+  if (path === undefined) return false;
   const token = ++state.navId;
 
   if (chapter !== state.chapterId) {
     frame.classList.add("loading");
     const loaded = await load(new URL(path.split("/").map(encodeURIComponent).join("/"), ROOT));
-    if (token !== state.navId) return;
+    if (token !== state.navId) return false;
 
     doc = loaded;
     state.chapterId = chapter;
     await prepare(doc);
-    if (token !== state.navId) return;
+    if (token !== state.navId) return false;
     state.total = textLength();
     state.anchors = anchorOffsets(state.tocAnchors[chapter] ?? []);
   }
@@ -104,6 +113,7 @@ async function goto(chapter, at) {
   // 从保存的位置恢复时沿用原锚点，不重新测量，避免多次恢复逐页回退
   settle(locate(at), isPosition(at) ? at.offset : null);
   frame.classList.remove("loading");
+  return true;
 }
 
 // 把章节载入 iframe；被后续导航打断时由下一次 load 事件唤醒，交给 navId 丢弃
@@ -301,9 +311,8 @@ function anchorOffset() {
   return found;
 }
 
-// 上报进度给 Swift（每次落位都发，节流交给 Swift 侧）
-function report() {
-  window.webkit?.messageHandlers?.reading_progress?.postMessage({
+function progress() {
+  return {
     chapter: state.chapterId,
     offset: state.offset,
     total: state.total,
@@ -311,7 +320,12 @@ function report() {
     page: state.spread,
     pageCount: state.spreadCount,
     anchors: state.anchors,
-  });
+  };
+}
+
+// 上报进度给 Swift（每次落位都发，节流交给 Swift 侧）
+function report() {
+  window.webkit?.messageHandlers?.reading_progress?.postMessage(progress());
 }
 
 // 窗口缩放、改设置、图片加载后重新测量，回到锚点所在页并上报新页码；锚点本身不重算，所以反复缩放不会累积漂移
@@ -350,9 +364,6 @@ function onClick(event) {
 // 外壳页和每个章节文档各自绑定：iframe 里的事件不会冒泡到外壳页，上下页边距上的点击落在外壳页
 function watchGestures(target) {
   target.addEventListener("click", onTap);
-  target.addEventListener("touchstart", onTouchStart, { passive: true });
-  target.addEventListener("touchend", onTouchEnd, { passive: true });
-  target.addEventListener("touchcancel", () => { touch = null; }, { passive: true });
 }
 
 // 点在链接上交给 onClick 和原生导航；有选区时这次点击是在取消选中，都不上报
@@ -362,26 +373,5 @@ function onTap(event) {
   window.webkit?.messageHandlers?.gesture?.postMessage({
     type: "tap",
     x: (event.clientX + left) / window.innerWidth,
-  });
-}
-
-function onTouchStart(event) {
-  const t = event.touches.length === 1 ? event.touches[0] : null;
-  touch = t && { x: t.screenX, y: t.screenY, time: event.timeStamp };
-}
-
-// 单指、以横向为主、距离够长且足够快才算轻扫；正在选字时不算
-function onTouchEnd(event) {
-  const start = touch;
-  touch = null;
-  if (!start || event.touches.length > 0 || !event.view.getSelection().isCollapsed) return;
-  const t = event.changedTouches[0];
-  const dx = t.screenX - start.x;
-  const dy = t.screenY - start.y;
-  if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= Math.abs(dy)
-      || event.timeStamp - start.time > SWIPE_MAX_MS) return;
-  window.webkit?.messageHandlers?.gesture?.postMessage({
-    type: "swipe",
-    direction: dx < 0 ? "left" : "right",
   });
 }

@@ -45,8 +45,8 @@ extension Reader {
         guard event.modifierFlags.isDisjoint(with: [.command, .option, .control]),
               let key = event.specialKey else { return false }
         switch key {
-        case .leftArrow: prev()
-        case .rightArrow: next()
+        case .leftArrow: onGesture?(.turn(.prev))
+        case .rightArrow: onGesture?(.turn(.next))
         default: return false
         }
         return true

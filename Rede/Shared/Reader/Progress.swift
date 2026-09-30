@@ -19,8 +19,27 @@ struct PageInfo: Codable, Equatable {
     var pageCount: Int
 }
 
-struct ChapterAnchors: Codable {
-    var anchors: [String: Int]
+// reader.js 的进度对象（report() 上报、peek() 返回）
+struct ProgressReport: Decodable {
+    let position: ReadingPosition
+    let page: PageInfo
+    let anchors: [String: Int]
+
+    private enum CodingKeys: String, CodingKey { case anchors }
+
+    init(from decoder: any Decoder) throws {
+        position = try ReadingPosition(from: decoder)
+        page = try PageInfo(from: decoder)
+        anchors = try decoder.container(keyedBy: CodingKeys.self).decode([String: Int].self, forKey: .anchors)
+    }
+
+    // JS 返回 null 时 body 是 NSNull，非法对象会让 JSONSerialization 直接抛 ObjC 异常，先检查
+    init?(_ body: Any) {
+        guard JSONSerialization.isValidJSONObject(body),
+              let data = try? JSONSerialization.data(withJSONObject: body),
+              let report = try? JSONDecoder().decode(Self.self, from: data) else { return nil }
+        self = report
+    }
 }
 
 nonisolated extension EpubBook {

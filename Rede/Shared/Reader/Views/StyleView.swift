@@ -5,6 +5,7 @@ import SwiftUI
 struct StyleButton: View {
     @Binding var style: ReaderStyle
     @Binding var appearance: Appearance
+    @Binding var transition: PageTransition
     var onDismiss: () -> Void = {}
 
     @State private var isPresented = false
@@ -18,7 +19,7 @@ struct StyleButton: View {
         }
         .help("样式")
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            StylePanel(style: $style, appearance: $appearance)
+            StylePanel(style: $style, appearance: $appearance, transition: $transition)
                 .frame(width: 290)
         }
         .onChange(of: isPresented) { _, shown in
@@ -30,8 +31,7 @@ struct StyleButton: View {
 struct StylePanel: View {
     @Binding var style: ReaderStyle
     @Binding var appearance: Appearance
-
-    @Environment(\.colorScheme) private var colorScheme
+    @Binding var transition: PageTransition
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -45,16 +45,7 @@ struct StylePanel: View {
                     label("字体")
                     Menu(style.font.name) {
                         Picker("字体", selection: $style.font) {
-                            let fonts = ReaderFont.allCases.filter(\.isAvailable)
-                            Section("内置字体") {
-                                ForEach(fonts.filter(\.isBuiltin)) { Text($0.name).tag($0) }
-                            }
-                            let thirdParty = fonts.filter { !$0.isBuiltin }
-                            if !thirdParty.isEmpty {
-                                Section("三方字体") {
-                                    ForEach(thirdParty) { Text($0.name).tag($0) }
-                                }
-                            }
+                            FontOptions()
                         }
                         .pickerStyle(.inline)
                         .labelsHidden()
@@ -75,12 +66,12 @@ struct StylePanel: View {
 
                 GridRow {
                     label("行距")
-                    spacingPicker("行距", selection: $style.lineSpacing)
+                    SpacingPicker(title: "行距", selection: $style.lineSpacing)
                 }
 
                 GridRow {
                     label("段距")
-                    spacingPicker("段距", selection: $style.paraSpacing)
+                    SpacingPicker(title: "段距", selection: $style.paraSpacing)
                 }
 
                 Divider()
@@ -88,10 +79,7 @@ struct StylePanel: View {
                 GridRow {
                     label("外观")
                     Picker("外观", selection: $appearance) {
-                        ForEach(Appearance.allCases) { item in
-                            Label(item.name, systemImage: item.icon)
-                                .tag(item)
-                        }
+                        AppearanceOptions()
                     }
                     .pickerStyle(.menu)
                     .fixedSize()
@@ -100,25 +88,21 @@ struct StylePanel: View {
 
                 GridRow {
                     label("颜色")
-                    HStack(spacing: 6) {
-                        ForEach(BackgroundColor.allCases) { item in
-                            BackgroundSwatch(color: item.swatch(for: colorScheme), name: item.name,
-                                             isSelected: item == style.background) {
-                                style.background = item
-                            }
-                        }
-                    }
+                    ColorSwatches(selection: $style.background)
                 }
 
                 GridRow {
                     label("背景")
-                    HStack(spacing: 6) {
-                        ForEach(BackgroundPattern.allCases) { item in
-                            PatternSwatch(pattern: item, color: style.background.swatch(for: colorScheme),
-                                          isSelected: item == style.pattern) {
-                                style.pattern = item
-                            }
-                        }
+                    PatternSwatches(selection: $style.pattern, background: style.background)
+                }
+
+                // 平台只实现了一种翻页方式时不显示
+                if PageTransition.allCases.count > 1 {
+                    Divider()
+
+                    GridRow {
+                        label("翻页")
+                        TransitionPicker(selection: $transition)
                     }
                 }
             }
@@ -138,16 +122,6 @@ struct StylePanel: View {
 
     private func label(_ text: String) -> some View {
         Text(text).foregroundStyle(.secondary)
-    }
-
-    private func spacingPicker(_ title: String, selection: Binding<Spacing>) -> some View {
-        Picker(title, selection: selection) {
-            ForEach(Spacing.allCases) { level in
-                Text(level.name).tag(level)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
     }
 }
 
@@ -180,7 +154,7 @@ private struct FontScaleStepper: View {
     }
 }
 
-private struct FontWeightSlider: View {
+struct FontWeightSlider: View {
     let weights: [Int]
     @Binding var weight: Int
 
@@ -200,6 +174,96 @@ private struct FontWeightSlider: View {
                 .overlay(alignment: .trailing) {
                     Text("\(weight)").monospacedDigit()
                 }
+        }
+    }
+}
+
+// 以下组件 macOS 与 iOS 的样式面板共用
+
+struct FontOptions: View {
+    var body: some View {
+        let fonts = ReaderFont.allCases.filter(\.isAvailable)
+        Section("内置字体") {
+            ForEach(fonts.filter(\.isBuiltin)) { Text($0.name).tag($0) }
+        }
+        let thirdParty = fonts.filter { !$0.isBuiltin }
+        if !thirdParty.isEmpty {
+            Section("三方字体") {
+                ForEach(thirdParty) { Text($0.name).tag($0) }
+            }
+        }
+    }
+}
+
+struct AppearanceOptions: View {
+    var body: some View {
+        ForEach(Appearance.allCases) { item in
+            Label(item.name, systemImage: item.icon)
+                .tag(item)
+        }
+    }
+}
+
+struct SpacingPicker: View {
+    let title: String
+    @Binding var selection: Spacing
+
+    var body: some View {
+        Picker(title, selection: $selection) {
+            ForEach(Spacing.allCases) { level in
+                Text(level.name).tag(level)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+    }
+}
+
+struct TransitionPicker: View {
+    @Binding var selection: PageTransition
+
+    var body: some View {
+        Picker("翻页", selection: $selection) {
+            ForEach(PageTransition.allCases) { item in
+                Text(item.name).tag(item)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+    }
+}
+
+struct ColorSwatches: View {
+    @Binding var selection: BackgroundColor
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(BackgroundColor.allCases) { item in
+                BackgroundSwatch(color: item.swatch(for: colorScheme), name: item.name,
+                                 isSelected: item == selection) {
+                    selection = item
+                }
+            }
+        }
+    }
+}
+
+struct PatternSwatches: View {
+    @Binding var selection: BackgroundPattern
+    let background: BackgroundColor
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(BackgroundPattern.allCases) { item in
+                PatternSwatch(pattern: item, color: background.swatch(for: colorScheme),
+                              isSelected: item == selection) {
+                    selection = item
+                }
+            }
         }
     }
 }
@@ -266,5 +330,6 @@ private struct PatternSwatch: View {
 #Preview("stylePanel") {
     @Previewable @State var style = ReaderStyle.default
     @Previewable @State var appearance = Appearance.system
-    StylePanel(style: $style, appearance: $appearance)
+    @Previewable @State var transition = PageTransition.default
+    StylePanel(style: $style, appearance: $appearance, transition: $transition)
 }

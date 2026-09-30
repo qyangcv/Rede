@@ -32,3 +32,21 @@ extension Reader {
     // iOS 上翻页靠触摸，不需要键盘焦点
     func focus() {}
 }
+
+// 相邻页渲染器的 WebView 垫在主 WebView 下面：同尺寸、同安全区，排版一致，又被主 WebView 的背景挡住
+struct PageRendererHost: View {
+    let pages: PageRenderer
+
+    var body: some View {
+        ZStack {
+            ForEach(PageDirection.allCases, id: \.self) { direction in
+                if let reader = pages.readers[direction] {
+                    ReaderWebViewContainer(reader: reader)
+                }
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}

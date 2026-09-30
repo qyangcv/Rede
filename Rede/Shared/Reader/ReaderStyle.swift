@@ -378,6 +378,8 @@ final class Settings {
         }
     }
 
+    var pageTransition: PageTransition { didSet { save() } }
+
     // 书库在启动时按这个开关创建，改动下次启动生效，见 CloudSync
     var iCloudSync: Bool { didSet { save() } }
 
@@ -390,6 +392,7 @@ final class Settings {
     private struct Snapshot: Codable {
         var readerStyle: ReaderStyle?
         var appearance: Appearance?
+        var pageTransition: PageTransition?
         var iCloudSync: Bool?
     }
 
@@ -398,6 +401,7 @@ final class Settings {
             .flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) }
         readerStyle = snapshot?.readerStyle ?? .default
         appearance = snapshot?.appearance ?? .system
+        pageTransition = snapshot?.pageTransition ?? .default
         iCloudSync = snapshot?.iCloudSync ?? Self.defaultICloudSync
     }
 
@@ -408,7 +412,7 @@ final class Settings {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(Snapshot(readerStyle: readerStyle, appearance: appearance,
-                                    iCloudSync: iCloudSync))
+                                    pageTransition: pageTransition, iCloudSync: iCloudSync))
                 .write(to: AppPaths.settings, options: .atomic)
         } catch {
             Self.log.error("保存设置失败：\(error.localizedDescription, privacy: .public)")
