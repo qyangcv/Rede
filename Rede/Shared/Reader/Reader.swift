@@ -129,11 +129,13 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     static let progressChannel = "reading_progress"
     static let gestureChannel = "gesture"
-    // 最近一次上报的阅读位置；重新加载外壳页（WebContent 进程被系统回收后）从这里恢复
+
     private(set) var position: ReadingPosition?
+    
     var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
     var onGesture: ((ReaderGesture) -> Void)?
-    // 用户是否主动翻过页或跳过章节
+    var onTurn: (() -> Void)?
+    
     private(set) var navigated = false
     
     init(book: EpubBook, start: ReadingPosition? = nil) {
@@ -238,12 +240,14 @@ final class Reader: NSObject,  WKNavigationDelegate {
     // 前后翻 step 页
     func turn(_ step: Int) {
         navigated = true
+        onTurn?()
         Task { await bridge.turn(step) }
     }
 
     // 仿真翻页翻完后，把主 WebView 同步到卷页层停下的那一页，等画好再返回
     func show(_ position: ReadingPosition) async {
         navigated = true
+        onTurn?()
         await bridge.restore(position)
         await painted()
     }

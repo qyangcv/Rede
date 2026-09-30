@@ -47,6 +47,11 @@ struct ReaderScreen: View {
                 }
                 .onAppear {
                     reader.onGesture = { handle($0) }
+                    // 翻页即回到阅读，收起工具栏和面板
+                    reader.onTurn = {
+                        chromeVisible = false
+                        panel = nil
+                    }
                 }
                 .onChange(of: settings.pageTransition) { _, new in session.setTransition(new) }
                 .id(ObjectIdentifier(reader))
@@ -65,7 +70,11 @@ struct ReaderScreen: View {
             HStack {
                 Button("目录", systemImage: "list.bullet") { panel = .toc }
                 Spacer()
-                Button("样式", systemImage: "textformat") { panel = .style }
+                // 面板要对照正文调整，打开时收起工具栏，不遮挡正文顶部
+                Button("样式", systemImage: "textformat") {
+                    chromeVisible = false
+                    panel = .style
+                }
                     .environment(\.locale, Locale(identifier: "en"))
             }
         }
@@ -85,19 +94,17 @@ struct ReaderScreen: View {
                 reader.go(to: entry)
             }
             .padding(.horizontal, 8)
-            .padding(.top, 14)
+            .padding(.top, 4)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         case .style:
-            // 高度贴合面板内容，上方露出正文，调整时能看到实时效果
-            StyleForm(style: $settings.readerStyle, appearance: $settings.appearance,
-                      transition: $settings.pageTransition)
-                .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                    geometry.contentSize.height + geometry.contentInsets.top + geometry.contentInsets.bottom
-                } action: { _, height in
-                    styleHeight = height
-                }
+            // 高度贴合面板内容，上方露出正文；正文不压暗且可点击，调整时能看到实时效果
+            StyleSheet(style: $settings.readerStyle, appearance: $settings.appearance,
+                       transition: $settings.pageTransition)
+                // sheet 会在 detent 高度外再加底部安全区，这里先减掉
+                .onGeometryChange(for: CGFloat.self) { $0.size.height - $0.safeAreaInsets.bottom } action: { styleHeight = $0 }
                 .presentationDetents([styleHeight.map { .height($0) } ?? .medium])
+                .presentationBackgroundInteraction(.enabled)
         }
     }
 
@@ -107,6 +114,7 @@ struct ReaderScreen: View {
             if chromeVisible { chromeVisible = false }
             else if x < Self.edge { session.turner?.turn(.prev) }
             else if x > 1 - Self.edge { session.turner?.turn(.next) }
+            else if panel != nil { panel = nil }
             else { chromeVisible = true }
         case .turn(let direction):
             session.turner?.turn(direction)
