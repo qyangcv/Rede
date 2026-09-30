@@ -13,7 +13,7 @@ git fetch origin main --tags --quiet
 
 # App Store Connect API key (Users and Access → Integrations → Team Keys)
 ASC_KEY_ID=2GF2XJF2WX
-ASC_ISSUER_ID=YOUR-ISSUER-ID
+ASC_ISSUER_ID=a1359993-1cf9-4beb-aacc-9b0dee256ca2
 ASC_AUTH=(
   -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8"
   -authenticationKeyID $ASC_KEY_ID
