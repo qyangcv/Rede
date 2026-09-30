@@ -9,15 +9,20 @@ enum ReaderLayout {
     static let gutter = 48
     static let pageNumberBottom: CGFloat = 18
     #else
-    static let marginTop = 20
+    static let marginTop = 34
     static let marginBottom = 28
-    static let gutter = 24
+    static let gutter = 28
     static let pageNumberBottom: CGFloat = 6
+    static let chapterTitleTop: CGFloat = 6
     #endif
 
-    static let cssVariables = [
-        "--page-margin-top": "\(marginTop)px",
-        "--page-margin-bottom": "\(marginBottom)px",
-        "--RS__pageGutter": "\(gutter)px",
-    ]
+    // ReadiumCSS 用 body 的 zoom 实现字号缩放，body 的 padding（即 pageGutter）会被一并放大；
+    // 这里预先除以缩放比例，让屏幕上的左右留白始终等于 gutter，不随字号变化
+    static func cssVariables(fontScale: Int) -> [String: String] {
+        [
+            "--page-margin-top": "\(marginTop)px",
+            "--page-margin-bottom": "\(marginBottom)px",
+            "--RS__pageGutter": "\(Double(gutter) * 100 / Double(fontScale))px",
+        ]
+    }
 }

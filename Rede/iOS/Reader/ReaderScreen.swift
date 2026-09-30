@@ -18,7 +18,21 @@ struct ReaderScreen: View {
     var body: some View {
         if let reader = session.reader {
             // 工具栏是浮在正文上的覆盖层，不占安全区：显示或隐藏它不会改变 WebView 的尺寸和安全区，不触发 reflow
-            ReaderView(reader: reader, page: chromeVisible ? nil : session.page)
+            ReaderView(reader: reader, page: session.page)
+                // 章节名常驻左上角，在安全区内避开灵动岛，与正文左边缘对齐；工具栏出现时让位给关闭按钮
+                .overlay(alignment: .topLeading) {
+                    // 完整层级路径，放不下时截掉前面的上级，保证当前章节可见
+                    if !chromeVisible, let chapter = session.chapter {
+                        Text(chapter.path.map(\.title).joined(separator: " › "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.head)
+                            .padding(.horizontal, CGFloat(ReaderLayout.gutter))
+                            .padding(.top, ReaderLayout.chapterTitleTop)
+                            .allowsHitTesting(false)
+                    }
+                }
                 .overlay {
                     if chromeVisible {
                         chrome.transition(.opacity)
@@ -39,33 +53,15 @@ struct ReaderScreen: View {
 
     private var chrome: some View {
         VStack {
-            ZStack {
-                Text(session.chapter?.entry.title ?? session.book?.name ?? "")
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .glassEffect()
-                    .padding(.horizontal, 56) // 给关闭按钮让出位置，标题始终居中
-                HStack {
-                    Button("关闭", systemImage: "xmark") { session.close() }
-                    Spacer()
-                }
+            HStack {
+                Button("关闭", systemImage: "xmark") { session.close() }
+                Spacer()
             }
 
             Spacer()
 
             HStack {
                 Button("目录", systemImage: "list.bullet") { panel = .toc }
-                Spacer()
-                if let page = session.page {
-                    Text("\(page.page + 1) / \(page.pageCount)")
-                        .font(.footnote)
-                        .monospacedDigit()
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .glassEffect()
-                }
                 Spacer()
                 Button("样式", systemImage: "textformat") { panel = .style }
                     .environment(\.locale, Locale(identifier: "en"))

@@ -167,8 +167,10 @@ function waitAssets(doc, links) {
 }
 
 function columnCount() {
-  const fontPx = 16 * parseFloat(state.style["--USER__fontSize"] || "100") / 100;
-  const gutter = parseFloat(state.style["--RS__pageGutter"]);
+  const scale = parseFloat(state.style["--USER__fontSize"] || "100") / 100;
+  const fontPx = 16 * scale;
+  // --RS__pageGutter 已按字号缩放预先除过（会被 body 的 zoom 放大回来），乘回 scale 才是屏幕上的实际留白
+  const gutter = parseFloat(state.style["--RS__pageGutter"]) * scale;
   const columnEm = (frame.clientWidth / 2 - 2 * gutter) / fontPx;
   return columnEm >= MIN_COLUMN_EM ? 2 : 1;
 }
