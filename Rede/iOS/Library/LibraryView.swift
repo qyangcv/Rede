@@ -6,6 +6,7 @@ struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(ReaderSession.self) private var session
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \Book.date, order: .reverse) private var books: [Book]
     @Bindable private var settings = Settings.shared
     @State private var width: CGFloat = 0
@@ -43,6 +44,11 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("我的书库")
+            .toolbarTitleDisplayMode(.inlineLarge)
+            // 深色下纯黑底配浅色封面对比过强，改用深灰
+            .containerBackground(colorScheme == .dark ? Color(.sRGB, white: 0x1A / 255)
+                                                      : Color(.systemBackground),
+                                 for: .navigation)
             .overlay(alignment: .top) { SyncBanner() }
             .toolbar {
                 if SyncMonitor.shared.hasProblem {
