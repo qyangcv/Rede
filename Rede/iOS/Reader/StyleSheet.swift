@@ -6,21 +6,17 @@ struct StyleSheet: View {
     @Binding var appearance: Appearance
     @Binding var transition: PageTransition
     @Binding var brightness: Double
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 16) {
-            // 亮度遮罩先只在深色模式生效，浅色模式下不显示
-            if colorScheme == .dark {
-                GridRow {
-                    label("亮度")
-                    Slider(value: $brightness, in: 0.3...1) {
-                        Text("亮度")
-                    } minimumValueLabel: {
-                        Image(systemName: "sun.min")
-                    } maximumValueLabel: {
-                        Image(systemName: "sun.max")
-                    }
+            GridRow {
+                label("亮度")
+                Slider(value: $brightness, in: 0.3...1) {
+                    Text("亮度")
+                } minimumValueLabel: {
+                    Image(systemName: "sun.min")
+                } maximumValueLabel: {
+                    Image(systemName: "sun.max")
                 }
             }
 

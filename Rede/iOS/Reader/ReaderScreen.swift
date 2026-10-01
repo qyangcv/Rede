@@ -108,11 +108,10 @@ struct ReaderScreen: View {
     }
 
     // 用黑色遮罩模拟亮度，不改系统亮度；面板单独弹出、不在这棵视图树里，要各挂一层
-    // 先只在深色模式生效
     // 叠加在 sRGB 编码值上进行，透明度 a 让实际亮度变为 (1-a)^2.2；
     // 按 2.2 反算，滑块值即实际亮度比例，低亮度时颜色不会过早发黑
     private var dimmer: some View {
-        Color.black.opacity(colorScheme == .dark ? 1 - pow(settings.brightness, 1 / 2.2) : 0)
+        Color.black.opacity(1 - pow(settings.brightness, 1 / 2.2))
             .ignoresSafeArea()
             .allowsHitTesting(false)
     }
