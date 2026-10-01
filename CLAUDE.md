@@ -1,18 +1,21 @@
-Rede is a native macOS EPUB reader built for Chinese text. An iOS version is planned, with iCloud sync between the two.
+Rede is a native EPUB reader for macOS and iOS, built for Chinese text, sync through iCloud.
 
 ## Platforms
 
-macOS 26.0+ and iOS 26.0+ only. Don't add availability checks or fallbacks for older systems.
+macOS 26.0+ and iOS 26.0+.
 
 ## Layout
 
 - `Rede/Shared/` — code used by both platforms:
+  - `Common/` — small cross-cutting helpers
   - `Epub/` — EPUB 2/3 parsing, no UI dependencies
-  - `Library/` — book library and import
-  - `Reader/` — reading session, progress, styling
+  - `Library/` — book library, import, iCloud sync; `Views/` holds shared library views
+  - `Reader/` — reading session, progress, styling, page turning; `Views/` holds shared reader views
   - `Settings/` — settings panes
-- `Rede/macOS/`, `Rede/iOS/` — per-platform app entry, windows, and views.
-- Put platform-specific code in `macOS/` or `iOS/`. When it has to live in `Shared/`, fence it with `#if os(macOS)` / `#if os(iOS)`.
+- `Rede/macOS/`, `Rede/iOS/` — app entry and top-level UI: windows/screens, navigation, toolbars, and how things are presented. Also anything that imports AppKit/UIKit for more than a type alias.
+- Place code by who uses it today: both platforms → `Shared/`; one platform → that platform's folder. When the other platform needs it, move it to `Shared/` then. Don't put single-platform code in `Shared/` behind `#if os(...)`.
+- Anything that defines synced or persisted data (models, progress, settings formats) lives in `Shared/`, since both platforms must read and write it identically.
+- Design each platform's UI to its own conventions. Never adapt a macOS container for iOS or vice versa; reuse only the shared content views inside it.
 - `Rede/Shared/Reader/Web/` — the rendering layer. Each chapter loads into an iframe inside `reader.html`; ReadiumCSS handles pagination and typography, and `reader.js` only handles navigation, anchors, and progress.
 - Swift talks to JS exclusively through `JSBridge.swift`, which calls `window.reader.*`. Any change to that interface must land on both sides.
 - `Web/readium/` is vendored ReadiumCSS — never edit it. Override in `reader.css` or through ReadiumCSS variables instead.

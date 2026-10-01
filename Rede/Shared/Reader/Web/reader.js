@@ -364,6 +364,17 @@ function onClick(event) {
 // 外壳页和每个章节文档各自绑定：iframe 里的事件不会冒泡到外壳页，上下页边距上的点击落在外壳页
 function watchGestures(target) {
   target.addEventListener("click", onTap);
+  target.addEventListener("selectionchange", () => reportSelection(target));
+  // 换章后旧文档里的选区随之消失，不会再触发 selectionchange
+  reportSelection(target);
+}
+
+// 有选区时拖动是在调整选区，原生侧据此不把下滑当作关闭
+function reportSelection(doc) {
+  window.webkit?.messageHandlers?.gesture?.postMessage({
+    type: "selection",
+    active: !doc.getSelection().isCollapsed,
+  });
 }
 
 // 点在链接上交给 onClick 和原生导航；有选区时这次点击是在取消选中，都不上报

@@ -135,7 +135,9 @@ final class Reader: NSObject,  WKNavigationDelegate {
     var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
     var onGesture: ((ReaderGesture) -> Void)?
     var onTurn: (() -> Void)?
-    
+    // 正文里有选中的文字
+    fileprivate(set) var selecting = false
+
     private(set) var navigated = false
     
     init(book: EpubBook, start: ReadingPosition? = nil) {
@@ -308,11 +310,14 @@ private final class MessageRelay: NSObject, WKScriptMessageHandler {
     }
 
     private func receiveGesture(_ body: Any) {
-        guard let body = body as? [String: Any] else { return }
-        let gesture: ReaderGesture? = switch body["type"] as? String {
-        case "tap": (body["x"] as? Double).map { .tap(x: $0) }
-        default: nil
+        guard let body = body as? [String: Any], let reader else { return }
+        switch body["type"] as? String {
+        case "tap":
+            if let x = body["x"] as? Double { reader.onGesture?(.tap(x: x)) }
+        case "selection":
+            reader.selecting = body["active"] as? Bool ?? false
+        default:
+            break
         }
-        if let gesture { reader?.onGesture?(gesture) }
     }
 }
