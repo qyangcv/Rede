@@ -57,12 +57,12 @@
 1. 从 [Releases](https://github.com/qyangcv/Rede/releases/latest) 下载最新的 `Rede.dmg`
 2. 打开 dmg，将 Rede 拖入 “应用程序” 文件夹
 
-**iOS**
+**iOS (审核中，即将开放...)** 
 
 > 需要 iOS 版本 >= 26.0
 
 1. 在 App Store 安装 [TestFlight](https://apps.apple.com/app/testflight/id899247664)
-2. 在 iOS 上打开 [TestFlight 公开链接](https://testflight.apple.com/join/UvDG6ykV)，接受邀请并安装 Rede
+2. 在 iOS 上打开 [TestFlight 公开链接](https://testflight.apple.com/join/UvDG6ykV)，接受邀请并安装 Rede 
 
 ## 使用的开源工具
 
