@@ -10,6 +10,8 @@ struct LibraryView: View {
     @Query(sort: \Book.date, order: .reverse) private var books: [Book]
     @Bindable private var settings = Settings.shared
     @State private var width: CGFloat = 0
+    // 导航栏「+」图标中心的横坐标，第二行的陈列方式按钮按它对齐
+    @State private var importIconMidX: CGFloat = 0
     @State private var isImporting = false
     @State private var showSettings = false
     @State private var errors: [String] = []
@@ -24,19 +26,42 @@ struct LibraryView: View {
         NavigationStack {
             let grid = BookGrid.layout(width: width, cardWidth: cardWidth, minSpacing: 16)
             ScrollView {
-                LazyVGrid(columns: grid.columns, spacing: 24) {
-                    ForEach(books) { book in
-                        BookCard(book: book)
-                            .onTapGesture { open(book) }
-                            .contextMenu { menu(for: book) }
+                switch settings.libraryLayout {
+                case .grid:
+                    LazyVGrid(columns: grid.columns, spacing: 24) {
+                        ForEach(books) { book in
+                            BookCard(book: book)
+                                .onTapGesture { open(book) }
+                                .contextMenu { menu(for: book) }
+                        }
                     }
+                    .padding(.horizontal, grid.spacing)
+                    .padding(.vertical, 16)
+                case .list:
+                    LazyVStack(spacing: 0) {
+                        ForEach(books) { book in
+                            BookRow(book: book)
+                                .onTapGesture { open(book) }
+                                .contextMenu { menu(for: book) }
+                        }
+                    }
+                    .padding(.vertical, 8)
                 }
-                .padding(.horizontal, grid.spacing)
-                .padding(.vertical, 16)
+            }
+            .animation(.default, value: settings.libraryLayout)
+            // 陈列方式入口固定在导航栏下方右侧，内容滚到下面时由系统处理边缘效果
+            .safeAreaBar(edge: .top) {
+                if !books.isEmpty {
+                    // 中心对齐导航栏「+」图标：工具栏内边距由系统决定，按实测位置摆放而不是写死边距
+                    LibraryLayoutButton(layout: $settings.libraryLayout)
+                        .alignmentGuide(.leading) { $0[HorizontalAlignment.center] - importIconMidX }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-            // 同步前在两台设备上各自导入的同一本书会变成两条记录，书库一有变化就合并
-            .onChange(of: books.map(\.id), initial: true) { BookMerger.merge(in: modelContext) }
+            // 同步前在两台设备上各自导入的同一本书会变成两条记录，书库一有变化就合并。
+            // 合并会删除并保存，不能在视图更新中途执行：同一次更新还会渲染被删的书而崩溃，推迟到更新结束之后
+            .onChange(of: books.map(\.id), initial: true) { Task { BookMerger.merge(in: modelContext) } }
             .overlay {
                 if books.isEmpty {
                     ContentUnavailableView("书架是空的", systemImage: "books.vertical",
@@ -56,16 +81,20 @@ struct LibraryView: View {
                     ToolbarSpacer(.fixed)
                 }
 
+                // 主页按钮只留图标，不要玻璃底；放进一个 item 里自己控制间距，系统默认间距太松
                 ToolbarItem {
-                    Button("设置", systemImage: "gearshape") { showSettings = true }
+                    HStack(spacing: 4) {
+                        Button("设置", systemImage: "gearshape") { showSettings = true }
+                        AppearanceButton(appearance: $settings.appearance)
+                        Button { isImporting = true } label: {
+                            Label("导入", systemImage: "plus")
+                                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midX } action: {
+                                    importIconMidX = $0
+                                }
+                        }
+                    }
                 }
-
-                ToolbarSpacer(.fixed)
-
-                ToolbarItemGroup {
-                    AppearanceButton(appearance: $settings.appearance)
-                    Button("导入", systemImage: "plus") { isImporting = true }
-                }
+                .sharedBackgroundVisibility(.hidden)
             }
             .fileImporter(isPresented: $isImporting, allowedContentTypes: [.epub],
                           allowsMultipleSelection: true) { result in

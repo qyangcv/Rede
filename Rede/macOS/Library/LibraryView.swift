@@ -57,8 +57,9 @@ struct LibraryView: View {
                     )
                 }
             }
-            // 同步前在两台设备上各自导入的同一本书会变成两条记录，书库一有变化就合并
-            .onChange(of: books.map(\.id), initial: true) { BookMerger.merge(in: modelContext) }
+            // 同步前在两台设备上各自导入的同一本书会变成两条记录，书库一有变化就合并。
+            // 合并会删除并保存，不能在视图更新中途执行：同一次更新还会渲染被删的书而崩溃，推迟到更新结束之后
+            .onChange(of: books.map(\.id), initial: true) { Task { BookMerger.merge(in: modelContext) } }
             .dropDestination(for: URL.self) { urls, _ in
                 let epubs = urls.filter { $0.pathExtension.lowercased() == "epub" }
                 importBooks(epubs)

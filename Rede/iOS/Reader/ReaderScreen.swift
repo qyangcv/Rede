@@ -41,6 +41,8 @@ struct ReaderScreen: View {
                         .ignoresSafeArea()
                         .allowsHitTesting(false)
                 }
+                // 压暗正文但不压暗工具栏
+                .overlay { dimmer }
                 .background {
                     if let pages = turner.pages {
                         PageRendererHost(pages: pages)
@@ -65,6 +67,7 @@ struct ReaderScreen: View {
                 .sheet(item: $panel) { item in
                     sheet(item, reader: reader)
                         .presentationBackground(.background)
+                        .overlay { dimmer }
                 }
                 .onAppear {
                     reader.onGesture = { handle($0) }
@@ -104,6 +107,16 @@ struct ReaderScreen: View {
         .padding(.horizontal, 20)
     }
 
+    // 用黑色遮罩模拟亮度，不改系统亮度；面板单独弹出、不在这棵视图树里，要各挂一层
+    // 先只在深色模式生效
+    // 叠加在 sRGB 编码值上进行，透明度 a 让实际亮度变为 (1-a)^2.2；
+    // 按 2.2 反算，滑块值即实际亮度比例，低亮度时颜色不会过早发黑
+    private var dimmer: some View {
+        Color.black.opacity(colorScheme == .dark ? 1 - pow(settings.brightness, 1 / 2.2) : 0)
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+    }
+
     @ViewBuilder
     private func sheet(_ item: Panel, reader: Reader) -> some View {
         switch item {
@@ -119,7 +132,7 @@ struct ReaderScreen: View {
         case .style:
             // 高度贴合面板内容，上方露出正文；正文不压暗且可点击，调整时能看到实时效果
             StyleSheet(style: $settings.readerStyle, appearance: $settings.appearance,
-                       transition: $settings.pageTransition)
+                       transition: $settings.pageTransition, brightness: $settings.brightness)
                 // sheet 会在 detent 高度外再加底部安全区，这里先减掉
                 .onGeometryChange(for: CGFloat.self) { $0.size.height - $0.safeAreaInsets.bottom } action: { styleHeight = $0 }
                 .presentationDetents([styleHeight.map { .height($0) } ?? .medium])

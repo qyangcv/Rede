@@ -188,6 +188,26 @@ enum Appearance: String, CaseIterable, Identifiable, Codable {
        }
 }
 
+enum LibraryLayout: String, CaseIterable, Identifiable, Codable {
+    case grid, list
+
+    var id: Self { self }
+
+    var name: String {
+        switch self {
+        case .grid: "卡片"
+        case .list: "列表"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .grid: "square.grid.2x2"
+        case .list: "list.bullet"
+        }
+    }
+}
+
 enum Spacing: String, CaseIterable, Identifiable, Codable {
     case compact, snug, standard, relaxed, loose
 
@@ -380,6 +400,12 @@ final class Settings {
 
     var pageTransition: PageTransition { didSet { save() } }
 
+    // 阅读页亮度，1 即系统亮度；只压暗、不调系统亮度。目前只有 iOS 使用
+    var brightness: Double { didSet { save() } }
+
+    // 书库陈列方式，目前只有 iOS 使用
+    var libraryLayout: LibraryLayout { didSet { save() } }
+
     // 书库在启动时按这个开关创建，改动下次启动生效，见 CloudSync
     var iCloudSync: Bool { didSet { save() } }
 
@@ -393,6 +419,8 @@ final class Settings {
         var readerStyle: ReaderStyle?
         var appearance: Appearance?
         var pageTransition: PageTransition?
+        var brightness: Double?
+        var libraryLayout: LibraryLayout?
         var iCloudSync: Bool?
     }
 
@@ -402,6 +430,8 @@ final class Settings {
         readerStyle = snapshot?.readerStyle ?? .default
         appearance = snapshot?.appearance ?? .system
         pageTransition = snapshot?.pageTransition ?? .default
+        brightness = snapshot?.brightness ?? 1
+        libraryLayout = snapshot?.libraryLayout ?? .grid
         iCloudSync = snapshot?.iCloudSync ?? Self.defaultICloudSync
     }
 
@@ -412,7 +442,8 @@ final class Settings {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(Snapshot(readerStyle: readerStyle, appearance: appearance,
-                                    pageTransition: pageTransition, iCloudSync: iCloudSync))
+                                    pageTransition: pageTransition, brightness: brightness,
+                                    libraryLayout: libraryLayout, iCloudSync: iCloudSync))
                 .write(to: AppPaths.settings, options: .atomic)
         } catch {
             Self.log.error("保存设置失败：\(error.localizedDescription, privacy: .public)")
