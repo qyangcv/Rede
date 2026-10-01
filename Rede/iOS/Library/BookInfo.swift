@@ -44,8 +44,6 @@ struct BookInfoEditor: View {
                 }
             }
         }
-        .frame(minWidth: 360)
-        .presentationSizing(.fitted)
         .presentationDetents([.medium])
     }
 }
@@ -81,8 +79,6 @@ struct BookInfoView: View {
                 }
             }
         }
-        .frame(minWidth: 360)
-        .presentationSizing(.fitted)
         .presentationDetents([.medium, .large])
         .task {
             ChapterLengthIndexer.shared.ensure(book, in: modelContext)
