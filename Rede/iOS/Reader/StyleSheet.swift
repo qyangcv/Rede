@@ -58,11 +58,11 @@ struct StyleSheet: View {
                 HStack(spacing: 16) {
                     ColorSwatches(selection: $style.background)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    HStack(spacing: 16) {
-                        label("背景")
-                        PatternSwatches(selection: $style.pattern, background: style.background)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+//                    HStack(spacing: 16) {
+//                        label("背景")
+//                        PatternSwatches(selection: $style.pattern, background: style.background)
+//                    }
+//                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
 

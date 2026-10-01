@@ -111,8 +111,12 @@ struct LibraryView: View {
     private func menu(for book: Book) -> some View {
         Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
         Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
-        if let file = EpubFile(book) {
-            ShareLink(item: file, preview: SharePreview(book.name)) {
+        // 只看文件是否已同步下来，不读内容
+        if book.file != nil {
+            ShareLink(item: EpubShareItem(id: book.persistentModelID,
+                                          container: modelContext.container,
+                                          name: book.exportName),
+                      preview: SharePreview(book.name)) {
                 Label("分享", systemImage: "square.and.arrow.up")
             }
         }

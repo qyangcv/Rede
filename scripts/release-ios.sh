@@ -60,7 +60,7 @@ gum spin --title "Building $VERSION ($BUILD_NUMBER)…" --show-error -- \
     MARKETING_VERSION=$VERSION \
     CURRENT_PROJECT_VERSION=$BUILD_NUMBER
 
-# 3. Export and upload (= Organizer → Distribute App → TestFlight Internal Only)
+# 3. Export and upload (= Organizer → Distribute App → TestFlight)
 gum spin --title "Uploading to App Store Connect…" --show-error -- \
   xcodebuild -exportArchive -quiet -allowProvisioningUpdates "${ASC_AUTH[@]}" \
     -archivePath $BUILD/Rede.xcarchive \

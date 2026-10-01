@@ -91,10 +91,10 @@ struct StylePanel: View {
                     ColorSwatches(selection: $style.background)
                 }
 
-                GridRow {
-                    label("背景")
-                    PatternSwatches(selection: $style.pattern, background: style.background)
-                }
+//                GridRow {
+//                    label("背景")
+//                    PatternSwatches(selection: $style.pattern, background: style.background)
+//                }
 
                 // 平台只实现了一种翻页方式时不显示
                 if PageTransition.allCases.count > 1 {
