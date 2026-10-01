@@ -7,7 +7,7 @@
     <key>signingStyle</key><string>automatic</string>
     <key>teamID</key><string>BTW6LD2Q74</string>
     <key>manageAppVersionAndBuildNumber</key><false/>
-    <key>testFlightInternalTestingOnly</key><true/>
+    <!-- <key>testFlightInternalTestingOnly</key><true/> -->
     <key>uploadSymbols</key><true/>
 </dict>
 </plist>
