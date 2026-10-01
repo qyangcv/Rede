@@ -167,7 +167,10 @@ struct FontWeightSlider: View {
 
     var body: some View {
         HStack(spacing: 9) {
-            Slider(value: index, in: 0...Double(weights.count - 1), step: 1)
+            Slider(value: index, in: 0...Double(weights.count - 1), step: 1) {
+                Text("粗细")
+            } tick: { SliderTick($0) }
+            .labelsHidden()
             Text("900")
                 .monospacedDigit()
                 .hidden()

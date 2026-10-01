@@ -16,6 +16,7 @@ struct StyleSheet: View {
                         FontOptions()
                     }
                     .tint(.primary)
+                    .fixedSize()
                     Spacer()
                     Text("\(style.fontScale)%").monospacedDigit()
                     Stepper("字号", value: $style.fontScale, in: ReaderStyle.fontScaleRange,
