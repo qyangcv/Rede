@@ -12,7 +12,7 @@ struct FontsPane: View {
             } header: {
                 Text("第三方字体")
             } footer: {
-                Text("下载字体需要确保网络能够访问 GitHub")
+                Text("下载字体需要访问 GitHub。")
             }
         }
         .formStyle(.grouped)

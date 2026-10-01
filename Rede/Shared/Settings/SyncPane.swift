@@ -17,9 +17,9 @@ struct SyncPane: View {
                 }
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("在登录同一 Apple ID 的设备之间同步书籍、书籍信息和阅读进度，阅读设置不同步。")
+                    Text("在登陆了同一 Apple ID 的设备之间同步书籍和阅读进度。")
                     if settings.iCloudSync != CloudSync.isActive {
-                        Text("重新启动 App 后生效").foregroundStyle(.orange)
+                        Text("重启 App 后生效").foregroundStyle(.orange)
                     }
                 }
             }
