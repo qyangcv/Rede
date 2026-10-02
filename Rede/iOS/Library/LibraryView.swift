@@ -5,11 +5,9 @@ import UniformTypeIdentifiers
 struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(ReaderSession.self) private var session
-    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \Book.date, order: .reverse) private var books: [Book]
     @Bindable private var settings = Settings.shared
-    @State private var width: CGFloat = 0
     @State private var importIconMidX: CGFloat = 0
     @State private var isImporting = false
     @State private var showSettings = false
@@ -18,22 +16,19 @@ struct LibraryView: View {
     @State private var bookToEdit: Book?
     @State private var bookToShowInfo: Book?
 
-    private var cardWidth: CGFloat { sizeClass == .regular ? 140 : 105 }
-
     var body: some View {
         NavigationStack {
-            let grid = BookGrid.layout(width: width, cardWidth: cardWidth, minSpacing: 16)
             ScrollView {
                 switch settings.libraryLayout {
                 case .grid:
-                    LazyVGrid(columns: grid.columns, spacing: 24) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 16, alignment: .top)], spacing: 24) {
                         ForEach(books) { book in
                             BookCard(book: book)
                                 .onTapGesture { open(book) }
                                 .contextMenu { menu(for: book) }
                         }
                     }
-                    .padding(.horizontal, grid.spacing)
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 16)
                 case .list:
                     LazyVStack(spacing: 8) {
@@ -55,7 +50,6 @@ struct LibraryView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .onChange(of: books.map(\.id), initial: true) { Task { BookMerger.merge(in: modelContext) } }
             .overlay {
                 if books.isEmpty {

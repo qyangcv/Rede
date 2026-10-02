@@ -25,7 +25,8 @@ extension View {
                         }
                         .background(ChromeStyle(background: background, level: .card), in: .rect(cornerRadius: 16))
                         .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
-                        .offset(x: button.minX - FontList.inset, y: button.maxY + 6)
+                        .frame(maxHeight: proxy.size.height - button.maxY - FontList.gap, alignment: .top)
+                        .offset(x: button.minX - FontList.inset, y: button.maxY + FontList.gap)
                     }
                 }
                 .transition(.opacity)
@@ -37,13 +38,23 @@ extension View {
 
 private struct FontList: View {
     static let inset: CGFloat = 14
+    static let gap: CGFloat = 6
 
     let current: ReaderFont
     let select: (ReaderFont) -> Void
 
     var body: some View {
+        ViewThatFits(in: .vertical) {
+            list
+            ScrollView { list }
+        }
+        .font(.footnote)
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var list: some View {
         let fonts = ReaderFont.allCases.filter(\.isAvailable)
-        VStack(alignment: .leading, spacing: 0) {
+        return VStack(alignment: .leading, spacing: 0) {
             rows(fonts.filter(\.isBuiltin))
             let thirdParty = fonts.filter { !$0.isBuiltin }
             if !thirdParty.isEmpty {
@@ -51,10 +62,8 @@ private struct FontList: View {
                 rows(thirdParty)
             }
         }
-        .font(.footnote)
         .padding(.horizontal, Self.inset)
         .padding(.vertical, 8)
-        .fixedSize()
     }
 
     private func rows(_ fonts: [ReaderFont]) -> some View {
