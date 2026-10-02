@@ -6,6 +6,7 @@ struct StyleSheet: View {
     @Binding var appearance: Appearance
     @Binding var transition: PageTransition
     @Binding var brightness: Double
+    @State private var choosingFont = false
 
     var body: some View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 16) {
@@ -24,14 +25,7 @@ struct StyleSheet: View {
                 label("字体")
                 // 字体菜单与下方控件左对齐，有底色的 Stepper 与下方分段控件右对齐
                 HStack {
-                    // 菜单样式的 Picker 不接受外部字号，自己画标签才能与分段控件文字一致
-                    Menu {
-                        Picker("字体", selection: $style.font) {
-                            FontOptions()
-                        }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
-                    } label: {
+                    Button { choosingFont = true } label: {
                         HStack(spacing: 4) {
                             Text(style.font.name)
                             Image(systemName: "chevron.up.chevron.down")
@@ -40,6 +34,7 @@ struct StyleSheet: View {
                     }
                     .tint(.primary)
                     .fixedSize()
+                    .anchorPreference(key: FontButtonAnchor.self, value: .bounds) { $0 }
                     Spacer()
                     Text("\(style.fontScale)%").monospacedDigit()
                     Stepper("字号", value: $style.fontScale, in: ReaderStyle.fontScaleRange,
@@ -100,6 +95,7 @@ struct StyleSheet: View {
         }
         .padding([.horizontal, .top], 20)
         .padding(.bottom, 8)
+        .fontDropdown(isPresented: $choosingFont, selection: $style.font)
     }
 
     private func label(_ text: String) -> some View {
