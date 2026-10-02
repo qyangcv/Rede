@@ -57,7 +57,7 @@
 1. 从 [Releases](https://github.com/qyangcv/Rede/releases/latest) 下载最新的 `Rede.dmg`
 2. 打开 dmg，将 Rede 拖入 “应用程序” 文件夹
 
-**iOS (审核中，即将开放...)** 
+**iOS** 
 
 > 需要 iOS 版本 >= 26.0
 
