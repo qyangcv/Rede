@@ -15,7 +15,7 @@ struct RedeApp: App {
            return SPUStandardUpdaterController(
                startingUpdater: startingUpdater, updaterDelegate: nil, userDriverDelegate: nil)
        }()
-    
+
     init () {
         Settings.shared.appearance.apply()
         SyncMonitor.shared.start()
@@ -23,7 +23,7 @@ struct RedeApp: App {
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
         UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")
     }
-    
+
     var body: some Scene {
         Window("书库", id: "library") {
             ContentView()
@@ -39,7 +39,7 @@ struct RedeApp: App {
                 OpenLibraryCommand()
             }
         }
-        
+
         Window("阅读", id: ReaderSession.windowID) {
             ReaderWindow()
         }
@@ -48,14 +48,13 @@ struct RedeApp: App {
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
         .commandsRemoved()
-        
+
         SwiftUI.Settings {
             SettingsView()
         }
     }
 }
 
-// 退出时先让窗口消失，进程再留一会儿把刚保存的改动传到 iCloud，用户不用等
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let session = ReaderSession()
 

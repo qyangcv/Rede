@@ -17,7 +17,7 @@ struct LibraryView: View {
     @Environment(ReaderSession.self) private var session
     @Environment(\.openWindow) private var openWindow
     @Bindable private var settings = Settings.shared
-    
+
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
@@ -57,8 +57,6 @@ struct LibraryView: View {
                     )
                 }
             }
-            // 同步前在两台设备上各自导入的同一本书会变成两条记录，书库一有变化就合并。
-            // 合并会删除并保存，不能在视图更新中途执行：同一次更新还会渲染被删的书而崩溃，推迟到更新结束之后
             .onChange(of: books.map(\.id), initial: true) { Task { BookMerger.merge(in: modelContext) } }
             .dropDestination(for: URL.self) { urls, _ in
                 let epubs = urls.filter { $0.pathExtension.lowercased() == "epub" }
@@ -138,7 +136,7 @@ struct LibraryView: View {
             }
         }
     }
-    
+
     private func save() {
         do {
             try modelContext.save()
@@ -146,7 +144,7 @@ struct LibraryView: View {
             errors.append(error.localizedDescription)
         }
     }
-    
+
     private var selectedBooks: [Book] {
         books.filter { selection.contains($0.id) }
     }
@@ -211,7 +209,7 @@ struct LibraryView: View {
             errors.append(error.localizedDescription)
         }
     }
-    
+
     private func open(_ book: Book) {
         do {
             try session.open(book, context: modelContext)
@@ -220,7 +218,7 @@ struct LibraryView: View {
             errors.append(error.localizedDescription)
         }
     }
-    
+
     private func importBooks(_ urls: [URL]) {
         for url in urls {
             do {

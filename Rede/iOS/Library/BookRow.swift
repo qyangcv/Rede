@@ -9,7 +9,6 @@ struct BookRow: View {
                 .frame(width: 44)
 
             VStack(alignment: .leading, spacing: 4) {
-                // 列表模式就是为了让长书名显示完整，给两行
                 Text(book.name)
                     .font(.body)
                     .lineLimit(2)

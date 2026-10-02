@@ -17,7 +17,6 @@ final class ReaderSession {
     private(set) var page: PageInfo?
     private(set) var chapter: TOCItem?
     private var store: ProgressStore?
-    // 阅读器当前落在的已保存进度；翻页之前，其他设备同步来不同的进度就跟过去，见 followRemoteProgress()
     private var shownPosition: ReadingPosition?
 
     init() {
@@ -47,7 +46,6 @@ final class ReaderSession {
         let turner = Settings.shared.pageTransition.makeTurner(reader: reader)
         reader.onProgress = { [weak self, weak reader] position, page, chapter in
             MainActor.assumeIsolated {
-                // 翻页之前的上报只是落位（打开、窗口缩放、跟随同步来的进度），不算阅读进度
                 if reader?.navigated == true { store.record(position) }
                 self?.turner?.pages?.prepare(position, page: page, chapter: chapter)
                 self?.page = page
@@ -79,7 +77,6 @@ final class ReaderSession {
         shownPosition = nil
     }
 
-    // 阅读中切换翻页方式：换掉翻页器，新的相邻页窗口围绕当前页建立
     func setTransition(_ transition: PageTransition) {
         guard let reader else { return }
         turner?.detach()
@@ -90,7 +87,6 @@ final class ReaderSession {
         self.turner = turner
     }
 
-    // 刚打开、还没翻页时，其他设备同步来了这本书更新的进度：直接跳过去
     private func followRemoteProgress() {
         guard let reader, !reader.navigated, let book, book.modelContext != nil,
               let position = book.position, position != shownPosition else { return }

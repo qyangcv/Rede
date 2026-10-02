@@ -30,7 +30,6 @@ private struct FontRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(font.name)
                 HStack(spacing: 0) {
-                    // 行内的按钮都要显式指定样式：iOS 列表行里的默认样式按钮会让整行变成一个点击区域，点"下载"也会打开链接
                     Link(package.author, destination: package.repository)
                         .buttonStyle(.borderless)
                     Text(" · \(package.license) · \(package.size.formatted(.byteCount(style: .file)))").foregroundStyle(.secondary)

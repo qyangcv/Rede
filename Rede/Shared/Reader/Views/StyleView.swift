@@ -1,5 +1,3 @@
-// Reader Style View
-
 import SwiftUI
 
 struct StyleButton: View {
@@ -91,12 +89,6 @@ struct StylePanel: View {
                     ColorSwatches(selection: $style.background)
                 }
 
-//                GridRow {
-//                    label("背景")
-//                    PatternSwatches(selection: $style.pattern, background: style.background)
-//                }
-
-                // 平台只实现了一种翻页方式时不显示
                 if PageTransition.allCases.count > 1 {
                     Divider()
 
@@ -180,8 +172,6 @@ struct FontWeightSlider: View {
         }
     }
 }
-
-// 以下组件 macOS 与 iOS 的样式面板共用
 
 struct FontOptions: View {
     var body: some View {
@@ -314,7 +304,7 @@ private struct PatternSwatch: View {
                         image
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 32) // 背景缩略图放大倍数
+                            .frame(width: 32)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }

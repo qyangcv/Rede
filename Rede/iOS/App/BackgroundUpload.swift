@@ -1,6 +1,5 @@
 import UIKit
 
-// 进入后台时向系统要一段运行时间，把刚保存的改动传到 iCloud；上传完成或超时就交还
 final class BackgroundUpload {
     static let shared = BackgroundUpload()
 

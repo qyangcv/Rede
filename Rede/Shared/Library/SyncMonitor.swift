@@ -4,18 +4,15 @@ import CoreData
 import Observation
 import os
 
-// 汇总 iCloud 同步状态。系统在每次初始化（setup）、下载（import）、上传（export）开始和结束时各发一次事件，
-// iCloud 账号状态单独查询
 @Observable
 final class SyncMonitor {
     static let shared = SyncMonitor()
-    // 一次下载成功结束：正在阅读的书可能有了新进度
     static let didImport = Notification.Name("SyncMonitor.didImport")
     private static let log = Logger(subsystem: "Rede", category: "Sync")
 
     enum Status: Equatable {
-        case off         // 设置里未开启
-        case noAccount   // 未登录 iCloud，或在系统设置里关闭了 Rede 的 iCloud
+        case off
+        case noAccount
         case syncing
         case synced
         case failed(String)
@@ -25,7 +22,6 @@ final class SyncMonitor {
     private var accountAvailable: Bool?
     private var running: [UUID: NSPersistentCloudKitContainer.EventType] = [:]
     private var failures: [NSPersistentCloudKitContainer.EventType: String] = [:]
-    // 最近一次开始、最近一次结束的上传，都按事件的开始时间记，供 waitForExport 判断
     private var lastExportStarted: Date?
     private var lastExportFinished: Date?
 
@@ -40,7 +36,6 @@ final class SyncMonitor {
         return running.isEmpty && lastSynced != nil ? .synced : .syncing
     }
 
-    // 书库里需要提醒用户的情况；上传、下载本身不打扰
     var hasProblem: Bool {
         switch status {
         case .noAccount, .failed: true
@@ -73,7 +68,6 @@ final class SyncMonitor {
         refreshAccount()
     }
 
-    // 等刚保存的改动传上去：`start` 之后开始的上传结束就返回；3 秒内都没有上传开始，说明没有待传的改动
     func waitForExport(since start: Date, timeout: Duration) async {
         guard CloudSync.isActive else { return }
         let clock = ContinuousClock()
@@ -115,7 +109,6 @@ final class SyncMonitor {
 
     nonisolated private static func describe(_ error: Error) -> String {
         guard let error = error as? CKError else { return error.localizedDescription }
-        // 部分失败时真正的原因在各条子错误里
         let inner = error.code == .partialFailure ? error.partialErrorsByItemID?.values.first as? CKError : nil
         switch inner?.code ?? error.code {
         case .quotaExceeded: return "iCloud 空间已满"

@@ -2,12 +2,10 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
-// 只记书的 ID，真正分享时才在后台读出 EPUB：菜单随卡片一起构建，在这里读整本书既浪费，
-// 书被删除后还会读到已脱离 context 的 BookFile 而崩溃
 nonisolated struct EpubShareItem: Transferable {
     let id: PersistentIdentifier
     let container: ModelContainer
-    let name: String   // 分享出去的文件名
+    let name: String
 
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(exportedContentType: .epub) { item in

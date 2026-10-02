@@ -20,9 +20,7 @@ struct ReaderView: View {
     }
 
     var body: some View {
-        // WebView 铺满全屏，背景画到屏幕边缘，正文避开安全区交给 reader.css；页码按安全区摆放
         ZStack(alignment: .bottom) {
-            // 安全区交给 CSS 变量，主 WebView 和相邻页渲染器用同一个值
             ReaderWebViewContainer(reader: reader)
                 .ignoresSafeArea()
                 .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { safeArea = $0 }
@@ -39,7 +37,6 @@ struct ReaderView: View {
             reader.open(style: cssVariables)
             pages?.open(style: cssVariables)
         }
-        // 阅读中切换翻页方式会换一个相邻页渲染器
         .onChange(of: pages.map(ObjectIdentifier.init)) {
             pages?.open(style: cssVariables)
         }

@@ -1,5 +1,3 @@
-// Parser Layer for epub2 & epub3
-
 import Foundation
 import Kanna
 import ZIPFoundation
@@ -133,7 +131,6 @@ nonisolated private func findNcxPath(_ opfXML: Searchable, manifest: [String: Ep
     return manifest[tocId]?.path
 }
 
-
 nonisolated private func findCover(_ opfXML: Searchable, manifest: [String: EpubManifestItem]) -> EpubManifestItem? {
     if let item = manifest.values.first(where: { $0.properties.contains("cover-image") }) {
         return item
@@ -183,7 +180,6 @@ nonisolated private func parseNavList(_ list: Searchable, navPath: String, idPre
     for (index, li) in list.xpath("./*[local-name()='li']").enumerated() {
         let id = idPrefix.isEmpty ? "\(index)" : "\(idPrefix).\(index)"
 
-        // <li> 下是 <a href>（可跳转）或 <span>（仅分组标题），可选跟一个子 <ol>
         let label = li.at_xpath("./*[local-name()='a' or local-name()='span']")
         let title = label?.text ?? ""
         let href = label?["href"] ?? ""
@@ -200,7 +196,6 @@ nonisolated private func parseNavList(_ list: Searchable, navPath: String, idPre
     return toc
 }
 
-// 按 HTML 渲染规则折叠空白（同 XPath normalize-space()）：源码缩进不算标题内容
 nonisolated private func normalizeTitle(_ title: String) -> String {
     title.split(whereSeparator: \.isWhitespace).joined(separator: " ")
 }
@@ -221,9 +216,6 @@ nonisolated private func resolveHref(_ href: String, relativeTo documentPath: St
 }
 
 nonisolated private func normalizePath(_ path: String) -> String {
-    // remove first `/`
-    // remove `.`
-    // resolve `..`
     var components: [String] = []
     for component in path.split(separator: "/") {
         switch component {
@@ -254,4 +246,4 @@ nonisolated struct EpubFetcher {
         return result
     }
 }
- 
+

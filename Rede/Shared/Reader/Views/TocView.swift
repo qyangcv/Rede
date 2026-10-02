@@ -105,7 +105,6 @@ private struct TOCRow: View {
     }
 }
 
-
 #Preview("TOCList") {
     TOCList(items: TOCItem.flatten([
         EpubTocEntry(id: "0", title: "第一部 面壁者", path: "a.xhtml", fragment: nil, children: [

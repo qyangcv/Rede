@@ -1,7 +1,5 @@
 import SwiftUI
 
-// 工具栏、面板、下拉卡片的底色，随阅读背景变化：与背景同色相，按层级混入白色提亮，
-// 层级与系统色一致（正文 < 面板 < 卡片），深色下差距更小，避免发灰
 struct ChromeStyle: ShapeStyle {
     enum Level { case panel, card }
 

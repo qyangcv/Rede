@@ -10,7 +10,6 @@ struct LibraryView: View {
     @Query(sort: \Book.date, order: .reverse) private var books: [Book]
     @Bindable private var settings = Settings.shared
     @State private var width: CGFloat = 0
-    // 导航栏「+」图标中心的横坐标，第二行的陈列方式按钮按它对齐
     @State private var importIconMidX: CGFloat = 0
     @State private var isImporting = false
     @State private var showSettings = false
@@ -19,7 +18,6 @@ struct LibraryView: View {
     @State private var bookToEdit: Book?
     @State private var bookToShowInfo: Book?
 
-    // iPhone 一排 3 本，iPad 卡片放大
     private var cardWidth: CGFloat { sizeClass == .regular ? 140 : 105 }
 
     var body: some View {
@@ -49,18 +47,14 @@ struct LibraryView: View {
                 }
             }
             .animation(.default, value: settings.libraryLayout)
-            // 陈列方式入口固定在导航栏下方右侧，内容滚到下面时由系统处理边缘效果
             .safeAreaBar(edge: .top) {
                 if !books.isEmpty {
-                    // 中心对齐导航栏「+」图标：工具栏内边距由系统决定，按实测位置摆放而不是写死边距
                     LibraryLayoutButton(layout: $settings.libraryLayout)
                         .alignmentGuide(.leading) { $0[HorizontalAlignment.center] - importIconMidX }
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-            // 同步前在两台设备上各自导入的同一本书会变成两条记录，书库一有变化就合并。
-            // 合并会删除并保存，不能在视图更新中途执行：同一次更新还会渲染被删的书而崩溃，推迟到更新结束之后
             .onChange(of: books.map(\.id), initial: true) { Task { BookMerger.merge(in: modelContext) } }
             .overlay {
                 if books.isEmpty {
@@ -70,7 +64,6 @@ struct LibraryView: View {
             }
             .navigationTitle("我的书库")
             .toolbarTitleDisplayMode(.inlineLarge)
-            // 深色下纯黑底配浅色封面对比过强，改用深灰
             .containerBackground(colorScheme == .dark ? Color(.sRGB, white: 0x1A / 255)
                                                       : Color(.systemBackground),
                                  for: .navigation)
@@ -81,7 +74,6 @@ struct LibraryView: View {
                     ToolbarSpacer(.fixed)
                 }
 
-                // 主页按钮只留图标，不要玻璃底；放进一个 item 里自己控制间距，系统默认间距太松
                 ToolbarItem {
                     HStack(spacing: 4) {
                         Button("设置", systemImage: "gearshape") { showSettings = true }
@@ -127,7 +119,6 @@ struct LibraryView: View {
             } message: {
                 Text(errors.joined(separator: "\n"))
             }
-            // 从"文件"App、其他 App 的"用 Rede 打开"或拖到模拟器上传入的书：导入后直接打开
             .onOpenURL { url in
                 do {
                     open(try BookImporter.importBook(from: url, into: modelContext))
@@ -146,7 +137,6 @@ struct LibraryView: View {
     private func menu(for book: Book) -> some View {
         Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
         Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
-        // 只看文件是否已同步下来，不读内容
         if book.file != nil {
             ShareLink(item: EpubShareItem(id: book.persistentModelID,
                                           container: modelContext.container,

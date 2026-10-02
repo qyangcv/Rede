@@ -3,7 +3,6 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
-    // 版本号取自 Info.plist，由 MARKETING_VERSION / CURRENT_PROJECT_VERSION 生成
     private static let version: String = {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? ""

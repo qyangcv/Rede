@@ -3,20 +3,20 @@ import WebKit
 
 final class ReaderWebView: WKWebView {
     var onKeyDown: ((NSEvent) -> Bool)?
-    
+
     override init(frame: CGRect, configuration: WKWebViewConfiguration) {
         super.init(frame: frame, configuration: configuration)
         setValue(false, forKey: "drawsBackground")
     }
-    
+
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented")
     }
-    
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         window?.makeFirstResponder(self)
     }
-    
+
     override func keyDown(with event: NSEvent) {
         if onKeyDown?(event) == true { return }
         super.keyDown(with: event)

@@ -1,7 +1,6 @@
 #if DEBUG
 import SwiftUI
 
-// 开发者调色：输入完整色值即实时覆盖当前主题，清空则恢复
 @Observable
 final class PaletteTuner {
     static let shared = PaletteTuner()

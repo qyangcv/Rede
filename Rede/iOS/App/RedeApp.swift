@@ -18,7 +18,6 @@ struct RedeApp: App {
         .modelContainer(.library)
         .environment(session)
         .onChange(of: scenePhase) { _, phase in
-            // 进入后台时 ReaderSession 会保存阅读进度，这里向系统要时间把它传上去
             if phase == .background { BackgroundUpload.shared.begin() }
         }
     }

@@ -15,7 +15,6 @@ struct BookCover: View {
             .shadow(color: .black.opacity(0.15), radius: 3, y: 2)
     }
 
-    // EPUB 本体还没从 iCloud 下载下来：书的信息和文件是两条记录，文件可能晚到
     private var downloadBadge: some View {
         Image(systemName: "icloud.and.arrow.down")
             .font(.caption)

@@ -6,11 +6,9 @@ import UniformTypeIdentifiers
 
 enum AppPaths {
     #if DEBUG
-    // ~/Library/Application\ Support/Rede-Debug
     static let root = URL.applicationSupportDirectory
         .appending(component: "Rede-Debug", directoryHint: .isDirectory)
     #else
-    // ~/Library/Application\ Support/Rede
     static let root = URL.applicationSupportDirectory
         .appending(component: "Rede", directoryHint: .isDirectory)
     #endif
@@ -20,27 +18,22 @@ enum AppPaths {
     static let fonts = root.appending(component: ".fonts", directoryHint: .isDirectory)
 }
 
-// 同步开关：书库在启动时按设置创建，本次启动内不再改变
 enum CloudSync {
     static let container = "iCloud.dev.qyang.Rede"
     static let isActive = Settings.shared.iCloudSync
 }
 
-// 字段都带默认值、不用唯一约束、关系可选：这是 CloudKit 同步对模型的要求
 @Model
 final class Book {
-    // epub 文件 SHA-256 的前 8 位十六进制。CloudKit 不支持唯一约束，
-    // 两台设备在同步前各自导入同一本书会产生 id 相同的记录，由 BookMerger 合并
     var id: String = ""
     var name: String = ""
     var author: String = ""
     var date: Date = Date.now
     var position: ReadingPosition?
-    var chapterLengths: [Int] = []   // 每章字符数，用于计算全书阅读百分比
+    var chapterLengths: [Int] = []
     var wordCount: Int?
     var lastRead: Date?
-    @Attribute(.externalStorage) var cover: Data?   // 缩略封面，JPEG
-    // EPUB 本体单独一张表：翻页只改 Book，不会带着整本书重新上传；同步时它可能比 Book 晚到
+    @Attribute(.externalStorage) var cover: Data?
     @Relationship(deleteRule: .cascade, inverse: \BookFile.book) var file: BookFile?
 
     init(id: String, name: String, author: String, date: Date = .now) {
@@ -50,7 +43,6 @@ final class Book {
         self.date = date
     }
 
-    // 全书阅读百分比 = 当前页首字符之前的字数 / 全书字数；未读或尚未统计字数时为 nil
     var progress: Double? {
         guard let position, position.chapter < chapterLengths.count else { return nil }
         let total = chapterLengths.reduce(0, +)
@@ -109,12 +101,10 @@ extension ModelContainer {
 }
 
 enum BookImporter {
-    // 封面缩略图的长边像素，够 3 倍屏上的书架卡片用
     private static let coverSize = 600
 
     @discardableResult
     static func importBook(from source: URL, into context: ModelContext) throws -> Book {
-        // 文件选择器、拖放、"打开方式"传来的 URL 可能在沙盒外，读之前要先申请访问权限
         let granted = source.startAccessingSecurityScopedResource()
         defer { if granted { source.stopAccessingSecurityScopedResource() } }
 
@@ -170,8 +160,6 @@ enum BookRemover {
     }
 }
 
-// 两台设备在同步前各自导入同一本书，会出现 id 相同的记录：保留最早导入的一条，
-// 阅读进度取最近读过的那条
 enum BookMerger {
     static func merge(in context: ModelContext) {
         guard let books = try? context.fetch(FetchDescriptor<Book>(sortBy: [SortDescriptor(\.date)]))

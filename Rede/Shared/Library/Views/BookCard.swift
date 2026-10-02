@@ -4,7 +4,6 @@ struct BookCard: View {
     let book: Book
     var isSelected = false
 
-    // 同名字号在 iOS 上比 Mac 大一截，iPhone 的卡片又更窄，按平台取字号
     #if os(macOS)
     private static let titleFont = Font.callout
     private static let detailFont = Font.caption
@@ -16,7 +15,7 @@ struct BookCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             BookCover(book: book)
-            
+
             Text(book.name)
                 .font(Self.titleFont)
                 .lineLimit(1)

@@ -2,14 +2,12 @@ import SwiftUI
 import os
 
 struct FontPackage {
-    // 下载物，sha256 校验的是它本身；zip 下载后解压到字体目录
     struct Asset {
         let url: URL
         let size: Int
         let sha256: String
     }
 
-    // 安装后的字体文件及其覆盖的字重：静态字体为单点，可变字体为区间
     struct Face {
         let file: String
         let weights: ClosedRange<Int>
@@ -87,7 +85,6 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         }
     }
 
-    // 需要下载的字体；内置字体为 nil
     var package: FontPackage? {
         switch self {
         case .original, .system, .pingfang, .songti, .hiragino: nil
@@ -135,7 +132,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
     var directory: URL {
         AppPaths.fonts.appending(component: rawValue, directoryHint: .isDirectory)
     }
-    
+
     var isBuiltin: Bool { package == nil }
 
     #if os(macOS)
@@ -178,7 +175,7 @@ enum Appearance: String, CaseIterable, Identifiable, Codable {
         case .dark: "深色"
         }
     }
-    
+
     var icon: String {
            switch self {
            case .system: "circle.lefthalf.filled"
@@ -223,7 +220,6 @@ enum Spacing: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    // 各档视觉空白（行距 lineHeight − 1，段距 paraSpacing + 行间空白）约按 1.25 倍等比递增
     private var metrics: (lineHeight: Double, paraSpacing: Double) {
         switch self {
         case .compact: (1.4, 0.2)
@@ -252,10 +248,10 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
 
     func color(for scheme: ColorScheme) -> String {
         switch (self, scheme) {
-        case (.neutral, .dark): "#1A1A1A" // 松烟
-        case (.neutral, _): "#F8F8F8"     // 素笺
-        case (.warm, .dark): "#211E16"    // 旧墨
-        case (.warm, _): "#F5F0E6"        // 缃帙
+        case (.neutral, .dark): "#1A1A1A"
+        case (.neutral, _): "#F8F8F8"
+        case (.warm, .dark): "#211E16"
+        case (.warm, _): "#F5F0E6"
         }
     }
 
@@ -264,7 +260,6 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-// 文字色不随背景变化，只分浅色、深色两种外观
 enum TextColor {
     static func color(for scheme: ColorScheme) -> String {
         scheme == .dark ? "#D1D1D1" : "#303030"
@@ -327,7 +322,6 @@ struct ReaderStyle: Equatable {
 
     func cssVariables(for scheme: ColorScheme) -> [String: String] {
         let text = TextColor.color(for: scheme)
-        // 浅色模式只设默认文字色，保留书籍自带的颜色；深色模式强制覆盖，避免深色文字落在深色背景上看不清
         let forced = scheme == .dark
         return [
             "--USER__fontSize": "\(fontScale)%",
@@ -400,13 +394,10 @@ final class Settings {
 
     var pageTransition: PageTransition { didSet { save() } }
 
-    // 阅读页亮度，1 即系统亮度；只压暗、不调系统亮度。目前只有 iOS 使用
     var brightness: Double { didSet { save() } }
 
-    // 书库陈列方式，目前只有 iOS 使用
     var libraryLayout: LibraryLayout { didSet { save() } }
 
-    // 书库在启动时按这个开关创建，改动下次启动生效，见 CloudSync
     var iCloudSync: Bool { didSet { save() } }
 
     #if DEBUG

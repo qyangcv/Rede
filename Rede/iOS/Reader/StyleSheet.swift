@@ -1,6 +1,5 @@
 import SwiftUI
 
-// iOS 的样式面板：要对照正文调整，所以尽量矮。每项占一行，不分组
 struct StyleSheet: View {
     @Binding var style: ReaderStyle
     @Binding var appearance: Appearance
@@ -23,7 +22,6 @@ struct StyleSheet: View {
 
             GridRow {
                 label("字体")
-                // 字体菜单与下方控件左对齐，有底色的 Stepper 与下方分段控件右对齐
                 HStack {
                     Button { choosingFont = true } label: {
                         HStack(spacing: 4) {
@@ -72,21 +70,14 @@ struct StyleSheet: View {
                 .labelsHidden()
             }
 
-            // 颜色和背景各占半行，背景从中线开始
             GridRow {
                 label("颜色")
                 HStack(spacing: 16) {
                     ColorSwatches(selection: $style.background)
                         .frame(maxWidth: .infinity, alignment: .leading)
-//                    HStack(spacing: 16) {
-//                        label("背景")
-//                        PatternSwatches(selection: $style.pattern, background: style.background)
-//                    }
-//                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
 
-            // 平台只实现了一种翻页方式时不显示
             if PageTransition.allCases.count > 1 {
                 GridRow {
                     label("翻页")

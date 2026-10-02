@@ -19,7 +19,6 @@ struct PageInfo: Codable, Equatable {
     var pageCount: Int
 }
 
-// reader.js 的进度对象（report() 上报、peek() 返回）
 struct ProgressReport: Decodable {
     let position: ReadingPosition
     let page: PageInfo
@@ -33,7 +32,6 @@ struct ProgressReport: Decodable {
         anchors = try decoder.container(keyedBy: CodingKeys.self).decode([String: Int].self, forKey: .anchors)
     }
 
-    // JS 返回 null 时 body 是 NSNull，非法对象会让 JSONSerialization 直接抛 ObjC 异常，先检查
     init?(_ body: Any) {
         guard JSONSerialization.isValidJSONObject(body),
               let data = try? JSONSerialization.data(withJSONObject: body),
@@ -134,7 +132,6 @@ final class ProgressStore {
         task = nil
         guard let position = pending else { return }
         pending = nil
-        // 书可能已在其他设备上删除，或作为重复记录被合并掉
         guard book.modelContext != nil else { return }
 
         book.position = position

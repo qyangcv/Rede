@@ -111,10 +111,9 @@ final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
     func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
 }
 
-// 阅读区的输入：点击由 reader.js 识别后上报，按键由各平台的 WebView 识别；怎样响应由各平台决定
 enum ReaderGesture {
-    case tap(x: Double)        // 点击位置占 WebView 宽度的比例，0 为最左
-    case turn(PageDirection)   // 方向键等要求翻页
+    case tap(x: Double)
+    case turn(PageDirection)
 }
 
 final class Reader: NSObject,  WKNavigationDelegate {
@@ -131,22 +130,21 @@ final class Reader: NSObject,  WKNavigationDelegate {
     static let gestureChannel = "gesture"
 
     private(set) var position: ReadingPosition?
-    
+
     var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
     var onGesture: ((ReaderGesture) -> Void)?
     var onTurn: (() -> Void)?
-    // 正文里有选中的文字
     fileprivate(set) var selecting = false
 
     private(set) var navigated = false
-    
+
     init(book: EpubBook, start: ReadingPosition? = nil) {
         self.book = book
         self.position = start
         self.toc = TOCItem.flatten(book.model.toc)
         self.spineIndex = Dictionary(book.model.spine.enumerated().map { ($1.path, $0) },
                                      uniquingKeysWith: { first, _ in first })
-        
+
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(EpubSchemeHandler(book: book), forURLScheme: EpubSchemeHandler.scheme)
         config.setURLSchemeHandler(AppResourceSchemeHandler(), forURLScheme: AppResourceSchemeHandler.scheme)
@@ -154,15 +152,15 @@ final class Reader: NSObject,  WKNavigationDelegate {
         let relay = MessageRelay()
         config.userContentController.add(relay, name: Self.progressChannel)
         config.userContentController.add(relay, name: Self.gestureChannel)
-        
+
         self.webView = ReaderWebView(frame: .zero, configuration: config)
-        
+
         #if DEBUG
         self.webView.isInspectable = true
         #endif
-        
+
         self.bridge = JSBridge(webView: webView)
-        
+
         super.init()
 
         relay.reader = self
@@ -177,7 +175,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
         shellNavigation = webView.load(html, mimeType: "text/html",
                                        characterEncodingName: "utf-8", baseURL: baseURL)
     }
-    
+
     private func injectInitialStyle(_ style: [String: String]) {
         guard let data = try? JSONEncoder().encode(style) else { return }
         let json = String(decoding: data, as: UTF8.self)
@@ -190,7 +188,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
         controller.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart,
                                               forMainFrameOnly: true))
     }
-    
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard navigation === shellNavigation else { return }
         let paths = book.model.spine.map(\.path)
@@ -238,15 +236,13 @@ final class Reader: NSObject,  WKNavigationDelegate {
             focus()
         }
     }
-    
-    // 前后翻 step 页
+
     func turn(_ step: Int) {
         navigated = true
         onTurn?()
         Task { await bridge.turn(step) }
     }
 
-    // 仿真翻页翻完后，把主 WebView 同步到卷页层停下的那一页，等画好再返回
     func show(_ position: ReadingPosition) async {
         navigated = true
         onTurn?()
@@ -254,7 +250,6 @@ final class Reader: NSObject,  WKNavigationDelegate {
         await painted()
     }
 
-    // 等页面渲染出两帧：刚翻页、刚落位时直接截图或显示，时常还是上一帧的画面
     private func painted() async {
         await bridge.call("await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
     }
@@ -273,7 +268,6 @@ final class Reader: NSObject,  WKNavigationDelegate {
         onProgress?(report.position, report.page, tocItem(at: report.position, anchors: report.anchors))
     }
 
-    // 相邻页渲染器用：落到 position 再翻 step 页并截图；没有相邻页或被后续渲染打断时返回 nil
     func peek(from position: ReadingPosition, step: Int) async -> RenderedPage? {
         guard let report = await bridge.peek(from: position, step: step),
               let image = await snapshot() else { return nil }

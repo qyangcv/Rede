@@ -3,7 +3,6 @@ import SwiftUI
 import UIKit
 #endif
 
-// 无动画：直接让主 WebView 翻页
 final class InstantTurner: NSObject, PageTurner {
     private let reader: Reader
     #if os(iOS)
@@ -39,7 +38,6 @@ final class InstantTurner: NSObject, PageTurner {
     }
 
     #if os(iOS)
-    // 左滑下一页，右滑上一页
     @objc private func swiped(_ swipe: UISwipeGestureRecognizer) {
         turn(swipe.direction == .left ? .next : .prev)
     }
@@ -48,7 +46,6 @@ final class InstantTurner: NSObject, PageTurner {
 
 #if os(iOS)
 extension InstantTurner: UIGestureRecognizerDelegate {
-    // 与 WebView 自带的手势（选字等）同时识别
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                            shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
         true
