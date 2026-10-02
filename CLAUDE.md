@@ -2,9 +2,7 @@ Rede is a native EPUB reader for macOS and iPhone, built for Chinese text. Libra
 
 ## Platforms
 
-- macOS 26.0+ and iOS 26.0+ only, iPhone only.
-- macOS ships as a Developer ID DMG with Sparkle, without App Sandbox; iOS ships through App Store Connect.
-- Swift 6 language mode, default actor isolation `MainActor`. Mark background work `nonisolated` / `@concurrent` explicitly; values crossing isolation must be `Sendable`.
+- macOS 26.0+ and iOS 26.0+.
 
 ## Architecture
 
