@@ -28,8 +28,9 @@ struct StyleSheet: View {
                     Button { choosingFont = true } label: {
                         HStack(spacing: 4) {
                             Text(style.font.name)
-                            Image(systemName: "chevron.up.chevron.down")
+                            Image(systemName: "chevron.down")
                                 .imageScale(.small)
+                                .rotationEffect(.degrees(choosingFont ? 180 : 0))
                         }
                     }
                     .tint(.primary)

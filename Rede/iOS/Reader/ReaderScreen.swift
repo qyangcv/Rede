@@ -85,26 +85,49 @@ struct ReaderScreen: View {
     private var chrome: some View {
         VStack {
             // 向下的箭头放在顶部中间，提示整页可以往下拉走
-            Button("关闭", systemImage: "chevron.down") { close() }
+            Button { close() } label: {
+                Label("关闭", systemImage: "chevron.down")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 48, height: 48)
+                    .contentShape(.circle)
+            }
+            .buttonStyle(.plain)
+            .barBackground(in: .circle)
 
             Spacer()
 
-            HStack {
-                Button("目录", systemImage: "list.bullet") { panel = .toc }
-                Spacer()
-                // 面板要对照正文调整，打开时收起工具栏，不遮挡正文顶部
-                Button("样式", systemImage: "textformat") {
-                    chromeVisible = false
-                    panel = .style
-                }
-                    .environment(\.locale, Locale(identifier: "en"))
+            bottomBar
+        }
+        .padding(.horizontal, 20)
+    }
+
+    // 底部一条横跨的胶囊，各按钮均分宽度
+    private var bottomBar: some View {
+        HStack(spacing: 0) {
+            barItem("目录", systemImage: "list.bullet") { panel = .toc }
+            Divider().frame(height: 20)
+            // 面板要对照正文调整，打开时收起工具栏，不遮挡正文顶部
+            barItem("样式", systemImage: "textformat") {
+                chromeVisible = false
+                panel = .style
             }
         }
-        .labelStyle(.iconOnly)
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .controlSize(.large)
-        .padding(.horizontal, 20)
+        .buttonStyle(.plain)
+        .barBackground(in: .capsule)
+    }
+
+    private func barItem(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label {
+                Text(title)
+            } icon: {
+                // textformat 在中文环境下画成“格式”二字，与旁边的文字重复；固定英文环境让它画成 Aa
+                Image(systemName: systemImage)
+                    .environment(\.locale, Locale(identifier: "en"))
+            }
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .contentShape(.rect)
+        }
     }
 
     // 用黑色遮罩模拟亮度，不改系统亮度；面板单独弹出、不在这棵视图树里，要各挂一层
@@ -266,5 +289,13 @@ private struct PullDown: UIGestureRecognizerRepresentable {
                                shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool {
             other.view === pullDown?.webView
         }
+    }
+}
+
+private extension View {
+    // 工具栏不用液态玻璃，底色与样式面板里的字体卡片一致；和正文底色相近，靠阴影分层
+    func barBackground(in shape: some Shape) -> some View {
+        background(Color(.tertiarySystemBackground), in: shape)
+            .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
     }
 }
