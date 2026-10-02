@@ -21,9 +21,7 @@ Dependencies point one way: Epub → Library (data & sync) → Reader engine →
 - Do Not execute git commands.
 - Do Not comment for swift code.
 - Don't create or modify any file unless I explicitly ask and name the file. I make all changes myself; your job is to answer and advise. Anchor proposed edits with `file:line`.
-- No migrations or backward compatibility.
 - Complex designs are fine when they are necessary, general, and extensible. Don't patch symptoms, add defensive fallbacks.
-- Models are plain values. Translating them to CSS, JS, or storage formats belongs to the boundary layer that needs it.
 - Platform differences are injected at composition points (app entry, `makeTurner`, view parameters), not branched inside shared code. Shared types expose callbacks and protocols; platforms supply implementations. `Shared/` never imports AppKit/UIKit except for a type alias.
 - `#if os(...)` in `Shared/` only picks per-platform values of one shared concept (layout metrics, font sizes).
 - Place code by who uses it today; move it to `Shared/` when the second platform needs it.
