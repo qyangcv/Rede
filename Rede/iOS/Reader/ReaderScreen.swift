@@ -75,11 +75,12 @@ struct ReaderScreen: View {
             Button { close() } label: {
                 Label("关闭", systemImage: "chevron.down")
                     .labelStyle(.iconOnly)
-                    .frame(width: 48, height: 48)
-                    .contentShape(.circle)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 64, height: CGFloat(ReaderLayout.marginTop))
+                    .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .barBackground(in: .circle, background: settings.readerStyle.background)
 
             Spacer()
 
