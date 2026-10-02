@@ -55,7 +55,7 @@ struct ReaderScreen: View {
                 .statusBarHidden(!chromeVisible)
                 .sheet(item: $panel) { item in
                     sheet(item, reader: reader)
-                        .presentationBackground(.background)
+                        .presentationBackground(ChromeStyle(background: settings.readerStyle.background, level: .panel))
                         .overlay { dimmer }
                 }
                 .onAppear {
@@ -79,7 +79,7 @@ struct ReaderScreen: View {
                     .contentShape(.circle)
             }
             .buttonStyle(.plain)
-            .barBackground(in: .circle)
+            .barBackground(in: .circle, background: settings.readerStyle.background)
 
             Spacer()
 
@@ -98,7 +98,7 @@ struct ReaderScreen: View {
             }
         }
         .buttonStyle(.plain)
-        .barBackground(in: .capsule)
+        .barBackground(in: .capsule, background: settings.readerStyle.background)
     }
 
     private func barItem(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
@@ -264,8 +264,8 @@ private struct PullDown: UIGestureRecognizerRepresentable {
 }
 
 private extension View {
-    func barBackground(in shape: some Shape) -> some View {
-        background(Color(.tertiarySystemBackground), in: shape)
+    func barBackground(in shape: some Shape, background: BackgroundColor) -> some View {
+        self.background(ChromeStyle(background: background, level: .card), in: shape)
             .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
     }
 }

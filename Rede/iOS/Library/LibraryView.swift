@@ -36,13 +36,14 @@ struct LibraryView: View {
                     .padding(.horizontal, grid.spacing)
                     .padding(.vertical, 16)
                 case .list:
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(spacing: 8) {
                         ForEach(books) { book in
                             BookRow(book: book)
                                 .onTapGesture { open(book) }
                                 .contextMenu { menu(for: book) }
                         }
                     }
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                 }
             }

@@ -87,7 +87,7 @@ struct StyleSheet: View {
         }
         .padding([.horizontal, .top], 20)
         .padding(.bottom, 8)
-        .fontDropdown(isPresented: $choosingFont, selection: $style.font)
+        .fontDropdown(isPresented: $choosingFont, selection: $style.font, background: style.background)
     }
 
     private func label(_ text: String) -> some View {

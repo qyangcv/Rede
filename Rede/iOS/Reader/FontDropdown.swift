@@ -9,7 +9,8 @@ struct FontButtonAnchor: PreferenceKey {
 }
 
 extension View {
-    func fontDropdown(isPresented: Binding<Bool>, selection: Binding<ReaderFont>) -> some View {
+    func fontDropdown(isPresented: Binding<Bool>, selection: Binding<ReaderFont>,
+                      background: BackgroundColor) -> some View {
         overlayPreferenceValue(FontButtonAnchor.self) { anchor in
             if isPresented.wrappedValue, let anchor {
                 GeometryReader { proxy in
@@ -22,7 +23,7 @@ extension View {
                             selection.wrappedValue = $0
                             isPresented.wrappedValue = false
                         }
-                        .background(Color(.tertiarySystemBackground), in: .rect(cornerRadius: 16))
+                        .background(ChromeStyle(background: background, level: .card), in: .rect(cornerRadius: 16))
                         .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
                         .offset(x: button.minX - FontList.inset, y: button.maxY + 6)
                     }
