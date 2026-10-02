@@ -41,8 +41,6 @@ struct ReaderScreen: View {
                         .ignoresSafeArea()
                         .allowsHitTesting(false)
                 }
-                // 压暗正文但不压暗工具栏
-                .overlay { dimmer }
                 .background {
                     if let pages = turner.pages {
                         PageRendererHost(pages: pages)
@@ -53,6 +51,8 @@ struct ReaderScreen: View {
                         chrome.transition(.opacity)
                     }
                 }
+                // 正文和工具栏一起压暗
+                .overlay { dimmer }
                 .animation(.easeInOut(duration: 0.2), value: chromeVisible)
                 // 全屏弹出层背景透明，下拉时露出书库；页面自己垫上底色，网页加载前也不透出书库
                 .background {
