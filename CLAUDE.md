@@ -1,4 +1,4 @@
-Rede is a native EPUB reader for macOS and iPhone, built for Chinese text. Library and reading progress sync via SwiftData + CloudKit.
+Rede is a native EPUB reader for macOS and iPhone, built for Chinese text. Library and reading progress sync via iCloud.
 
 ## Platforms
 
