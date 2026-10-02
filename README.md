@@ -90,7 +90,7 @@
 > 需要 iOS 版本 >= 26.0
 
 1. 在 App Store 安装 [TestFlight](https://apps.apple.com/app/testflight/id899247664)
-2. 在 iOS 上打开 [TestFlight 公开链接](https://testflight.apple.com/join/UvDG6ykV)，接受邀请并安装 Rede 
+2. 在 iOS 上打开 [TestFlight 公开链接](https://testflight.apple.com/join/UvDG6ykV)，通过邀请安装 Rede 
 
 ## 使用的开源工具
 
