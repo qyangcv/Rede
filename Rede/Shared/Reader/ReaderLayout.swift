@@ -10,7 +10,7 @@ enum ReaderLayout {
     static let marginTop = 34
     static let marginBottom = 28
     static let gutter = 28
-    static let pageNumberBottom: CGFloat = 6
+    static let pageNumberBottom: CGFloat = 2
     static let chapterTitleTop: CGFloat = 6
     #endif
 

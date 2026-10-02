@@ -59,6 +59,7 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         }
     }
 
+    #if os(macOS)
     var defaultWeight: Int? {
         switch self {
         case .original: nil
@@ -84,6 +85,22 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         case .lxgwWenKai, .zhuqueFangsong: package?.weights ?? []
         }
     }
+    #else
+    // iOS 只给 3 档或 5 档离散字重，中间一档即默认
+    var defaultWeight: Int? {
+        weights.isEmpty ? nil : weights[weights.count / 2]
+    }
+
+    var weights: [Int] {
+        switch self {
+        case .original, .songti, .hiragino: []
+        case .system, .sourceHanSans: [300, 350, 400, 450, 550]
+        case .sourceHanSerif: [350, 400, 450, 500, 600]
+        case .pingfang, .lxgwWenKai: [300, 400, 500]
+        case .zhuqueFangsong: [400]
+        }
+    }
+    #endif
 
     var package: FontPackage? {
         switch self {

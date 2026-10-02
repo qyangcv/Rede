@@ -11,12 +11,12 @@ struct StyleSheet: View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 16) {
             GridRow {
                 label("亮度")
-                Slider(value: $brightness, in: 0.3...1) {
-                    Text("亮度")
-                } minimumValueLabel: {
-                    Image(systemName: "sun.min")
-                } maximumValueLabel: {
-                    Image(systemName: "sun.max")
+                HStack(spacing: 9) {
+                    Slider(value: $brightness, in: 0.3...1) {
+                        Text("亮度")
+                    }
+                    .labelsHidden()
+                    SliderAccessory(placeholder: "较细", alignment: .center) { Image(systemName: "sun.max") }
                 }
             }
 
@@ -46,8 +46,11 @@ struct StyleSheet: View {
             if let weight = style.fontWeight, style.font.weights.count > 1 {
                 GridRow {
                     label("粗细")
-                    FontWeightSlider(weights: style.font.weights,
-                                     weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
+                    HStack(spacing: 9) {
+                        FontWeightSlider(weights: style.font.weights,
+                                         weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
+                        SliderAccessory(placeholder: "较细", alignment: .center) { Text(weightName(weight)).font(.footnote) }
+                    }
                 }
             }
 
@@ -92,5 +95,11 @@ struct StyleSheet: View {
 
     private func label(_ text: String) -> some View {
         Text(text).foregroundStyle(.secondary)
+    }
+
+    private func weightName(_ weight: Int) -> String {
+        let weights = style.font.weights
+        let names = weights.count == 5 ? ["细", "较细", "适中", "较粗", "粗"] : ["细", "适中", "粗"]
+        return weights.firstIndex(of: weight).map { names[$0] } ?? ""
     }
 }

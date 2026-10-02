@@ -55,8 +55,11 @@ struct StylePanel: View {
                 if let weight = style.fontWeight, style.font.weights.count > 1 {
                     GridRow {
                         label("粗细")
-                        FontWeightSlider(weights: style.font.weights,
-                                         weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
+                        HStack(spacing: 9) {
+                            FontWeightSlider(weights: style.font.weights,
+                                             weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
+                            SliderAccessory { Text("\(weight)").monospacedDigit() }
+                        }
                     }
                 }
 
@@ -158,18 +161,24 @@ struct FontWeightSlider: View {
     }
 
     var body: some View {
-        HStack(spacing: 9) {
-            Slider(value: index, in: 0...Double(weights.count - 1), step: 1) {
-                Text("粗细")
-            } tick: { SliderTick($0) }
-            .labelsHidden()
-            Text("900")
-                .monospacedDigit()
-                .hidden()
-                .overlay(alignment: .trailing) {
-                    Text("\(weight)").monospacedDigit()
-                }
-        }
+        Slider(value: index, in: 0...Double(weights.count - 1), step: 1) {
+            Text("粗细")
+        } tick: { SliderTick($0) }
+        .labelsHidden()
+    }
+}
+
+/// 滑块尾部附件：按最宽的取值占位，取值变化时宽度不变，多条滑块的轨道也能首尾对齐
+struct SliderAccessory<Content: View>: View {
+    var placeholder = "900"
+    var alignment: Alignment = .trailing
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        Text(placeholder)
+            .monospacedDigit()
+            .hidden()
+            .overlay(alignment: alignment) { content }
     }
 }
 
