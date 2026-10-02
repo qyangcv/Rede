@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import ZIPFoundation
 
 struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
@@ -9,33 +10,53 @@ struct LibraryView: View {
     @Query(sort: \Book.date, order: .reverse) private var books: [Book]
     @Bindable private var settings = Settings.shared
     @State private var importIconMidX: CGFloat = 0
+    @State private var appearanceIconMidX: CGFloat = 0
     @State private var isImporting = false
     @State private var showSettings = false
     @State private var errors: [String] = []
-    @State private var bookToDelete: Book?
+    @State private var booksToDelete: [Book] = []
+    @State private var isSelecting = false
+    @State private var selection: Set<Book.ID> = []
     @State private var bookToEdit: Book?
     @State private var bookToShowInfo: Book?
+    @State private var filesToShare: [URL] = []
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 switch settings.libraryLayout {
                 case .grid:
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 16, alignment: .top)], spacing: 24) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 116), spacing: 0, alignment: .top)], spacing: 8) {
                         ForEach(books) { book in
                             BookCard(book: book)
-                                .onTapGesture { open(book) }
-                                .contextMenu { menu(for: book) }
+                                .overlay(alignment: .topTrailing) {
+                                    if isSelecting { selectionMark(for: book).padding(4) }
+                                }
+                                .padding(8)
+                                .contentShape(Rectangle())
+                                // 长按高亮的圆角与封面一致
+                                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 4))
+                                .onTapGesture { tap(book) }
+                                .contextMenu { menu(for: book) } preview: {
+                                    // 预览脱离网格没有宽度约束，固定宽度防止封面按 2:3 撑大
+                                    BookCard(book: book)
+                                        .padding(8)
+                                        .frame(width: 140)
+                                }
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
                 case .list:
                     LazyVStack(spacing: 8) {
                         ForEach(books) { book in
-                            BookRow(book: book)
-                                .onTapGesture { open(book) }
-                                .contextMenu { menu(for: book) }
+                            HStack(spacing: 12) {
+                                if isSelecting { selectionMark(for: book) }
+                                BookRow(book: book)
+                                    .contextMenu { menu(for: book) }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { tap(book) }
                         }
                     }
                     .padding(.horizontal, 16)
@@ -45,43 +66,79 @@ struct LibraryView: View {
             .animation(.default, value: settings.libraryLayout)
             .safeAreaBar(edge: .top) {
                 if !books.isEmpty {
-                    LibraryLayoutButton(layout: $settings.libraryLayout)
+                    // 两个按钮分别对准工具栏里的外观、导入按钮；各自占满整行，对齐参考点才能直接作用于 frame。
+                    // 选择模式下换成删除/分享，与工具栏的全选/取消排成 2×2，行高不变，书架不跳动
+                    ZStack {
+                        Group {
+                            if isSelecting {
+                                Button("删除", systemImage: "trash") { booksToDelete = selectedBooks }
+                                    .buttonStyle(BarButtonStyle())
+                                    .selectionAction(enabled: !selection.isEmpty)
+                            } else {
+                                Button("选择", systemImage: "checkmark.circle") { isSelecting = true }
+                                    .buttonStyle(BarButtonStyle())
+                            }
+                        }
+                        .alignmentGuide(.leading) { $0[HorizontalAlignment.center] - appearanceIconMidX }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Group {
+                            if isSelecting {
+                                shareButton(for: selectedBooks)
+                                    .buttonStyle(BarButtonStyle())
+                                    .selectionAction(enabled: !selection.isEmpty)
+                            } else {
+                                LibraryLayoutButton(layout: $settings.libraryLayout)
+                            }
+                        }
                         .alignmentGuide(.leading) { $0[HorizontalAlignment.center] - importIconMidX }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
-            .onChange(of: books.map(\.id), initial: true) { Task { BookMerger.merge(in: modelContext) } }
+            .onChange(of: books.map(\.id), initial: true) { _, ids in
+                selection.formIntersection(ids)
+                if ids.isEmpty { isSelecting = false }
+                Task { BookMerger.merge(in: modelContext) }
+            }
             .overlay {
                 if books.isEmpty {
                     ContentUnavailableView("书架是空的", systemImage: "books.vertical",
                                            description: Text("点击右上角 + 导入 EPUB"))
                 }
             }
-            .navigationTitle("我的书库")
+            .navigationTitle(isSelecting ? "已选择 \(selection.count) 本" : "我的书库")
             .toolbarTitleDisplayMode(.inlineLarge)
             .containerBackground(colorScheme == .dark ? Color(.sRGB, white: 0x1A / 255)
                                                       : Color(.systemBackground),
                                  for: .navigation)
             .overlay(alignment: .top) { SyncBanner() }
             .toolbar {
-                if SyncMonitor.shared.hasProblem {
-                    ToolbarItem { SyncAlertButton() }
-                    ToolbarSpacer(.fixed)
-                }
+                if isSelecting {
+                    selectionToolbar
+                } else {
+                    if SyncMonitor.shared.hasProblem {
+                        ToolbarItem { SyncAlertButton() }
+                        ToolbarSpacer(.fixed)
+                    }
 
-                ToolbarItem {
-                    HStack(spacing: 4) {
-                        Button("设置", systemImage: "gearshape") { showSettings = true }
-                        AppearanceButton(appearance: $settings.appearance)
-                        Button { isImporting = true } label: {
-                            Label("导入", systemImage: "plus")
+                    ToolbarItem {
+                        HStack(spacing: 4) {
+                            Button("设置", systemImage: "gearshape") { showSettings = true }
+                            AppearanceButton(appearance: $settings.appearance)
                                 .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midX } action: {
-                                    importIconMidX = $0
+                                    appearanceIconMidX = $0
                                 }
+                            Button { isImporting = true } label: {
+                                Label("导入", systemImage: "plus")
+                                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midX } action: {
+                                        importIconMidX = $0
+                                    }
+                            }
                         }
                     }
+                    .sharedBackgroundVisibility(.hidden)
                 }
-                .sharedBackgroundVisibility(.hidden)
             }
             .fileImporter(isPresented: $isImporting, allowedContentTypes: [.epub],
                           allowsMultipleSelection: true) { result in
@@ -99,14 +156,21 @@ struct LibraryView: View {
             .sheet(item: $bookToShowInfo) { book in
                 BookInfoView(book: book)
             }
-            .confirmationDialog(
-                "删除：\(bookToDelete?.name ?? "") ？",
-                isPresented: Binding(get: { bookToDelete != nil },
-                                     set: { if !$0 { bookToDelete = nil } }),
-                titleVisibility: .visible,
-                presenting: bookToDelete
-            ) { book in
-                Button("删除", role: .destructive) { delete(book) }
+            .sheet(isPresented: Binding(get: { !filesToShare.isEmpty },
+                                        set: { if !$0 { endSharing() } })) {
+                ActivityView(items: filesToShare, onComplete: endSharing)
+                    .presentationDetents([.medium, .large])
+                    .ignoresSafeArea()
+            }
+            .alert(
+                booksToDelete.count > 1 ? "删除选中的 \(booksToDelete.count) 本书？"
+                                        : "删除：\(booksToDelete.first?.name ?? "") ？",
+                isPresented: Binding(get: { !booksToDelete.isEmpty },
+                                     set: { if !$0 { booksToDelete = [] } }),
+                presenting: booksToDelete
+            ) { books in
+                Button("删除", role: .destructive) { delete(books) }
+                Button("取消", role: .cancel) {}
             }
             .alert("操作失败", isPresented: Binding(get: { !errors.isEmpty },
                                                   set: { if !$0 { errors = [] } })) {
@@ -128,19 +192,98 @@ struct LibraryView: View {
         }
     }
 
-    @ViewBuilder
-    private func menu(for book: Book) -> some View {
-        Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
-        Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
-        if book.file != nil {
-            ShareLink(item: EpubShareItem(id: book.persistentModelID,
-                                          container: modelContext.container,
-                                          name: book.exportName),
-                      preview: SharePreview(book.name)) {
-                Label("分享", systemImage: "square.and.arrow.up")
+    @ToolbarContentBuilder
+    private var selectionToolbar: some ToolbarContent {
+        ToolbarItem {
+            HStack(spacing: 4) {
+                if selection.count == books.count {
+                    Button("取消全选", systemImage: "checklist.checked") { selection = [] }
+                } else {
+                    Button("全选", systemImage: "checklist.unchecked") { selection = Set(books.map(\.id)) }
+                }
+                Button("取消", systemImage: "xmark") { endSelecting() }
             }
         }
-        Button("删除", systemImage: "trash", role: .destructive) { bookToDelete = book }
+        .sharedBackgroundVisibility(.hidden)
+    }
+
+    private func selectionMark(for book: Book) -> some View {
+        let selected = selection.contains(book.id)
+        return Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+            .font(.title3)
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(selected ? .white : .secondary, selected ? Color.accentColor : .clear)
+            .background(.regularMaterial, in: Circle())
+    }
+
+    private var selectedBooks: [Book] {
+        books.filter { selection.contains($0.id) }
+    }
+
+    private func tap(_ book: Book) {
+        guard isSelecting else { return open(book) }
+        if selection.remove(book.id) == nil { selection.insert(book.id) }
+    }
+
+    private func endSelecting() {
+        isSelecting = false
+        selection = []
+    }
+
+    @ViewBuilder
+    private func menu(for book: Book) -> some View {
+        // 选择模式下长按已选中的书，菜单作用于全部选中项，和 macOS 一致
+        let targets = isSelecting && selection.contains(book.id) ? selectedBooks : [book]
+        if targets.count > 1 {
+            shareButton(for: targets)
+            Button("删除 \(targets.count) 本", systemImage: "trash", role: .destructive) {
+                booksToDelete = targets
+            }
+        } else {
+            Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
+            Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
+            if book.file != nil { shareButton(for: [book]) }
+            Button("删除", systemImage: "trash", role: .destructive) { booksToDelete = [book] }
+        }
+    }
+
+    private func shareButton(for books: [Book]) -> some View {
+        let label = books.count > 1 ? "分享 \(books.count) 本" : "分享"
+        return Button(label, systemImage: "square.and.arrow.up") { share(books) }
+    }
+
+    // 先把 EPUB 写进临时目录再弹出分享面板；尚未从 iCloud 下载完的书没有文件可分享，直接跳过。
+    // 多本打包成一个 zip：微信一次只接收一个文件
+    private func share(_ books: [Book]) {
+        let books = books.filter { $0.file != nil }
+        guard !books.isEmpty else { return }
+        let folder = URL.temporaryDirectory.appending(component: UUID().uuidString, directoryHint: .isDirectory)
+        let content = books.count > 1 ? folder.appending(component: "\(books.count) 本书", directoryHint: .isDirectory)
+                                      : folder
+        do {
+            try FileManager.default.createDirectory(at: content, withIntermediateDirectories: true)
+            for book in books {
+                try book.epubData().write(to: content.appending(component: book.exportName))
+            }
+            if books.count > 1 {
+                let zip = folder.appending(component: content.lastPathComponent + ".zip")
+                // EPUB 本身已压缩，打包时不再压缩
+                try FileManager.default.zipItem(at: content, to: zip, compressionMethod: .none)
+                filesToShare = [zip]
+            } else {
+                filesToShare = [content.appending(component: books[0].exportName)]
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: folder)
+            errors.append(error.localizedDescription)
+        }
+    }
+
+    private func endSharing() {
+        if let folder = filesToShare.first?.deletingLastPathComponent() {
+            try? FileManager.default.removeItem(at: folder)
+        }
+        filesToShare = []
     }
 
     private func save() {
@@ -151,14 +294,17 @@ struct LibraryView: View {
         }
     }
 
-    private func delete(_ book: Book) {
-        do {
-            try withAnimation {
-                try BookRemover.remove(book, from: modelContext)
+    private func delete(_ books: [Book]) {
+        withAnimation {
+            for book in books {
+                do {
+                    try BookRemover.remove(book, from: modelContext)
+                } catch {
+                    errors.append("\(book.name)：\(error.localizedDescription)")
+                }
             }
-        } catch {
-            errors.append(error.localizedDescription)
         }
+        if isSelecting { endSelecting() }
     }
 
     private func open(_ book: Book) {
@@ -177,5 +323,25 @@ struct LibraryView: View {
                 errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
             }
         }
+    }
+}
+
+// 书库第二行的图标按钮，尺寸与陈列方式按钮一致
+private struct BarButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .labelStyle(.iconOnly)
+            .imageScale(.large)
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.5 : 1)
+    }
+}
+
+private extension View {
+    // 未选中时只置灰并屏蔽点击，不用 .disabled：它会让按钮在进入选择模式时比其他按钮晚出现
+    func selectionAction(enabled: Bool) -> some View {
+        foregroundStyle(enabled ? .primary : .tertiary)
+            .allowsHitTesting(enabled)
     }
 }
