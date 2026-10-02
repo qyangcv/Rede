@@ -168,7 +168,6 @@ struct FontWeightSlider: View {
     }
 }
 
-/// 滑块尾部附件：按最宽的取值占位，取值变化时宽度不变，多条滑块的轨道也能首尾对齐
 struct SliderAccessory<Content: View>: View {
     var placeholder = "900"
     var alignment: Alignment = .trailing

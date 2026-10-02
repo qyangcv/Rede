@@ -86,7 +86,6 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
         }
     }
     #else
-    // iOS 只给 3 档或 5 档离散字重，中间一档即默认
     var defaultWeight: Int? {
         weights.isEmpty ? nil : weights[weights.count / 2]
     }

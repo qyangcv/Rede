@@ -34,11 +34,9 @@ struct LibraryView: View {
                                 }
                                 .padding(8)
                                 .contentShape(Rectangle())
-                                // 长按高亮的圆角与封面一致
                                 .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 4))
                                 .onTapGesture { tap(book) }
                                 .contextMenu { menu(for: book) } preview: {
-                                    // 预览脱离网格没有宽度约束，固定宽度防止封面按 2:3 撑大
                                     BookCard(book: book)
                                         .padding(8)
                                         .frame(width: 140)
@@ -66,8 +64,6 @@ struct LibraryView: View {
             .animation(.default, value: settings.libraryLayout)
             .safeAreaBar(edge: .top) {
                 if !books.isEmpty {
-                    // 两个按钮分别对准工具栏里的外观、导入按钮；各自占满整行，对齐参考点才能直接作用于 frame。
-                    // 选择模式下换成删除/分享，与工具栏的全选/取消排成 2×2，行高不变，书架不跳动
                     ZStack {
                         Group {
                             if isSelecting {
@@ -232,7 +228,6 @@ struct LibraryView: View {
 
     @ViewBuilder
     private func menu(for book: Book) -> some View {
-        // 选择模式下长按已选中的书，菜单作用于全部选中项，和 macOS 一致
         let targets = isSelecting && selection.contains(book.id) ? selectedBooks : [book]
         if targets.count > 1 {
             shareButton(for: targets)
@@ -252,8 +247,6 @@ struct LibraryView: View {
         return Button(label, systemImage: "square.and.arrow.up") { share(books) }
     }
 
-    // 先把 EPUB 写进临时目录再弹出分享面板；尚未从 iCloud 下载完的书没有文件可分享，直接跳过。
-    // 多本打包成一个 zip：微信一次只接收一个文件
     private func share(_ books: [Book]) {
         let books = books.filter { $0.file != nil }
         guard !books.isEmpty else { return }
@@ -267,7 +260,6 @@ struct LibraryView: View {
             }
             if books.count > 1 {
                 let zip = folder.appending(component: content.lastPathComponent + ".zip")
-                // EPUB 本身已压缩，打包时不再压缩
                 try FileManager.default.zipItem(at: content, to: zip, compressionMethod: .none)
                 filesToShare = [zip]
             } else {
@@ -326,7 +318,6 @@ struct LibraryView: View {
     }
 }
 
-// 书库第二行的图标按钮，尺寸与陈列方式按钮一致
 private struct BarButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -339,7 +330,6 @@ private struct BarButtonStyle: ButtonStyle {
 }
 
 private extension View {
-    // 未选中时只置灰并屏蔽点击，不用 .disabled：它会让按钮在进入选择模式时比其他按钮晚出现
     func selectionAction(enabled: Bool) -> some View {
         foregroundStyle(enabled ? .primary : .tertiary)
             .allowsHitTesting(enabled)
