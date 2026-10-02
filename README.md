@@ -4,7 +4,7 @@
 
 # Rede
 
-一款轻量、开源、免费的中文 EPUB 阅读器，支持 macOS 与 iOS，通过 iCloud 双端同步。
+一款开源、免费、原生的中文 EPUB 阅读器，支持 macOS 与 iOS，通过 iCloud 双端同步。
 
 ![macOS](https://img.shields.io/badge/macOS-26.0+-000?logo=apple&logoColor=white)
 ![iOS](https://img.shields.io/badge/iOS-26.0+-000?logo=apple&logoColor=white)
@@ -13,6 +13,34 @@
 </div>
 
 ## 预览
+
+### Rede for iOS
+
+<table>
+  <tr>
+    <td align="center"><img src=".asserts/ios_library_card.png" width="280"><br>卡片视图</td>
+    <td align="center"><img src=".asserts/ios_library_list.png" width="280"><br>列表视图</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td align="center"><img src=".asserts/ios_reader_style.png" width="280"><br>样式面板</td>
+    <td align="center"><img src=".asserts/ios_settings_icloud.png" width="280"><br>iCloud 同步</td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td align="center"><img src=".asserts/ios_dark_1.png" width="280"><br>深色模式</td>
+    <td align="center"><img src=".asserts/ios_dark_2.png" width="280"><br>深色模式</td>
+
+  </tr>
+</table>
+
+
+
+### Rede for macOS
 
 ![Rede 截图](.asserts/frame-1.png)
 ![Rede 截图](.asserts/frame-2.png)
