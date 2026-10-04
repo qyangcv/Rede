@@ -1,6 +1,6 @@
 #!/bin/bash
 # Usage:
-#   bash scripts/release.sh
+#   bash scripts/release-macos.sh
 
 set -euo pipefail
 
