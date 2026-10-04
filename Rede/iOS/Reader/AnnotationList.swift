@@ -7,13 +7,11 @@ struct AnnotationList: View {
     let onSelect: (Annotation) -> Void
     let onDelete: (Annotation) -> Void
 
-    @State private var pendingDelete: Annotation?
-
     var body: some View {
         if annotations.isEmpty {
             switch kind {
             case .bookmark:
-                ContentUnavailableView("没有书签", systemImage: "bookmark", description: Text("点击上方按钮添加本页书签"))
+                ContentUnavailableView("没有书签", systemImage: "bookmark", description: Text("点击按钮添加当前页书签"))
             case .highlight:
                 ContentUnavailableView("没有高亮与笔记", systemImage: "highlighter",
                                        description: Text("选中文字后在菜单中选择高亮或笔记"))
@@ -29,15 +27,14 @@ struct AnnotationList: View {
                     .buttonStyle(.plain)
                     .listRowBackground(Color.clear)
                     .swipeActions {
-                        Button("删除", systemImage: "trash", role: .destructive) {
-                            if annotation.note.isEmpty { onDelete(annotation) } else { pendingDelete = annotation }
+                        Button("移除", systemImage: "trash", role: .destructive) {
+                            onDelete(annotation)
                         }
                     }
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .confirmDeletingNote($pendingDelete, delete: onDelete)
         }
     }
 }

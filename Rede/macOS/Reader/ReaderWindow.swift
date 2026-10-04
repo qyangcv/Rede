@@ -4,7 +4,6 @@ struct ReaderWindow: View {
     @Environment(ReaderSession.self) private var session
     @Bindable private var settings = Settings.shared
     @State private var noteTarget: NoteTarget?
-    @State private var pendingDelete: Annotation?
 
     var body: some View {
         ZStack {
@@ -19,11 +18,7 @@ struct ReaderWindow: View {
                     }
                     .toolbar {
                         ToolbarItem(placement: .navigation) {
-                            TOCButton(toc: reader.toc, current: session.chapter?.id,
-                                      bookmarks: session.bookmarks, highlights: session.highlights,
-                                      progress: session.progress(of:),
-                                      onSelect: reader.go(to:), onSelectAnnotation: session.go(to:),
-                                      onDeleteAnnotation: { session.deleteAnnotation(id: $0.id) })
+                            TOCButton(toc: reader.toc, current: session.chapter?.id, onSelect: reader.go(to:))
                         }
                         .sharedBackgroundVisibility(.hidden)
 
@@ -48,6 +43,13 @@ struct ReaderWindow: View {
                         .sharedBackgroundVisibility(.hidden)
 
                         ToolbarItem(placement: .primaryAction) {
+                            AnnotationButton(bookmarks: session.bookmarks, highlights: session.highlights,
+                                             progress: session.progress(of:), onSelect: session.go(to:),
+                                             onDelete: { session.deleteAnnotation(id: $0.id) })
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+
+                        ToolbarItem(placement: .primaryAction) {
                             StyleButton(style: $settings.readerStyle, appearance: $settings.appearance,
                                         transition: $settings.pageTransition, onDismiss: reader.focus)
                         }
@@ -64,7 +66,6 @@ struct ReaderWindow: View {
                     .onChange(of: noteTarget == nil) { _, closed in
                         if closed { reader.focus() }
                     }
-                    .confirmDeletingNote($pendingDelete) { session.deleteAnnotation(id: $0.id) }
                     .onAppear {
                         reader.onGesture = { gesture in
                             switch gesture {
@@ -97,8 +98,7 @@ struct ReaderWindow: View {
         case .editNote(let hit):
             noteTarget = NoteTarget(id: hit.id, rect: hit.rect.cgRect)
         case .delete(let id):
-            guard let annotation = session.annotation(id: id) else { return }
-            if annotation.note.isEmpty { session.deleteAnnotation(id: id) } else { pendingDelete = annotation }
+            session.deleteAnnotation(id: id)
         }
     }
 }

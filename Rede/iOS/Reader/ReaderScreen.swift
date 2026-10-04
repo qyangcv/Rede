@@ -18,7 +18,6 @@ struct ReaderScreen: View {
     @State private var chromeVisible = false
     @State private var panel: Panel?
     @State private var annotationKind = Annotation.Kind.bookmark
-    @State private var pendingDelete: Annotation?
     @State private var styleHeight: CGFloat?
     @State private var snapshot: PullSnapshot?
 
@@ -61,7 +60,6 @@ struct ReaderScreen: View {
                         .presentationBackground(ChromeStyle(background: settings.readerStyle.background, level: .panel))
                         .overlay { dimmer }
                 }
-                .confirmDeletingNote($pendingDelete) { session.deleteAnnotation(id: $0.id) }
                 .onAppear {
                     reader.onGesture = { handle($0) }
                     reader.onAnnotationAction = { perform($0) }
@@ -98,7 +96,7 @@ struct ReaderScreen: View {
         HStack(spacing: 0) {
             barItem("目录", systemImage: "list.bullet") { panel = .toc }
             Divider().frame(height: 20)
-            barItem("标注", systemImage: "bookmark") { panel = .annotations }
+            barItem("标注", systemImage: "highlighter") { panel = .annotations }
             Divider().frame(height: 20)
             barItem("样式", systemImage: "textformat") {
                 chromeVisible = false
@@ -147,7 +145,7 @@ struct ReaderScreen: View {
             VStack(spacing: 0) {
                 PanelHeader(title: "标注") {
                     if annotationKind == .bookmark {
-                        Button(session.isBookmarked ? "移除本页书签" : "添加本页书签",
+                        Button(session.isBookmarked ? "移除当前页书签" : "添加当前页书签",
                                systemImage: session.isBookmarked ? "bookmark.fill" : "bookmark") {
                             session.toggleBookmark()
                         }
@@ -203,10 +201,10 @@ struct ReaderScreen: View {
         case .highlight(let hit):
             if chromeVisible { chromeVisible = false; return }
             let hasNote = session.reader?.hasNote(hit.id) ?? false
-            let note = UIAction(title: hasNote ? "编辑笔记" : "笔记", image: UIImage(systemName: "square.and.pencil")) { _ in
+            let note = UIAction(title: hasNote ? "编辑笔记" : "添加笔记", image: UIImage(systemName: "square.and.pencil")) { _ in
                 perform(.editNote(hit))
             }
-            let delete = UIAction(title: "删除高亮", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in
+            let delete = UIAction(title: hasNote ? "移除高亮与笔记" : "移除高亮", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in
                 perform(.delete(id: hit.id))
             }
             session.reader?.webView.presentMenu(UIMenu(children: [note, delete]), at: hit.rect.cgRect)
@@ -222,8 +220,7 @@ struct ReaderScreen: View {
         case .editNote(let hit):
             panel = .note(hit.id)
         case .delete(let id):
-            guard let annotation = session.annotation(id: id) else { return }
-            if annotation.note.isEmpty { session.deleteAnnotation(id: id) } else { pendingDelete = annotation }
+            session.deleteAnnotation(id: id)
         }
     }
 

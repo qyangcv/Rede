@@ -54,7 +54,7 @@ extension Reader {
         if let hit = contextHighlight {
             items = [
                 ActionMenuItem(title: hasNote(hit.id) ? "编辑笔记…" : "添加笔记…") { onAnnotationAction(.editNote(hit)) },
-                ActionMenuItem(title: "删除高亮") { onAnnotationAction(.delete(id: hit.id)) },
+                ActionMenuItem(title: hasNote(hit.id) ? "移除高亮与笔记" : "移除高亮") { onAnnotationAction(.delete(id: hit.id)) },
             ]
         } else if selecting {
             items = [
