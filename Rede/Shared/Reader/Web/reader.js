@@ -174,7 +174,13 @@ async function prepare(doc) {
   const marks = doc.createElementNS(XHTML_NS, "style");
   marks.textContent = `${HIGHLIGHT_LAYERS.map((name) => `::highlight(${name})`).join(", ")}
     { background-color: var(--reader-highlight); }
-    ::highlight(${NOTE_LAYER}) { text-decoration: underline dashed 1.5px var(--reader-note); }`;
+    ::highlight(${NOTE_LAYER}) { text-decoration: underline dashed 1.5px var(--reader-note); }
+    @layer rede {
+      img, svg, video, object, embed, iframe, canvas, input[type="image"] {
+        max-width: min(100%, var(--rede-media-width)) !important;
+        max-height: var(--rede-media-height) !important;
+      }
+    }`;
   head.prepend(fonts, before);
   head.append(...after, marks);
   for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER]) {
@@ -191,6 +197,23 @@ async function prepare(doc) {
   doc.addEventListener("load", reflow, true);
   doc.fonts.addEventListener("loadingdone", reflow);
   await waitAssets(doc, [fonts, before, ...after]);
+  liftBodyBackground(doc);
+}
+
+// 按 CSS 规范，根元素没有背景时 body 背景提升到画布、按根元素盒子（即一屏）定位，body 自身不再绘制。
+// 但根元素分栏后 body 的渲染父节点变成分栏 flow，WebKit 不再跳过 body 自身的背景，于是画两份：
+// 画布上一份，body 盒子里再按栏切成碎片一份。这里手动把背景图搬到根元素，只留画布那份。
+// 背景色不搬：根元素背景色须保持透明，透出外壳页的背景
+const BACKGROUND_PROPS = ["image", "position", "size", "repeat", "origin", "clip", "attachment"]
+  .map((name) => `background-${name}`);
+
+function liftBodyBackground(doc) {
+  const root = doc.documentElement;
+  const view = doc.defaultView;
+  const body = view.getComputedStyle(doc.body);
+  if (view.getComputedStyle(root).backgroundImage !== "none" || body.backgroundImage === "none") return;
+  for (const name of BACKGROUND_PROPS) root.style.setProperty(name, body.getPropertyValue(name));
+  doc.body.style.setProperty("background-image", "none", "important");
 }
 
 function stylesheet(doc, name) {
@@ -212,20 +235,40 @@ function waitAssets(doc, links) {
   return Promise.race([ready, timeout]);
 }
 
+// 字号比例，即 ReadiumCSS 加在 body 上的 zoom
+function fontScale() {
+  return parseFloat(state.style["--USER__fontSize"] || "100") / 100;
+}
+
+// 每栏左右留白的屏幕像素：--RS__pageGutter 已按字号缩放预先除过（会被 body 的 zoom 放大回来），乘回 scale 才是屏幕上的实际留白
+function gutterPx() {
+  return parseFloat(state.style["--RS__pageGutter"]) * fontScale();
+}
+
 function columnCount() {
-  const scale = parseFloat(state.style["--USER__fontSize"] || "100") / 100;
-  const fontPx = 16 * scale;
-  // --RS__pageGutter 已按字号缩放预先除过（会被 body 的 zoom 放大回来），乘回 scale 才是屏幕上的实际留白
-  const gutter = parseFloat(state.style["--RS__pageGutter"]) * scale;
-  const columnEm = (frame.clientWidth / 2 - 2 * gutter) / fontPx;
+  const columnEm = (frame.clientWidth / 2 - 2 * gutterPx()) / (16 * fontScale());
   return columnEm >= MIN_COLUMN_EM ? 2 : 1;
 }
 
+// 嵌入内容的尺寸上限：一栏的内容区，高度留出 5% 给图片所在行的行高。
+// 约束写在 prepare 注入的 @layer rede 里，分层的 !important 压过书里所有不分层的声明（含书自己的 !important），
+// 且只设上限：放得下一页的元素不受任何影响。
+// 上限以页面而非父容器为参照，父容器被书撑得比一栏还宽时图片也不会越界；
+// 元素在 body 内会被 zoom 放大，所以预先除以字号比例
+const MEDIA_HEIGHT_RATIO = 0.95;
+
+function mediaLimits() {
+  const scale = fontScale();
+  const width = frame.clientWidth / state.columns - 2 * gutterPx();
+  const height = frame.clientHeight * MEDIA_HEIGHT_RATIO;
+  return { "--rede-media-width": `${width / scale}px`, "--rede-media-height": `${height / scale}px` };
+}
+
 // 把用户设置和版面变量写到外壳页和章节文档的 :root；
-// 章节只认 --USER__* / --RS__* / --reader-highlight / --reader-note，外壳页只认 --reader-bg / --reader-pattern，互不干扰
+// 章节只认 --USER__* / --RS__* / --rede-media-* / --reader-highlight / --reader-note，外壳页只认 --reader-bg / --reader-pattern，互不干扰
 function applyStyle() {
   state.columns = columnCount();
-  const vars = { ...LAYOUT_VARS, ...state.style, "--USER__colCount": String(state.columns) };
+  const vars = { ...LAYOUT_VARS, ...state.style, "--USER__colCount": String(state.columns), ...mediaLimits() };
   for (const root of [document.documentElement, doc?.documentElement]) {
     if (!root) continue;
     for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, value);
@@ -287,7 +330,7 @@ function findAnchor(anchor) {
 
 // 阅读位置、目录锚点、书签和高亮共用一套坐标：把章节 body 摊平成单位流，
 // 文本节点按 UTF-16 长度计，媒体元素各计 1 且不深入其子节点。
-// ReadiumCSS 把媒体限制在一栏以内且不许跨栏（ReadiumCSS-before.css 的 img, svg|svg, video），
+// 媒体被限制在一栏以内（见 mediaLimits）且不许跨栏（ReadiumCSS-before.css 的 img, svg|svg, video），
 // 每个媒体都完整落在某一页，整页插图因此也能被定位。
 // 这是存储数据依赖的契约：标注存下后改动 MEDIA 会让已有偏移整体错位。
 // Swift 侧 EpubBook.textStats 按本定义近似计数，仅用于百分比和字数。

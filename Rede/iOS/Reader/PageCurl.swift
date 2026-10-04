@@ -97,13 +97,13 @@ final class PageCurl: NSObject, PageTurner, UIPageViewControllerDataSource, UIPa
 
     private func neighbor(of viewController: UIViewController,
                           _ direction: PageDirection) -> UIViewController? {
-        guard let side = viewController as? PageController,
-              let page = renderer.neighbor(of: side.page, direction) else { return nil }
+        guard let side = viewController as? PageController else { return nil }
+        if direction == .prev, side.isBack { return PageController(side.page) }
+        guard let page = renderer.neighbor(of: side.page, direction) else { return nil }
         return switch (direction, side.isBack) {
         case (.next, false): PageController(side.page, isBack: true)
         case (.next, true): PageController(page)
-        case (.prev, false): PageController(page, isBack: true)
-        case (.prev, true): PageController(side.page)
+        case (.prev, _): PageController(page, isBack: true)
         }
     }
 

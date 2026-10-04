@@ -156,7 +156,7 @@ final class ReaderSession {
         guard let reader, let annotationStore else { return }
         let all = annotationStore.annotations().filter { $0.kind != nil }
         annotations = all
-        let marks = all.compactMap(AnnotationMark.init)
+        let marks = all.compactMap { AnnotationMark($0) }
         guard marks != reader.annotations else { return }
         reader.setAnnotations(marks)
         turner?.pages?.setAnnotations(marks)
