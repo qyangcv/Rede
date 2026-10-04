@@ -56,32 +56,10 @@
 
 ## 功能
 
-**书库**
-
-- 导入电子书（EPUB 格式），开始阅读
-- 管理、重命名、删除书籍
-
-**阅读**
-
-- macOS：方向键 `←` / `→` 翻页，单双栏视图自动切换
-- iPhone：点击屏幕两侧或左右滑动翻页，下滑返回书库
-- 阅读进度自动保存
-
-**样式**
-
-- 选择字体、调节字号与字体粗细
-- 调整行距、段距
-- 切换深色模式、浅色模式
-- 切换背景色、背景图案
-
-**iCloud 同步**
-
-- 在登录同一 Apple ID 的设备之间同步书籍、书籍信息和阅读进度
-- 默认关闭，需要在设置中手动开启，重启 App 后生效
-
-**检查更新**
-
-- macOS：菜单栏 “Rede > 检查更新”
+- 书籍管理：导入和导出书籍、批量管理、查看元信息
+- 阅读样式：调节字号与粗细、调节行距段距、切换深色模式/浅色模式
+- 内容标注：书签、高亮、笔记
+- iCloud 同步
 
 ## 安装
 
@@ -97,7 +75,7 @@
 > 需要 iOS 版本 >= 26.0
 
 1. 在 App Store 安装 [TestFlight](https://apps.apple.com/app/testflight/id899247664)
-2. 在 iOS 上打开 [TestFlight 公开链接](https://testflight.apple.com/join/UvDG6ykV)，通过邀请安装 Rede 
+2. 在 iOS 上打开 [TestFlight 链接](https://testflight.apple.com/join/UvDG6ykV)，安装 Rede 测试版
 
 ## 使用的开源工具
 

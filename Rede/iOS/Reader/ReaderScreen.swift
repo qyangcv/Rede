@@ -194,7 +194,7 @@ struct ReaderScreen: View {
             if chromeVisible { chromeVisible = false }
             else if x < Self.edge { session.turner?.turn(.prev) }
             else if x > 1 - Self.edge { session.turner?.turn(.next) }
-            else if panel != nil { panel = nil }
+            else if panel != nil { panel = nil; chromeVisible = true }
             else { chromeVisible = true }
         case .turn(let direction):
             session.turner?.turn(direction)
