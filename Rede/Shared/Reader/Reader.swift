@@ -138,6 +138,9 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     private(set) var navigated = false
 
+    private(set) var bookmarks: [BookmarkMark] = []
+    private var ready = false
+
     init(book: EpubBook, start: ReadingPosition? = nil) {
         self.book = book
         self.position = start
@@ -169,6 +172,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     func open(style: [String: String]) {
         self.style = style
+        ready = false
         guard let baseURL = EpubSchemeHandler.url(for: ""),
               let html = try? AppResourceSchemeHandler.data(named: "reader.html") else { return }
         injectInitialStyle(style)
@@ -191,15 +195,17 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard navigation === shellNavigation else { return }
+        ready = true
         let paths = book.model.spine.map(\.path)
         let language = book.model.metadata.language
         let style = style
+        let bookmarks = bookmarks
         let tocAnchors = book.model.spine.map { item in
             toc.compactMap { $0.entry.path == item.path ? $0.entry.fragment : nil }
         }
         Task {
             await bridge.open(paths: paths, language: language, style: style, start: position,
-                              tocAnchors: tocAnchors)
+                              tocAnchors: tocAnchors, bookmarks: bookmarks)
         }
     }
 
@@ -233,6 +239,14 @@ final class Reader: NSObject,  WKNavigationDelegate {
         navigated = true
         Task {
             await bridge.jump(chapter: index, anchor: entry.fragment)
+            focus()
+        }
+    }
+
+    func go(to position: ReadingPosition) {
+        navigated = true
+        Task {
+            await bridge.restore(position)
             focus()
         }
     }
@@ -283,6 +297,12 @@ final class Reader: NSObject,  WKNavigationDelegate {
             return (spine, entry.fragment.flatMap { anchors[$0] } ?? 0, i)
         }
         return keys.filter { ($0.0, $0.1) <= target }.max { $0 < $1 }.map { toc[$0.2] }
+    }
+
+    func setBookmarks(_ marks: [BookmarkMark]) {
+        bookmarks = marks
+        guard ready else { return }
+        Task { await bridge.setBookmarks(marks) }
     }
 }
 

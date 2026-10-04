@@ -12,10 +12,11 @@ enum ReaderLayout {
     static let gutter = 28
     static let pageNumberBottom: CGFloat = 2
     static let chapterTitleTop: CGFloat = 6
+    static let bookmarkTop = 0
     #endif
 
     static func cssVariables(fontScale: Int, safeArea: EdgeInsets) -> [String: String] {
-        [
+        var vars = [
             "--safe-top": "\(safeArea.top)px",
             "--safe-bottom": "\(safeArea.bottom)px",
             "--safe-left": "\(safeArea.leading)px",
@@ -24,5 +25,11 @@ enum ReaderLayout {
             "--page-margin-bottom": "\(marginBottom)px",
             "--RS__pageGutter": "\(Double(gutter) * 100 / Double(fontScale))px",
         ]
+        #if os(iOS)
+        vars["--bookmark-display"] = "block"
+        vars["--bookmark-top"] = "\(bookmarkTop)px"
+        vars["--page-gutter"] = "\(gutter)px"
+        #endif
+        return vars
     }
 }

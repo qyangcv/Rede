@@ -33,6 +33,8 @@ const state = {
   total: 0,    // 本章总单位数
   tocAnchors: [],
   anchors: {},
+  range: null,     // 当前页的坐标区间 {start, end}，空白页为 null
+  bookmarks: [],   // 本书书签 [{id, chapter, offset}]
 };
 
 let doc = null;  // 当前章节文档
@@ -42,7 +44,8 @@ let pad = null;  // 当前章节的补白列，见 measure()
 
 const reader = {
   // 入口：保存 paths、绑定事件、恢复到 start（null 则从头开始）
-  open(paths, language, style = {}, start = null, tocAnchors = []) {
+  open(paths, language, style = {}, start = null, tocAnchors = [], bookmarks = []) {
+    state.bookmarks = bookmarks;
     state.spinePaths = paths;
     state.tocAnchors = tocAnchors;
     state.language = language;
@@ -51,6 +54,12 @@ const reader = {
     window.addEventListener("resize", reflow);
     watchGestures(document);
     goto(start ? start.chapter : 0, start ?? 0);
+  },
+
+  // 本书书签变化：刷新角标并重新上报本页信息
+  setBookmarks(list) {
+    state.bookmarks = list;
+    if (doc && !frame.classList.contains("loading")) report();
   },
 
   // 前后翻 delta 页，返回是否落位
@@ -220,7 +229,8 @@ function scrollToSpread(page) {
 // 翻页落位：滚动 + 刷新锚点 + 上报进度
 function settle(page, offset = null) {
   scrollToSpread(page);
-  state.offset = offset ?? anchorOffset();
+  state.range = pageRange();
+  state.offset = offset ?? state.range?.start ?? -1;
   report();
 }
 
@@ -334,16 +344,24 @@ function spreadAt(offset) {
   return -1;
 }
 
-// 二分查找当前页的第一个单位（spreadAt 单调，-1 只出现在章末）
-function anchorOffset() {
+// 二分查找第 spread 页的第一个单位（spreadAt 单调，-1 只出现在章末）
+function spreadStart(spread) {
   let lo = 0, hi = state.total - 1, found = -1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    const spread = spreadAt(mid);
-    if (spread >= 0 && spread < state.spread) lo = mid + 1;
-    else { if (spread >= 0) found = mid; hi = mid - 1; }
+    const s = spreadAt(mid);
+    if (s >= 0 && s < spread) lo = mid + 1;
+    else { if (s >= 0) found = mid; hi = mid - 1; }
   }
   return found;
+}
+
+// 当前页的坐标区间 [start, end)；页上没有任何可见单位时为 null
+function pageRange() {
+  const start = spreadStart(state.spread);
+  if (start < 0 || spreadAt(start) !== state.spread) return null;
+  const next = state.spread + 1 < state.spreadCount ? spreadStart(state.spread + 1) : -1;
+  return { start, end: next < 0 ? state.total : next };
 }
 
 function progress() {
@@ -355,12 +373,40 @@ function progress() {
     page: state.spread,
     pageCount: state.spreadCount,
     anchors: state.anchors,
+    start: state.range?.start ?? null,
+    excerpt: state.range ? excerpt(state.range.start, EXCERPT_LENGTH) : "",
+    bookmarks: pageBookmarks(),
   };
 }
 
-// 上报进度给 Swift（每次落位都发，节流交给 Swift 侧）
+const EXCERPT_LENGTH = 60;
+
+// 本页上的书签 id
+function pageBookmarks() {
+  const range = state.range;
+  if (!range) return [];
+  return state.bookmarks
+    .filter((b) => b.chapter === state.chapterId && b.offset >= range.start && b.offset < range.end)
+    .map((b) => b.id);
+}
+
+// 从 start 起 length 个单位内的文字，空白折叠；媒体不产出文字
+function excerpt(start, length) {
+  const end = start + length;
+  let text = "";
+  for (const unit of units()) {
+    if (unit.start >= end) break;
+    if (!unit.text || unit.start + unit.length <= start) continue;
+    text += unit.node.data.slice(Math.max(start - unit.start, 0), end - unit.start);
+  }
+  return text.replace(/\s+/g, " ").trim();
+}
+
+// 上报进度给 Swift
 function report() {
-  window.webkit?.messageHandlers?.reading_progress?.postMessage(progress());
+  const info = progress();
+  document.documentElement.classList.toggle("bookmarked", info.bookmarks.length > 0);
+  window.webkit?.messageHandlers?.reading_progress?.postMessage(info);
 }
 
 // 窗口缩放、改设置、图片加载后重新测量，回到锚点所在页并上报新页码；锚点本身不重算，所以反复缩放不会累积漂移
@@ -370,6 +416,7 @@ function reflow() {
   measure();
   const spread = spreadAt(state.offset);
   scrollToSpread(spread >= 0 ? spread : state.spread);
+  state.range = pageRange();
   report();
 }
 

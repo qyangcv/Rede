@@ -17,6 +17,9 @@ struct ReadingPosition: Codable, Equatable {
 struct PageInfo: Codable, Equatable {
     var page: Int
     var pageCount: Int
+    var start: Int?
+    var excerpt: String
+    var bookmarks: [String]
 }
 
 struct ProgressReport: Decodable {

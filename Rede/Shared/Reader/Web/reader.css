@@ -35,3 +35,19 @@ html {
 #chapter.loading {
   visibility: hidden;
 }
+
+/* 书签角标：画在外壳页而不是章节 iframe 里，不影响阅读坐标，相邻页渲染器的截图也会带上 */
+#bookmark {
+  display: none;
+  position: fixed;
+  top: calc(var(--safe-top) + var(--bookmark-top));
+  right: calc(var(--safe-right) + var(--page-gutter));
+  width: 14px;
+  height: 22px;
+  background: #d9473c;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%);
+}
+
+:root.bookmarked #bookmark {
+  display: var(--bookmark-display, none);
+}

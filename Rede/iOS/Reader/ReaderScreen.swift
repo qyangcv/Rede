@@ -4,7 +4,7 @@ struct ReaderScreen: View {
     private static let edge = 0.3
 
     private enum Panel: Identifiable {
-        case toc, style
+        case toc, annotations, style
         var id: Self { self }
     }
 
@@ -93,6 +93,8 @@ struct ReaderScreen: View {
         HStack(spacing: 0) {
             barItem("目录", systemImage: "list.bullet") { panel = .toc }
             Divider().frame(height: 20)
+            barItem("标注", systemImage: "bookmark") { panel = .annotations }
+            Divider().frame(height: 20)
             barItem("样式", systemImage: "textformat") {
                 chromeVisible = false
                 panel = .style
@@ -125,9 +127,33 @@ struct ReaderScreen: View {
     private func sheet(_ item: Panel, reader: Reader) -> some View {
         switch item {
         case .toc:
-            TOCList(items: reader.toc, current: session.chapter?.id) { entry in
-                panel = nil
-                reader.go(to: entry)
+            VStack(spacing: 0) {
+                PanelHeader(title: "目录") { EmptyView() }
+                TOCList(items: reader.toc, current: session.chapter?.id) { entry in
+                    panel = nil
+                    reader.go(to: entry)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 4)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        case .annotations:
+            VStack(spacing: 0) {
+                PanelHeader(title: "标注") {
+                    Button(session.isBookmarked ? "移除本页书签" : "添加本页书签",
+                           systemImage: session.isBookmarked ? "bookmark.fill" : "bookmark") {
+                        session.toggleBookmark()
+                    }
+                    .font(.subheadline)
+                    .disabled(!session.canBookmark)
+                }
+                BookmarkList(bookmarks: session.bookmarks, progress: session.progress(of:)) { bookmark in
+                    panel = nil
+                    session.go(to: bookmark)
+                } onDelete: { bookmark in
+                    session.deleteBookmark(bookmark)
+                }
             }
             .padding(.horizontal, 8)
             .padding(.top, 4)
@@ -260,6 +286,24 @@ private struct PullDown: UIGestureRecognizerRepresentable {
         func gestureRecognizer(_ recognizer: UIGestureRecognizer,
                                shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool {
             other.view === pullDown?.webView
+        }
+    }
+}
+
+private struct PanelHeader<Trailing: View>: View {
+    let title: String
+    @ViewBuilder let trailing: Trailing
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(title).font(.headline)
+                Spacer()
+                trailing
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            Divider()
         }
     }
 }

@@ -14,61 +14,30 @@ struct TOCItem: Identifiable {
     }
 }
 
-struct TOCButton: View {
-    let toc: [TOCItem]
-    let current: TOCItem.ID?
-    let onSelect: (EpubTocEntry) -> Void
-
-    @State private var showTOC = false
-
-    var body: some View {
-        Button("目录", systemImage: "list.bullet") {
-            showTOC.toggle()
-        }
-        .help("目录")
-        .popover(isPresented: $showTOC, arrowEdge: .bottom) {
-            TOCList(items: toc, current: current) { entry in
-                showTOC = false
-                onSelect(entry)
-            }
-            .frame(width: 300, height: 460)
-        }
-    }
-}
-
 struct TOCList: View {
     let items: [TOCItem]
     let current: TOCItem.ID?
     let onSelect: (EpubTocEntry) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("目录")
-                .font(.headline)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-
-            Divider()
-
-            if items.isEmpty {
-                ContentUnavailableView("没有目录", systemImage: "list.bullet")
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            ForEach(items) { item in
-                                TOCRow(title: item.entry.title, depth: item.depth,
-                                       isCurrent: item.id == current) {
-                                    onSelect(item.entry)
-                                }
-                                .id(item.id)
+        if items.isEmpty {
+            ContentUnavailableView("没有目录", systemImage: "list.bullet")
+        } else {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(items) { item in
+                            TOCRow(title: item.entry.title, depth: item.depth,
+                                   isCurrent: item.id == current) {
+                                onSelect(item.entry)
                             }
+                            .id(item.id)
                         }
-                        .padding(.vertical, 6)
                     }
-                    .onAppear {
-                        if let current { proxy.scrollTo(current, anchor: .center) }
-                    }
+                    .padding(.vertical, 6)
+                }
+                .onAppear {
+                    if let current { proxy.scrollTo(current, anchor: .center) }
                 }
             }
         }

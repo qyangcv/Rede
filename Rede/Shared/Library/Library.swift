@@ -44,10 +44,14 @@ final class Book {
     }
 
     var progress: Double? {
-        guard let position, position.chapter < chapterLengths.count else { return nil }
+        position.flatMap { progress(chapter: $0.chapter, offset: $0.offset) }
+    }
+
+    func progress(chapter: Int, offset: Int) -> Double? {
+        guard chapter < chapterLengths.count else { return nil }
         let total = chapterLengths.reduce(0, +)
         guard total > 0 else { return nil }
-        let read = chapterLengths[..<position.chapter].reduce(0, +) + max(position.offset, 0)
+        let read = chapterLengths[..<chapter].reduce(0, +) + max(offset, 0)
         return min(Double(read) / Double(total), 1)
     }
     var exportName: String {
