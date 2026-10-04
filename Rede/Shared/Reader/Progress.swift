@@ -42,14 +42,17 @@ struct ProgressReport: Decodable {
 
 nonisolated extension EpubBook {
     func textStats() -> (chapterLengths: [Int], wordCount: Int) {
+        let media = "local-name()='img' or local-name()='svg' or local-name()='video'"
+        let body = "//*[local-name()='body']"
         var wordCount = 0
         let lengths = model.spine.map { item -> Int in
             guard let data = try? fetcher.data(at: item.path),
                   let xml = try? XML(xml: data, encoding: .utf8)
             else { return 0 }
-            let texts = xml.xpath("//*[local-name()='body']//text()").compactMap { $0.text }
+            let texts = xml.xpath("\(body)//text()[not(ancestor::*[\(media)])]").compactMap { $0.text }
+            let mediaCount = xml.xpath("\(body)//*[(\(media)) and not(ancestor::*[\(media)])]").count
             wordCount += countWords(texts.joined(separator: " "))
-            return texts.reduce(0) { $0 + $1.utf16.count }
+            return texts.reduce(0) { $0 + $1.utf16.count } + mediaCount
         }
         return (lengths, wordCount)
     }

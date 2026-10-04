@@ -93,7 +93,7 @@ extension ModelContainer {
             let configuration = ModelConfiguration(
                 url: AppPaths.store,
                 cloudKitDatabase: CloudSync.isActive ? .private(CloudSync.container) : .none)
-            return try ModelContainer(for: Book.self, BookFile.self, configurations: configuration)
+            return try ModelContainer(for: Book.self, BookFile.self, Annotation.self, configurations: configuration)
         } catch {
             fatalError("无法创建数据库：\(error)")
         }
@@ -155,6 +155,10 @@ enum BookImporter {
 
 enum BookRemover {
     static func remove(_ book: Book, from context: ModelContext) throws {
+        let id = book.id
+        let annotations = try context.fetch(FetchDescriptor<Annotation>(
+            predicate: #Predicate { $0.bookID == id }))
+        for annotation in annotations { context.delete(annotation) }
         context.delete(book)
         try context.save()
     }

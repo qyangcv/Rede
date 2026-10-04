@@ -29,8 +29,8 @@ const state = {
   spread: 0,
   spreadCount: 1,
   navId: 0,
-  offset: 0,   // 当前页首字符在本章文本流中的偏移量（阅读锚点）
-  total: 0,    // 本章文本流总字符数
+  offset: 0,   // 当前页首个单位在本章坐标中的偏移量（阅读锚点），见 units()
+  total: 0,    // 本章总单位数
   tocAnchors: [],
   anchors: {},
 };
@@ -105,7 +105,7 @@ async function goto(chapter, at) {
     state.chapterId = chapter;
     await prepare(doc);
     if (token !== state.navId) return false;
-    state.total = textLength();
+    state.total = contentLength();
     state.anchors = anchorOffsets(state.tocAnchors[chapter] ?? []);
   }
 
@@ -246,25 +246,60 @@ function findAnchor(anchor) {
   return doc.querySelector(`#${id}, a[name="${id}"]`);
 }
 
-// ---------- 阅读位置 ----------
+// ---------- 阅读坐标 ----------
 
-// 本章文本流总字符数
-function textLength() {
-  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+// 阅读位置、目录锚点、书签和高亮共用一套坐标：把章节 body 摊平成单位流，
+// 文本节点按 UTF-16 长度计，媒体元素各计 1 且不深入其子节点。
+// ReadiumCSS 把媒体限制在一栏以内且不许跨栏（ReadiumCSS-before.css 的 img, svg|svg, video），
+// 每个媒体都完整落在某一页，整页插图因此也能被定位。
+// 这是存储数据依赖的契约：标注存下后改动 MEDIA 会让已有偏移整体错位。
+// Swift 侧 EpubBook.textStats 按本定义近似计数，仅用于百分比和字数。
+const MEDIA = new Set(["img", "svg", "video"]);
+
+function* units() {
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => node.nodeType === Node.TEXT_NODE || MEDIA.has(node.localName)
+      ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP,
+  });
+  let start = 0;
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    const text = node.nodeType === Node.TEXT_NODE;
+    const length = text ? node.length : 1;
+    yield { node, start, length, text };
+    start += length;
+    if (!text) {
+      // 跳过媒体内部（svg 的 <text>、video 的后备内容）：把游标移到其最后一个后代，下一步即离开子树
+      let last = node;
+      while (last.lastChild) last = last.lastChild;
+      walker.currentNode = last;
+    }
+  }
+}
+
+// 本章总单位数
+function contentLength() {
   let total = 0;
-  while (walker.nextNode()) total += walker.currentNode.length;
+  for (const unit of units()) total += unit.length;
   return total;
 }
 
+// 节点起点在坐标中的位置，即排在它之前的单位数（不含其后代）
+function offsetBefore(target) {
+  let end = 0;
+  for (const { node, start, length } of units()) {
+    if (node === target || target.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING) return start;
+    end = start + length;
+  }
+  return end;
+}
+
 function anchorOffsets(ids) {
-  const range = doc.createRange();
   const offsets = {};
   for (const id of ids) {
     const el = findAnchor(id);
     if (!el || el === doc.body || !doc.body.contains(el)) continue;
-    range.setStart(doc.body, 0);
-    range.setEndBefore(el);
-    offsets[id] = range.toString().length;
+    offsets[id] = offsetBefore(el);
   }
   return offsets;
 }
@@ -275,21 +310,21 @@ function spreadOfRect(rect) {
   return Math.floor((offset + 1) / stride());
 }
 
-// 字符偏移 → 页码：不可见字符（折叠的空白、隐藏元素）沿用其后第一个可见字符的页码，
-// 保证页码随偏移量单调非递减；其后再无可见字符返回 -1
+// 偏移 → 页码：不可见的单位（折叠的空白、隐藏元素）沿用其后第一个可见单位的页码，
+// 保证页码随偏移量单调非递减；其后再无可见单位返回 -1
 function spreadAt(offset) {
   if (offset < 0) return -1;
-  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
   const range = doc.createRange();
-  let seen = 0;
-  while (walker.nextNode()) {
-    const node = walker.currentNode;
-    const start = seen;
-    seen += node.length;
-    if (seen <= offset) continue;
+  for (const { node, start, length, text } of units()) {
+    if (start + length <= offset) continue;
+    if (!text) {
+      const rect = node.getClientRects()[0];
+      if (rect) return spreadOfRect(rect);
+      continue;
+    }
     range.selectNodeContents(node);
     if (range.getClientRects().length === 0) continue;  // 整个节点不渲染，直接跳过
-    for (let i = Math.max(offset - start, 0); i < node.length; i++) {
+    for (let i = Math.max(offset - start, 0); i < length; i++) {
       range.setStart(node, i);
       range.setEnd(node, i + 1);
       const rect = range.getClientRects()[0];
@@ -299,7 +334,7 @@ function spreadAt(offset) {
   return -1;
 }
 
-// 二分查找当前页的第一个字符（spreadAt 单调，-1 只出现在章末）
+// 二分查找当前页的第一个单位（spreadAt 单调，-1 只出现在章末）
 function anchorOffset() {
   let lo = 0, hi = state.total - 1, found = -1;
   while (lo <= hi) {
