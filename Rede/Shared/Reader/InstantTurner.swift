@@ -46,6 +46,10 @@ final class InstantTurner: NSObject, PageTurner {
 
 #if os(iOS)
 extension InstantTurner: UIGestureRecognizerDelegate {
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        !reader.selecting
+    }
+
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                            shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
         true

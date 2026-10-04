@@ -36,7 +36,7 @@ final class PageRenderer {
             ($0, Reader(book: book, start: start))
         })
         for (direction, reader) in readers {
-            reader.setBookmarks(main.bookmarks)
+            reader.setAnnotations(main.annotations)
             reader.onProgress = { [weak self] _, _, _ in
                 MainActor.assumeIsolated {
                     guard let self, self.ready.insert(direction).inserted else { return }
@@ -55,9 +55,9 @@ final class PageRenderer {
         for reader in readers.values { reader.apply(style) }
     }
 
-    func setBookmarks(_ marks: [BookmarkMark]) {
+    func setAnnotations(_ marks: [AnnotationMark]) {
         invalidate()
-        for reader in readers.values { reader.setBookmarks(marks) }
+        for reader in readers.values { reader.setAnnotations(marks) }
     }
 
     func invalidate() {

@@ -111,9 +111,31 @@ final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
     func webView(_ webView: WKWebView, stop urlSchemeTask: any WKURLSchemeTask) {}
 }
 
+struct WebRect: Decodable, Equatable {
+    let x: Double
+    let y: Double
+    let width: Double
+    let height: Double
+
+    var cgRect: CGRect { CGRect(x: x, y: y, width: width, height: height) }
+}
+
+struct HighlightHit: Decodable, Equatable {
+    let id: String
+    let rect: WebRect
+}
+
 enum ReaderGesture {
     case tap(x: Double)
     case turn(PageDirection)
+    case highlight(HighlightHit)
+}
+
+enum AnnotationAction {
+    case highlightSelection
+    case noteSelection
+    case editNote(HighlightHit)
+    case delete(id: String)
 }
 
 final class Reader: NSObject,  WKNavigationDelegate {
@@ -134,11 +156,16 @@ final class Reader: NSObject,  WKNavigationDelegate {
     var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
     var onGesture: ((ReaderGesture) -> Void)?
     var onTurn: (() -> Void)?
-    fileprivate(set) var selecting = false
+    var onAnnotationAction: ((AnnotationAction) -> Void)?
+    fileprivate(set) var contextHighlight: HighlightHit?
+    var onSelectionChange: ((Bool) -> Void)?
+    fileprivate(set) var selecting = false {
+        didSet { if selecting != oldValue { onSelectionChange?(selecting) } }
+    }
 
     private(set) var navigated = false
 
-    private(set) var bookmarks: [BookmarkMark] = []
+    private(set) var annotations: [AnnotationMark] = []
     private var ready = false
 
     init(book: EpubBook, start: ReadingPosition? = nil) {
@@ -199,13 +226,13 @@ final class Reader: NSObject,  WKNavigationDelegate {
         let paths = book.model.spine.map(\.path)
         let language = book.model.metadata.language
         let style = style
-        let bookmarks = bookmarks
+        let annotations = annotations
         let tocAnchors = book.model.spine.map { item in
             toc.compactMap { $0.entry.path == item.path ? $0.entry.fragment : nil }
         }
         Task {
             await bridge.open(paths: paths, language: language, style: style, start: position,
-                              tocAnchors: tocAnchors, bookmarks: bookmarks)
+                              tocAnchors: tocAnchors, annotations: annotations)
         }
     }
 
@@ -299,10 +326,18 @@ final class Reader: NSObject,  WKNavigationDelegate {
         return keys.filter { ($0.0, $0.1) <= target }.max { $0 < $1 }.map { toc[$0.2] }
     }
 
-    func setBookmarks(_ marks: [BookmarkMark]) {
-        bookmarks = marks
+    func hasNote(_ id: String) -> Bool {
+        annotations.first { $0.id == id }?.hasNote ?? false
+    }
+
+    func takeSelection() async -> TextSelection? {
+        await bridge.takeSelection()
+    }
+
+    func setAnnotations(_ marks: [AnnotationMark]) {
+        annotations = marks
         guard ready else { return }
-        Task { await bridge.setBookmarks(marks) }
+        Task { await bridge.setAnnotations(marks) }
     }
 }
 
@@ -319,7 +354,7 @@ private final class MessageRelay: NSObject, WKScriptMessageHandler {
     }
 
     private func receiveProgress(_ body: Any) {
-        guard let report = ProgressReport(body) else { return }
+        guard let report = ProgressReport(jsValue: body) else { return }
         reader?.receive(report)
     }
 
@@ -328,6 +363,11 @@ private final class MessageRelay: NSObject, WKScriptMessageHandler {
         switch body["type"] as? String {
         case "tap":
             if let x = body["x"] as? Double { reader.onGesture?(.tap(x: x)) }
+        case "highlight":
+            if let hit = HighlightHit(jsValue: body) { reader.onGesture?(.highlight(hit)) }
+        case "context":
+            reader.selecting = body["selecting"] as? Bool ?? false
+            reader.contextHighlight = body["highlight"].flatMap { HighlightHit(jsValue: $0) }
         case "selection":
             reader.selecting = body["active"] as? Bool ?? false
         default:

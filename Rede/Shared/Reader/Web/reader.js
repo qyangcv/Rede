@@ -34,18 +34,19 @@ const state = {
   tocAnchors: [],
   anchors: {},
   range: null,     // 当前页的坐标区间 {start, end}，空白页为 null
-  bookmarks: [],   // 本书书签 [{id, chapter, offset}]
+  annotations: [], // 本书标注 [{id, kind, chapter, start, end, note}]，note 为是否带笔记
 };
 
 let doc = null;  // 当前章节文档
 let pad = null;  // 当前章节的补白列，见 measure()
+let highlights = [];  // 本章已绘制的高亮 [{id, start, end, range}]，供点击命中检测
 
 // Swift 调用接口
 
 const reader = {
   // 入口：保存 paths、绑定事件、恢复到 start（null 则从头开始）
-  open(paths, language, style = {}, start = null, tocAnchors = [], bookmarks = []) {
-    state.bookmarks = bookmarks;
+  open(paths, language, style = {}, start = null, tocAnchors = [], annotations = []) {
+    state.annotations = annotations;
     state.spinePaths = paths;
     state.tocAnchors = tocAnchors;
     state.language = language;
@@ -56,10 +57,28 @@ const reader = {
     goto(start ? start.chapter : 0, start ?? 0);
   },
 
-  // 本书书签变化：刷新角标并重新上报本页信息
-  setBookmarks(list) {
-    state.bookmarks = list;
-    if (doc && !frame.classList.contains("loading")) report();
+  // 本书标注变化：重绘本章高亮，并重新上报本页信息（书签角标、仿真翻页据此重截当前页）；
+  // 章节加载中时由 goto 在 prepare 之后读取最新标注
+  setAnnotations(list) {
+    state.annotations = list;
+    if (!doc || frame.classList.contains("loading")) return;
+    paintHighlights();
+    report();
+  },
+
+  // 取出章节里的选区并清除：返回 {chapter, start, end, text}；没有选区或选区不含任何单位时返回 null
+  takeSelection() {
+    const selection = doc?.getSelection();
+    if (!selection || selection.isCollapsed) return null;
+    const range = selection.getRangeAt(0);
+    const start = offsetAt(range.startContainer, range.startOffset);
+    const end = offsetAt(range.endContainer, range.endOffset);
+    const rects = range.getClientRects();
+    selection.removeAllRanges();
+    if (start >= end || rects.length === 0) return null;
+    // 原生侧把笔记编辑框指向选区末行
+    const rect = shellRect(rects[rects.length - 1]);
+    return { chapter: state.chapterId, start, end, text: excerpt(start, end - start), rect };
   },
 
   // 前后翻 delta 页，返回是否落位
@@ -116,6 +135,7 @@ async function goto(chapter, at) {
     if (token !== state.navId) return false;
     state.total = contentLength();
     state.anchors = anchorOffsets(state.tocAnchors[chapter] ?? []);
+    paintHighlights();
   }
 
   measure();
@@ -151,8 +171,15 @@ async function prepare(doc) {
     ...(unstyled ? [stylesheet(doc, "ReadiumCSS-default.css")] : []),
     stylesheet(doc, "ReadiumCSS-after.css"),
   ];
+  const marks = doc.createElementNS(XHTML_NS, "style");
+  marks.textContent = `${HIGHLIGHT_LAYERS.map((name) => `::highlight(${name})`).join(", ")}
+    { background-color: var(--reader-highlight); }
+    ::highlight(${NOTE_LAYER}) { text-decoration: underline dashed 1.5px var(--reader-note); }`;
   head.prepend(fonts, before);
-  head.append(...after);
+  head.append(...after, marks);
+  for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER]) {
+    doc.defaultView.CSS.highlights.set(name, new doc.defaultView.Highlight());
+  }
 
   pad = doc.createElementNS(XHTML_NS, "div");
   pad.style.cssText = "break-before: column; height: 1px;";
@@ -195,7 +222,7 @@ function columnCount() {
 }
 
 // 把用户设置和版面变量写到外壳页和章节文档的 :root；
-// 章节只认 --USER__* / --RS__*，外壳页只认 --reader-bg / --reader-pattern，互不干扰
+// 章节只认 --USER__* / --RS__* / --reader-highlight / --reader-note，外壳页只认 --reader-bg / --reader-pattern，互不干扰
 function applyStyle() {
   state.columns = columnCount();
   const vars = { ...LAYOUT_VARS, ...state.style, "--USER__colCount": String(state.columns) };
@@ -304,6 +331,20 @@ function offsetBefore(target) {
   return end;
 }
 
+// DOM 边界点 → 坐标：排在边界点之前的单位数，边界点落在文本单位内时加上字符位置。
+// 落在媒体内部（如 svg 的 <text>）的边界点归到该媒体之后
+function offsetAt(container, index) {
+  const point = doc.createRange();
+  point.setStart(container, index);
+  let end = 0;
+  for (const { node, start, length } of units()) {
+    if (node === container) return start + index;
+    if (point.comparePoint(node, 0) > 0) return start;
+    end = start + length;
+  }
+  return end;
+}
+
 function anchorOffsets(ids) {
   const offsets = {};
   for (const id of ids) {
@@ -312,6 +353,96 @@ function anchorOffsets(ids) {
     offsets[id] = offsetBefore(el);
   }
   return offsets;
+}
+
+// 重叠加深：同一 Highlight 内的 Range 重叠时只画一层，所以按重叠深度分层注册，
+// 第 k 层覆盖至少 k+1 条高亮重叠的区域，各层同一半透明色叠加，越深越浓；超过层数的深度不再加深
+const HIGHLIGHT_LAYERS = ["rede-highlight-1", "rede-highlight-2"];
+// 带笔记的高亮额外加入此层，画虚线下划线
+const NOTE_LAYER = "rede-note";
+
+// 本章高亮整体替换。Highlight 对象在 prepare 里按章注册一次，这里只清空再加入：
+// WebKit 在 clear/add 时重绘被移除和新加入的 Range，而整体替换注册表条目只重绘新对象，删掉的高亮会残留到下次重绘。
+// Range 是活的 DOM 对象，换字号、缩放后随重排自动跟随，无需重算
+function paintHighlights() {
+  const spans = state.annotations.filter((a) => a.kind === "highlight" && a.chapter === state.chapterId);
+  const layers = depthLayers(spans);
+  const ranges = rangesOf([...spans, ...layers.flat()]);
+  highlights = spans.map((s, i) => ({ id: s.id, start: s.start, end: s.end, range: ranges[i] }));
+  let next = spans.length;
+  layers.forEach((intervals, k) => {
+    const highlight = doc.defaultView.CSS.highlights.get(HIGHLIGHT_LAYERS[k]);
+    highlight.clear();
+    for (let i = 0; i < intervals.length; i++) highlight.add(ranges[next++]);
+  });
+  const notes = doc.defaultView.CSS.highlights.get(NOTE_LAYER);
+  notes.clear();
+  spans.forEach((s, i) => { if (s.note) notes.add(ranges[i]); });
+}
+
+// 章节视口矩形 → 外壳页坐标（即 WebView 坐标）
+function shellRect(rect) {
+  const origin = frame.getBoundingClientRect();
+  return { x: rect.left + origin.left, y: rect.top + origin.top, width: rect.width, height: rect.height };
+}
+
+// 按重叠深度分层：第 k 层是至少 k+1 条高亮重叠的区间，层内互不相交。
+// 扫描端点，同一位置先结束后开始，首尾相接的高亮不算重叠
+function depthLayers(spans) {
+  const events = spans.flatMap((s) => [[s.start, 1], [s.end, -1]])
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const layers = HIGHLIGHT_LAYERS.map(() => []);
+  let depth = 0;
+  for (const [at, delta] of events) {
+    if (delta > 0) {
+      if (depth < layers.length) layers[depth].push({ start: at, end: at });
+      depth++;
+    } else {
+      depth--;
+      if (depth < layers.length) layers[depth].at(-1).end = at;
+    }
+  }
+  return layers.map((intervals) => intervals.filter((s) => s.start < s.end));
+}
+
+// 章节视口坐标 (x, y) 处的高亮及其被点中的那一行矩形；重叠时取最短的一条（最具体）
+function highlightAt(x, y) {
+  let hit = null;
+  for (const h of highlights) {
+    const rect = [...h.range.getClientRects()]
+      .find((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom);
+    if (rect && (!hit || h.end - h.start < hit.end - hit.start)) hit = { ...h, rect };
+  }
+  return hit;
+}
+
+// 坐标区间 [start, end) → DOM Range
+function rangesOf(spans) {
+  const points = boundaries(spans.flatMap((s) => [s.start, s.end]));
+  return spans.map((s) => {
+    const range = doc.createRange();
+    range.setStart(...points.get(s.start));
+    range.setEnd(...points.get(s.end));
+    return range;
+  });
+}
+
+// 一次遍历把一组偏移转成 DOM 边界点：落在文本单位内取字符位置，落在媒体单位上取其前方，越过章末取 body 末尾。
+// 恰好等于某单位起点的偏移落在该单位之前，区间终点因此不含该单位
+function boundaries(offsets) {
+  const sorted = [...new Set(offsets)].sort((a, b) => a - b);
+  const points = new Map();
+  let i = 0;
+  for (const { node, start, length, text } of units()) {
+    for (; i < sorted.length && sorted[i] < start + length; i++) {
+      points.set(sorted[i], text
+        ? [node, sorted[i] - start]
+        : [node.parentNode, [...node.parentNode.childNodes].indexOf(node)]);
+    }
+    if (i === sorted.length) break;
+  }
+  for (; i < sorted.length; i++) points.set(sorted[i], [doc.body, doc.body.childNodes.length]);
+  return points;
 }
 
 // 矩形 → 页码（矩形是章节视口坐标，加上横向滚动量得到文档坐标）
@@ -385,8 +516,9 @@ const EXCERPT_LENGTH = 60;
 function pageBookmarks() {
   const range = state.range;
   if (!range) return [];
-  return state.bookmarks
-    .filter((b) => b.chapter === state.chapterId && b.offset >= range.start && b.offset < range.end)
+  return state.annotations
+    .filter((b) => b.kind === "bookmark" && b.chapter === state.chapterId
+      && b.start >= range.start && b.start < range.end)
     .map((b) => b.id);
 }
 
@@ -446,6 +578,7 @@ function onClick(event) {
 // 外壳页和每个章节文档各自绑定：iframe 里的事件不会冒泡到外壳页，上下页边距上的点击落在外壳页
 function watchGestures(target) {
   target.addEventListener("click", onTap);
+  target.addEventListener("contextmenu", onContextMenu);
   target.addEventListener("selectionchange", () => reportSelection(target));
   // 换章后旧文档里的选区随之消失，不会再触发 selectionchange
   reportSelection(target);
@@ -459,12 +592,31 @@ function reportSelection(doc) {
   });
 }
 
-// 点在链接上交给 onClick 和原生导航；有选区时这次点击是在取消选中，都不上报
+// 原生侧在右键菜单打开时同步补充菜单项，所以在 contextmenu 事件里先上报命中的高亮和选区状态。
+// 事件派发在菜单交给原生侧之前，两条消息走同一 IPC 通道，菜单打开时原生侧已收到本消息；
+// 右键未选中的词时 WebKit 在派发前已选中该词，这里读到的选区状态也比 selectionchange 及时
+function onContextMenu(event) {
+  const hit = event.view === window ? null : highlightAt(event.clientX, event.clientY);
+  window.webkit?.messageHandlers?.gesture?.postMessage({
+    type: "context",
+    highlight: hit ? { id: hit.id, rect: shellRect(hit.rect) } : null,
+    selecting: !event.view.getSelection().isCollapsed,
+  });
+}
+
+// 点在链接上交给 onClick 和原生导航；有选区时这次点击是在取消选中，都不上报。
+// 点在高亮上上报高亮及其行矩形（外壳页坐标，即 WebView 坐标），不再当作翻页点击
 function onTap(event) {
   if (event.target.closest("a[href]") || !event.view.getSelection().isCollapsed) return;
-  const left = event.view === window ? 0 : frame.getBoundingClientRect().left;
+  const inChapter = event.view !== window;
+  const origin = inChapter ? frame.getBoundingClientRect() : { left: 0, top: 0 };
+  const hit = inChapter ? highlightAt(event.clientX, event.clientY) : null;
+  if (hit) {
+    window.webkit?.messageHandlers?.gesture?.postMessage({ type: "highlight", id: hit.id, rect: shellRect(hit.rect) });
+    return;
+  }
   window.webkit?.messageHandlers?.gesture?.postMessage({
     type: "tap",
-    x: (event.clientX + left) / window.innerWidth,
+    x: (event.clientX + origin.left) / window.innerWidth,
   });
 }

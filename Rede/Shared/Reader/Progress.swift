@@ -34,13 +34,6 @@ struct ProgressReport: Decodable {
         page = try PageInfo(from: decoder)
         anchors = try decoder.container(keyedBy: CodingKeys.self).decode([String: Int].self, forKey: .anchors)
     }
-
-    init?(_ body: Any) {
-        guard JSONSerialization.isValidJSONObject(body),
-              let data = try? JSONSerialization.data(withJSONObject: body),
-              let report = try? JSONDecoder().decode(Self.self, from: data) else { return nil }
-        self = report
-    }
 }
 
 nonisolated extension EpubBook {

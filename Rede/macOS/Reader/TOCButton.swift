@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum NavigatorTab: CaseIterable, Identifiable {
-    case toc, bookmarks
+    case toc, bookmarks, highlights
 
     var id: Self { self }
 
@@ -9,6 +9,7 @@ enum NavigatorTab: CaseIterable, Identifiable {
         switch self {
         case .toc: "目录"
         case .bookmarks: "书签"
+        case .highlights: "高亮与笔记"
         }
     }
 }
@@ -17,10 +18,11 @@ struct TOCButton: View {
     let toc: [TOCItem]
     let current: TOCItem.ID?
     let bookmarks: [Annotation]
+    let highlights: [Annotation]
     let progress: (Annotation) -> Double?
     let onSelect: (EpubTocEntry) -> Void
-    let onSelectBookmark: (Annotation) -> Void
-    let onDeleteBookmark: (Annotation) -> Void
+    let onSelectAnnotation: (Annotation) -> Void
+    let onDeleteAnnotation: (Annotation) -> Void
 
     @State private var showTOC = false
     @State private var tab = NavigatorTab.toc
@@ -41,22 +43,31 @@ struct TOCButton: View {
 
                 Divider()
 
-                switch tab {
-                case .toc:
-                    TOCList(items: toc, current: current) { entry in
-                        showTOC = false
-                        onSelect(entry)
-                    }
-                case .bookmarks:
-                    BookmarkList(bookmarks: bookmarks, progress: progress) { bookmark in
-                        showTOC = false
-                        onSelectBookmark(bookmark)
-                    } onDelete: { bookmark in
-                        onDeleteBookmark(bookmark)
+                Group {
+                    switch tab {
+                    case .toc:
+                        TOCList(items: toc, current: current) { entry in
+                            showTOC = false
+                            onSelect(entry)
+                        }
+                    case .bookmarks:
+                        annotationList(.bookmark, bookmarks)
+                    case .highlights:
+                        annotationList(.highlight, highlights)
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .frame(width: 300, height: 460)
+        }
+    }
+
+    private func annotationList(_ kind: Annotation.Kind, _ annotations: [Annotation]) -> some View {
+        AnnotationList(kind: kind, annotations: annotations, progress: progress) { annotation in
+            showTOC = false
+            onSelectAnnotation(annotation)
+        } onDelete: { annotation in
+            onDeleteAnnotation(annotation)
         }
     }
 }

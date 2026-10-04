@@ -31,18 +31,35 @@ final class Annotation {
     var kind: Kind? { Kind(rawValue: kindRaw) }
 }
 
-struct BookmarkMark: Equatable {
+struct AnnotationMark: Equatable {
     let id: String
+    let kind: Annotation.Kind
     let chapter: Int
-    let offset: Int
+    let start: Int
+    let end: Int
+    let hasNote: Bool
 
-    init(_ annotation: Annotation) {
+    init?(_ annotation: Annotation) {
+        guard let kind = annotation.kind else { return nil }
         id = annotation.id
+        self.kind = kind
         chapter = annotation.chapter
-        offset = annotation.start
+        start = annotation.start
+        end = annotation.end
+        hasNote = !annotation.note.isEmpty
     }
 
-    var jsObject: [String: Any] { ["id": id, "chapter": chapter, "offset": offset] }
+    var jsObject: [String: Any] {
+        ["id": id, "kind": kind.rawValue, "chapter": chapter, "start": start, "end": end, "note": hasNote]
+    }
+}
+
+struct TextSelection: Decodable {
+    let chapter: Int
+    let start: Int
+    let end: Int
+    let text: String
+    let rect: WebRect
 }
 
 final class AnnotationStore {
@@ -56,16 +73,15 @@ final class AnnotationStore {
         self.context = context
     }
 
-    func bookmarks() -> [Annotation] {
+    func annotations() -> [Annotation] {
         let id = bookID
-        let kind = Annotation.Kind.bookmark.rawValue
         let descriptor = FetchDescriptor<Annotation>(
-            predicate: #Predicate { $0.bookID == id && $0.kindRaw == kind },
+            predicate: #Predicate { $0.bookID == id },
             sortBy: [SortDescriptor(\.chapter), SortDescriptor(\.start)])
         do {
             return try context.fetch(descriptor)
         } catch {
-            Self.log.error("读取书签失败：\(error.localizedDescription, privacy: .public)")
+            Self.log.error("读取标注失败：\(error.localizedDescription, privacy: .public)")
             return []
         }
     }
@@ -76,8 +92,22 @@ final class AnnotationStore {
         save()
     }
 
+    func addHighlight(_ selection: TextSelection) -> Annotation {
+        let annotation = Annotation(bookID: bookID, kind: .highlight, chapter: selection.chapter,
+                                    start: selection.start, end: selection.end, text: selection.text)
+        context.insert(annotation)
+        save()
+        return annotation
+    }
+
+    func setNote(_ note: String, of annotation: Annotation) {
+        guard annotation.note != note else { return }
+        annotation.note = note
+        save()
+    }
+
     func delete(ids: [String]) {
-        for annotation in bookmarks() where ids.contains(annotation.id) {
+        for annotation in annotations() where ids.contains(annotation.id) {
             context.delete(annotation)
         }
         save()

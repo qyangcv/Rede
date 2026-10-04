@@ -17,6 +17,9 @@ final class PageCurl: NSObject, PageTurner, UIPageViewControllerDataSource, UIPa
         renderer = PageRenderer(main: reader, book: reader.book, start: reader.position)
         super.init()
         renderer.onCurrent = { [weak self] page in self?.receive(page) }
+        reader.onSelectionChange = { [weak self] active in
+            self?.gestures.forEach { $0.isEnabled = !active }
+        }
     }
 
     var pages: PageRenderer? { renderer }
@@ -25,6 +28,7 @@ final class PageCurl: NSObject, PageTurner, UIPageViewControllerDataSource, UIPa
     func detach() {
         gestures.forEach { reader.webView.removeGestureRecognizer($0) }
         gestures = []
+        reader.onSelectionChange = nil
     }
 
     fileprivate func makeController() -> UIPageViewController {
@@ -36,6 +40,7 @@ final class PageCurl: NSObject, PageTurner, UIPageViewControllerDataSource, UIPa
             if recognizer is UITapGestureRecognizer {
                 recognizer.isEnabled = false
             } else {
+                recognizer.isEnabled = !reader.selecting
                 reader.webView.addGestureRecognizer(recognizer)
                 gestures.append(recognizer)
             }

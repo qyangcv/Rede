@@ -18,9 +18,11 @@ final class ReaderSession {
     private(set) var chapter: TOCItem?
     private var store: ProgressStore?
     private var shownPosition: ReadingPosition?
-    private var annotations: AnnotationStore?
-    private(set) var bookmarks: [Annotation] = []
+    private var annotationStore: AnnotationStore?
+    private(set) var annotations: [Annotation] = []
 
+    var bookmarks: [Annotation] { annotations.filter { $0.kind == .bookmark } }
+    var highlights: [Annotation] { annotations.filter { $0.kind == .highlight } }
     var isBookmarked: Bool { !(page?.bookmarks.isEmpty ?? true) }
     var canBookmark: Bool { page?.start != nil }
 
@@ -37,7 +39,7 @@ final class ReaderSession {
         center.addObserver(forName: SyncMonitor.didImport, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.followRemoteProgress()
-                self?.pushBookmarks()
+                self?.pushAnnotations()
             }
         }
     }
@@ -50,10 +52,8 @@ final class ReaderSession {
         book.lastRead = .now
         ChapterLengthIndexer.shared.ensure(book, in: context)
         let store = ProgressStore(book: book, context: context)
-        let annotations = AnnotationStore(bookID: book.id, context: context)
-        let bookmarks = annotations.bookmarks()
+        let annotationStore = AnnotationStore(bookID: book.id, context: context)
         let reader = Reader(book: epub, start: book.position)
-        reader.setBookmarks(bookmarks.map(BookmarkMark.init))
         let turner = Settings.shared.pageTransition.makeTurner(reader: reader)
         reader.onProgress = { [weak self, weak reader] position, page, chapter in
             MainActor.assumeIsolated {
@@ -65,14 +65,14 @@ final class ReaderSession {
         }
 
         self.store = store
-        self.annotations = annotations
-        self.bookmarks = bookmarks
+        self.annotationStore = annotationStore
         self.reader = reader
         self.turner = turner
         self.book = book
         self.page = nil
         self.chapter = nil
         self.shownPosition = book.position
+        pushAnnotations()
     }
 
     func flush() {
@@ -82,8 +82,8 @@ final class ReaderSession {
     func close() {
         store?.flush()
         store = nil
-        annotations = nil
-        bookmarks = []
+        annotationStore = nil
+        annotations = []
         reader = nil
         turner = nil
         book = nil
@@ -110,37 +110,56 @@ final class ReaderSession {
     }
 
     func toggleBookmark() {
-        guard let annotations, let page, let position = reader?.position else { return }
+        guard let annotationStore, let page, let position = reader?.position else { return }
         if page.bookmarks.isEmpty {
             guard let start = page.start else { return }
-            annotations.addBookmark(chapter: position.chapter, offset: start, text: page.excerpt)
+            annotationStore.addBookmark(chapter: position.chapter, offset: start, text: page.excerpt)
         } else {
-            annotations.delete(ids: page.bookmarks)
+            annotationStore.delete(ids: page.bookmarks)
         }
-        pushBookmarks()
+        pushAnnotations()
     }
 
-    func go(to bookmark: Annotation) {
-        reader?.go(to: ReadingPosition(chapter: bookmark.chapter, offset: bookmark.start, total: 0, ratio: 0))
+    func highlightSelection(then created: ((Annotation, CGRect) -> Void)? = nil) {
+        guard let reader, let annotationStore else { return }
+        Task {
+            guard let selection = await reader.takeSelection() else { return }
+            let annotation = annotationStore.addHighlight(selection)
+            pushAnnotations()
+            created?(annotation, selection.rect.cgRect)
+        }
     }
 
-    func deleteBookmark(_ bookmark: Annotation) {
-        annotations?.delete(ids: [bookmark.id])
-        pushBookmarks()
+    func annotation(id: String) -> Annotation? {
+        annotations.first { $0.id == id }
     }
 
-    func progress(of bookmark: Annotation) -> Double? {
-        book?.progress(chapter: bookmark.chapter, offset: bookmark.start)
+    func setNote(_ note: String, of annotation: Annotation) {
+        annotationStore?.setNote(note.trimmingCharacters(in: .whitespacesAndNewlines), of: annotation)
+        pushAnnotations()
     }
 
-    private func pushBookmarks() {
-        guard let reader, let annotations else { return }
-        let bookmarks = annotations.bookmarks()
-        self.bookmarks = bookmarks
-        let marks = bookmarks.map(BookmarkMark.init)
-        guard marks != reader.bookmarks else { return }
-        reader.setBookmarks(marks)
-        turner?.pages?.setBookmarks(marks)
+    func deleteAnnotation(id: String) {
+        annotationStore?.delete(ids: [id])
+        pushAnnotations()
+    }
+
+    func go(to annotation: Annotation) {
+        reader?.go(to: ReadingPosition(chapter: annotation.chapter, offset: annotation.start, total: 0, ratio: 0))
+    }
+
+    func progress(of annotation: Annotation) -> Double? {
+        book?.progress(chapter: annotation.chapter, offset: annotation.start)
+    }
+
+    private func pushAnnotations() {
+        guard let reader, let annotationStore else { return }
+        let all = annotationStore.annotations().filter { $0.kind != nil }
+        annotations = all
+        let marks = all.compactMap(AnnotationMark.init)
+        guard marks != reader.annotations else { return }
+        reader.setAnnotations(marks)
+        turner?.pages?.setAnnotations(marks)
     }
 }
 

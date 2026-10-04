@@ -282,6 +282,16 @@ enum TextColor {
     }
 }
 
+enum HighlightColor {
+    static func color(for scheme: ColorScheme) -> String {
+        scheme == .dark ? "rgba(255, 200, 60, 0.28)" : "rgba(255, 200, 0, 0.35)"
+    }
+
+    static func note(for scheme: ColorScheme) -> String {
+        scheme == .dark ? "#E0A030" : "#D08000"
+    }
+}
+
 enum BackgroundPattern: String, CaseIterable, Identifiable, Codable {
     case none, bamboo
 
@@ -349,6 +359,8 @@ struct ReaderStyle: Equatable {
             "--USER__textColor": forced ? text : "",
             "--reader-bg": background.color(for: scheme),
             "--reader-pattern": pattern.css,
+            "--reader-highlight": HighlightColor.color(for: scheme),
+            "--reader-note": HighlightColor.note(for: scheme),
         ]
     }
 }

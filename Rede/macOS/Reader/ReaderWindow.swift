@@ -3,6 +3,8 @@ import SwiftUI
 struct ReaderWindow: View {
     @Environment(ReaderSession.self) private var session
     @Bindable private var settings = Settings.shared
+    @State private var noteTarget: NoteTarget?
+    @State private var pendingDelete: Annotation?
 
     var body: some View {
         ZStack {
@@ -18,9 +20,10 @@ struct ReaderWindow: View {
                     .toolbar {
                         ToolbarItem(placement: .navigation) {
                             TOCButton(toc: reader.toc, current: session.chapter?.id,
-                                      bookmarks: session.bookmarks, progress: session.progress(of:),
-                                      onSelect: reader.go(to:), onSelectBookmark: session.go(to:),
-                                      onDeleteBookmark: session.deleteBookmark)
+                                      bookmarks: session.bookmarks, highlights: session.highlights,
+                                      progress: session.progress(of:),
+                                      onSelect: reader.go(to:), onSelectAnnotation: session.go(to:),
+                                      onDeleteAnnotation: { session.deleteAnnotation(id: $0.id) })
                         }
                         .sharedBackgroundVisibility(.hidden)
 
@@ -50,10 +53,28 @@ struct ReaderWindow: View {
                         }
                         .sharedBackgroundVisibility(.hidden)
                     }
+                    .popover(item: $noteTarget, attachmentAnchor: .rect(.rect(noteTarget?.rect ?? .zero)),
+                             arrowEdge: .bottom) { target in
+                        if let annotation = session.annotation(id: target.id) {
+                            NoteEditor(quote: annotation.text, note: annotation.note) {
+                                session.setNote($0, of: annotation)
+                            }
+                        }
+                    }
+                    .onChange(of: noteTarget == nil) { _, closed in
+                        if closed { reader.focus() }
+                    }
+                    .confirmDeletingNote($pendingDelete) { session.deleteAnnotation(id: $0.id) }
                     .onAppear {
                         reader.onGesture = { gesture in
-                            if case .turn(let direction) = gesture { session.turner?.turn(direction) }
+                            switch gesture {
+                            case .turn(let direction):
+                                session.turner?.turn(direction)
+                            case .tap, .highlight:
+                                break
+                            }
                         }
+                        reader.onAnnotationAction = { perform($0) }
                     }
                     .onChange(of: settings.pageTransition) { _, new in session.setTransition(new) }
                     .id(ObjectIdentifier(reader))
@@ -65,5 +86,19 @@ struct ReaderWindow: View {
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .navigationTitle(session.chapter?.path.map(\.title).joined(separator: " › ") ?? session.book?.name ?? "Reader Window")
         .onDisappear { session.close() }
+    }
+
+    private func perform(_ action: AnnotationAction) {
+        switch action {
+        case .highlightSelection:
+            session.highlightSelection()
+        case .noteSelection:
+            session.highlightSelection { annotation, rect in noteTarget = NoteTarget(id: annotation.id, rect: rect) }
+        case .editNote(let hit):
+            noteTarget = NoteTarget(id: hit.id, rect: hit.rect.cgRect)
+        case .delete(let id):
+            guard let annotation = session.annotation(id: id) else { return }
+            if annotation.note.isEmpty { session.deleteAnnotation(id: id) } else { pendingDelete = annotation }
+        }
     }
 }

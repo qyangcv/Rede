@@ -16,19 +16,28 @@ struct JSBridge {
     }
 }
 
+extension Decodable {
+    init?(jsValue: Any) {
+        guard JSONSerialization.isValidJSONObject(jsValue),
+              let data = try? JSONSerialization.data(withJSONObject: jsValue),
+              let value = try? JSONDecoder().decode(Self.self, from: data) else { return nil }
+        self = value
+    }
+}
+
 extension JSBridge {
     func open(paths: [String], language: String, style: [String: String], start: ReadingPosition?,
-              tocAnchors: [[String]], bookmarks: [BookmarkMark]) async {
-        await call("reader.open(paths, language, style, start, tocAnchors, bookmarks)",
+              tocAnchors: [[String]], annotations: [AnnotationMark]) async {
+        await call("reader.open(paths, language, style, start, tocAnchors, annotations)",
                    ["paths": paths, "language": language, "style": style,
                     "start": start?.jsObject ?? NSNull(), "tocAnchors": tocAnchors,
-                    "bookmarks": bookmarks.map(\.jsObject)])
+                    "annotations": annotations.map(\.jsObject)])
     }
     func setStyle(_ vars: [String: String]) async {
         await call("reader.setStyle(vars)", ["vars": vars])
     }
-    func setBookmarks(_ marks: [BookmarkMark]) async {
-        await call("reader.setBookmarks(list)", ["list": marks.map(\.jsObject)])
+    func setAnnotations(_ marks: [AnnotationMark]) async {
+        await call("reader.setAnnotations(list)", ["list": marks.map(\.jsObject)])
     }
     func turn(_ step: Int) async {
         await call("reader.turn(step)", ["step": step])
@@ -42,6 +51,9 @@ extension JSBridge {
     }
     func peek(from position: ReadingPosition, step: Int) async -> ProgressReport? {
         await call("return reader.peek(position, step)", ["position": position.jsObject, "step": step])
-            .flatMap(ProgressReport.init)
+            .flatMap { ProgressReport(jsValue: $0) }
+    }
+    func takeSelection() async -> TextSelection? {
+        await call("return reader.takeSelection()").flatMap { TextSelection(jsValue: $0) }
     }
 }

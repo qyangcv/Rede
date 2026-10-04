@@ -3,8 +3,9 @@ import SwiftUI
 struct ReaderScreen: View {
     private static let edge = 0.3
 
-    private enum Panel: Identifiable {
+    private enum Panel: Identifiable, Hashable {
         case toc, annotations, style
+        case note(String)
         var id: Self { self }
     }
 
@@ -16,6 +17,8 @@ struct ReaderScreen: View {
     @Bindable private var settings = Settings.shared
     @State private var chromeVisible = false
     @State private var panel: Panel?
+    @State private var annotationKind = Annotation.Kind.bookmark
+    @State private var pendingDelete: Annotation?
     @State private var styleHeight: CGFloat?
     @State private var snapshot: PullSnapshot?
 
@@ -58,8 +61,10 @@ struct ReaderScreen: View {
                         .presentationBackground(ChromeStyle(background: settings.readerStyle.background, level: .panel))
                         .overlay { dimmer }
                 }
+                .confirmDeletingNote($pendingDelete) { session.deleteAnnotation(id: $0.id) }
                 .onAppear {
                     reader.onGesture = { handle($0) }
+                    reader.onAnnotationAction = { perform($0) }
                     reader.onTurn = {
                         chromeVisible = false
                         panel = nil
@@ -141,24 +146,41 @@ struct ReaderScreen: View {
         case .annotations:
             VStack(spacing: 0) {
                 PanelHeader(title: "标注") {
-                    Button(session.isBookmarked ? "移除本页书签" : "添加本页书签",
-                           systemImage: session.isBookmarked ? "bookmark.fill" : "bookmark") {
-                        session.toggleBookmark()
+                    if annotationKind == .bookmark {
+                        Button(session.isBookmarked ? "移除本页书签" : "添加本页书签",
+                               systemImage: session.isBookmarked ? "bookmark.fill" : "bookmark") {
+                            session.toggleBookmark()
+                        }
+                        .font(.subheadline)
+                        .disabled(!session.canBookmark)
                     }
-                    .font(.subheadline)
-                    .disabled(!session.canBookmark)
                 }
-                BookmarkList(bookmarks: session.bookmarks, progress: session.progress(of:)) { bookmark in
+                Picker("标注", selection: $annotationKind) {
+                    Text("书签").tag(Annotation.Kind.bookmark)
+                    Text("高亮与笔记").tag(Annotation.Kind.highlight)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                AnnotationList(kind: annotationKind,
+                               annotations: annotationKind == .bookmark ? session.bookmarks : session.highlights,
+                               progress: session.progress(of:)) { annotation in
                     panel = nil
-                    session.go(to: bookmark)
-                } onDelete: { bookmark in
-                    session.deleteBookmark(bookmark)
+                    session.go(to: annotation)
+                } onDelete: { annotation in
+                    session.deleteAnnotation(id: annotation.id)
                 }
             }
             .padding(.horizontal, 8)
             .padding(.top, 4)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        case .note(let id):
+            if let annotation = session.annotation(id: id) {
+                NoteEditor(quote: annotation.text, note: annotation.note) { session.setNote($0, of: annotation) }
+                    .presentationDetents([.medium, .large])
+            }
         case .style:
             StyleSheet(style: $settings.readerStyle, appearance: $settings.appearance,
                        transition: $settings.pageTransition, brightness: $settings.brightness)
@@ -178,6 +200,30 @@ struct ReaderScreen: View {
             else { chromeVisible = true }
         case .turn(let direction):
             session.turner?.turn(direction)
+        case .highlight(let hit):
+            if chromeVisible { chromeVisible = false; return }
+            let hasNote = session.reader?.hasNote(hit.id) ?? false
+            let note = UIAction(title: hasNote ? "编辑笔记" : "笔记", image: UIImage(systemName: "square.and.pencil")) { _ in
+                perform(.editNote(hit))
+            }
+            let delete = UIAction(title: "删除高亮", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in
+                perform(.delete(id: hit.id))
+            }
+            session.reader?.webView.presentMenu(UIMenu(children: [note, delete]), at: hit.rect.cgRect)
+        }
+    }
+
+    private func perform(_ action: AnnotationAction) {
+        switch action {
+        case .highlightSelection:
+            session.highlightSelection()
+        case .noteSelection:
+            session.highlightSelection { annotation, _ in panel = .note(annotation.id) }
+        case .editNote(let hit):
+            panel = .note(hit.id)
+        case .delete(let id):
+            guard let annotation = session.annotation(id: id) else { return }
+            if annotation.note.isEmpty { session.deleteAnnotation(id: id) } else { pendingDelete = annotation }
         }
     }
 
