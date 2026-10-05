@@ -187,3 +187,9 @@ enum BookMerger {
         if context.hasChanges { try? context.save() }
     }
 }
+
+extension ModelContext {
+    func books(_ ids: [Book.ID]) throws -> [Book] {
+        try fetch(FetchDescriptor<Book>(predicate: #Predicate { ids.contains($0.id) }))
+    }
+}

@@ -3,11 +3,12 @@ import UniformTypeIdentifiers
 
 nonisolated struct EpubFile: FileDocument {
     static let readableContentTypes: [UTType] = [.epub]
+    let name: String
     let data: Data
 
-    init?(_ book: Book) {
-        guard let data = try? book.epubData() else { return nil }
-        self.data = data
+    @MainActor init(_ book: Book) throws {
+        name = book.exportName
+        data = try book.epubData()
     }
 
     init(configuration: ReadConfiguration) throws { throw CocoaError(.featureUnsupported) }

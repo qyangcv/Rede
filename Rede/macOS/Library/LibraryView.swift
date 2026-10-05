@@ -12,7 +12,7 @@ struct LibraryView: View {
     @State private var anchor: Book.ID?
     @FocusState private var focused: Bool
     @State private var bookToEdit: Book?
-    @State private var bookToExport: Book?
+    @State private var exportFile: EpubFile?
     @State private var bookToShowInfo: Book?
     @Environment(ReaderSession.self) private var session
     @Environment(\.openWindow) private var openWindow
@@ -95,11 +95,11 @@ struct LibraryView: View {
                 }
             }
             .fileExporter(
-                isPresented: Binding(get: { bookToExport != nil },
-                                     set: { if !$0 { bookToExport = nil } }),
-                document: bookToExport.flatMap(EpubFile.init),
+                isPresented: Binding(get: { exportFile != nil },
+                                     set: { if !$0 { exportFile = nil } }),
+                document: exportFile,
                 contentType: .epub,
-                defaultFilename: bookToExport?.exportName
+                defaultFilename: exportFile?.name
             ) { result in
                 if case .failure(let error) = result { errors.append(error.localizedDescription) }
             }
@@ -169,7 +169,7 @@ struct LibraryView: View {
     private func menu(for book: Book) -> some View {
         let targets = selection.contains(book.id) ? selectedBooks : [book]
         if targets.count > 1 {
-            Button("导出 \(targets.count) 本", systemImage: "square.and.arrow.up") { export(targets) }
+            Button("导出 \(targets.count) 本", systemImage: "square.and.arrow.up") { export(targets.map(\.id)) }
             Button("删除 \(targets.count) 本", systemImage: "trash", role: .destructive) {
                 booksToDelete = targets
             }
@@ -177,23 +177,40 @@ struct LibraryView: View {
             Button("打开", systemImage: "book") { open(book) }
             Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
             Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
-            Button("导出", systemImage: "square.and.arrow.up") { bookToExport = book }
+            Button("导出", systemImage: "square.and.arrow.up") { export([book.id]) }
             Button("删除", systemImage: "trash", role: .destructive) { booksToDelete = [book] }
         }
     }
 
-    private func export(_ books: [Book]) {
+    private func export(_ ids: [Book.ID]) {
+        do {
+            var files: [EpubFile] = []
+            for book in try modelContext.books(ids) {
+                do {
+                    files.append(try EpubFile(book))
+                } catch {
+                    errors.append("\(book.name)：\(error.localizedDescription)")
+                }
+            }
+            if ids.count == 1 { exportFile = files.first } else { write(files) }
+        } catch {
+            errors.append(error.localizedDescription)
+        }
+    }
+
+    private func write(_ files: [EpubFile]) {
+        guard !files.isEmpty else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.prompt = "导出"
         guard panel.runModal() == .OK, let folder = panel.url else { return }
-        for book in books {
+        for file in files {
             do {
-                try book.epubData().write(to: folder.appending(component: book.exportName))
+                try file.data.write(to: folder.appending(component: file.name))
             } catch {
-                errors.append("\(book.name)：\(error.localizedDescription)")
+                errors.append("\(file.name)：\(error.localizedDescription)")
             }
         }
     }

@@ -80,7 +80,7 @@ struct LibraryView: View {
 
                         Group {
                             if isSelecting {
-                                shareButton(for: selectedBooks)
+                                shareButton(for: Array(selection))
                                     .buttonStyle(BarButtonStyle())
                                     .selectionAction(enabled: !selection.isEmpty)
                             } else {
@@ -230,28 +230,34 @@ struct LibraryView: View {
     private func menu(for book: Book) -> some View {
         let targets = isSelecting && selection.contains(book.id) ? selectedBooks : [book]
         if targets.count > 1 {
-            shareButton(for: targets)
+            shareButton(for: targets.map(\.id))
             Button("删除 \(targets.count) 本", systemImage: "trash", role: .destructive) {
                 booksToDelete = targets
             }
         } else {
             Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
             Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
-            if book.file != nil { shareButton(for: [book]) }
+            if book.file != nil { shareButton(for: [book.id]) }
             Button("删除", systemImage: "trash", role: .destructive) { booksToDelete = [book] }
         }
     }
 
-    private func shareButton(for books: [Book]) -> some View {
-        let label = books.count > 1 ? "分享 \(books.count) 本" : "分享"
-        return Button(label, systemImage: "square.and.arrow.up") { share(books) }
+    private func shareButton(for ids: [Book.ID]) -> some View {
+        let label = ids.count > 1 ? "分享 \(ids.count) 本" : "分享"
+        return Button(label, systemImage: "square.and.arrow.up") { share(ids) }
     }
 
-    private func share(_ books: [Book]) {
-        let books = books.filter { $0.file != nil }
+    private func share(_ ids: [Book.ID]) {
+        let books: [Book]
+        do {
+            books = try modelContext.books(ids).filter { $0.file != nil }
+        } catch {
+            errors.append(error.localizedDescription)
+            return
+        }
         guard !books.isEmpty else { return }
         let folder = URL.temporaryDirectory.appending(component: UUID().uuidString, directoryHint: .isDirectory)
-        let content = books.count > 1 ? folder.appending(component: "\(books.count) 本书", directoryHint: .isDirectory)
+        let content = books.count > 1 ? folder.appending(component: "Rede 分享", directoryHint: .isDirectory)
                                       : folder
         do {
             try FileManager.default.createDirectory(at: content, withIntermediateDirectories: true)
