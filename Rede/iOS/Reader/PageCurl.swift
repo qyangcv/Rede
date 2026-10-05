@@ -68,6 +68,7 @@ final class PageCurl: NSObject, PageTurner, UIPageViewControllerDataSource, UIPa
     private func begin() {
         curling += 1
         turning = true
+        reader.onTurn?()
     }
 
     private func follow(_ page: RenderedPage) {
@@ -138,6 +139,7 @@ private struct PageCurlLayer: View {
     var body: some View {
         PageCurlView(curl: curl)
             .opacity(curl.turning ? 1 : 0)
+            .transaction { $0.animation = nil }
     }
 }
 

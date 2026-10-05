@@ -16,43 +16,17 @@
 
 ### Rede for iOS
 
-<!-- <table>
-  <tr>
-    <td align="center"><img src=".asserts/ios_library_card.png" width="320"><br>卡片视图</td>
-    <td align="center"><img src=".asserts/ios_library_list.png" width="320"><br>列表视图</td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <td align="center"><img src=".asserts/ios_reader_style.png" width="320"><br>样式面板</td>
-    <td align="center"><img src=".asserts/ios_settings_icloud.png" width="320"><br>iCloud 同步</td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <td align="center"><img src=".asserts/ios_dark_1.png" width="320"><br>深色模式1</td>
-    <td align="center"><img src=".asserts/ios_dark_2.png" width="320"><br>深色模式2</td>
-
-  </tr>
-</table> -->
-
 <table>
   <tr>
     <td align="center"><img src=".asserts/ios_reader_style.png" width="320"><br>样式面板</td>
     <td align="center"><img src=".asserts/ios_dark_1.png" width="320"><br>深色模式1</td>
   </tr>
 </table>
-
-
 
 ### Rede for macOS
 
 ![Rede 截图](.asserts/frame-1.png)
 ![Rede 截图](.asserts/frame-2.png)
-<!-- ![Rede 截图](.asserts/frame-3.png) -->
-
 
 ## 功能
 

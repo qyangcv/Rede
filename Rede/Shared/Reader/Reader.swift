@@ -286,7 +286,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     func show(_ position: ReadingPosition) async {
         navigated = true
-        onTurn?()
+        // onTurn?()
         await bridge.restore(position)
         await painted()
     }
