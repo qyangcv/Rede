@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct LibraryMenu: View {
+    @Binding var sort: LibrarySort
     @Binding var layout: LibraryLayout
     @Binding var appearance: Appearance
     let onSelect: () -> Void
@@ -20,6 +21,13 @@ struct LibraryMenu: View {
             Picker("外观", selection: $appearance) {
                 ForEach(Appearance.allCases) { item in
                     Label(item.name, systemImage: item.icon).tag(item)
+                }
+            }
+            .labelsVisibility(.visible)
+
+            Picker("排序方式", selection: $sort) {
+                ForEach(LibrarySort.allCases) { item in
+                    Text(item.name).tag(item)
                 }
             }
             .labelsVisibility(.visible)

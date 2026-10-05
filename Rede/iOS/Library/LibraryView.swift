@@ -7,7 +7,7 @@ struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(ReaderSession.self) private var session
     @Environment(\.colorScheme) private var colorScheme
-    @Query(sort: \Book.date, order: .reverse) private var books: [Book]
+    @Query private var books: [Book]
     @Bindable private var settings = Settings.shared
     @State private var isImporting = false
     @State private var showSettings = false
@@ -26,7 +26,7 @@ struct LibraryView: View {
                 case .grid:
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 116), spacing: 0, alignment: .top)], spacing: 8) {
-                            ForEach(books) { book in
+                            ForEach(sortedBooks) { book in
                                 BookCard(book: book)
                                     .overlay(alignment: .topTrailing) {
                                         if isSelecting { selectionMark(for: book).padding(4) }
@@ -47,7 +47,7 @@ struct LibraryView: View {
                     }
                 case .list:
                     List {
-                        ForEach(books) { book in
+                        ForEach(sortedBooks) { book in
                             HStack(spacing: 12) {
                                 if isSelecting { selectionMark(for: book) }
                                 BookRow(book: book)
@@ -76,6 +76,7 @@ struct LibraryView: View {
                 }
             }
             .animation(.default, value: settings.libraryLayout)
+            .animation(.default, value: settings.librarySort)
             .onChange(of: books.map(\.id), initial: true) { _, ids in
                 selection.formIntersection(ids)
                 if ids.isEmpty { isSelecting = false }
@@ -104,7 +105,8 @@ struct LibraryView: View {
 
                     ToolbarItem {
                         HStack(spacing: 4) {
-                            LibraryMenu(layout: $settings.libraryLayout,
+                            LibraryMenu(sort: $settings.librarySort,
+                                        layout: $settings.libraryLayout,
                                         appearance: $settings.appearance,
                                         onSelect: { isSelecting = true },
                                         onSettings: { showSettings = true })
@@ -201,6 +203,29 @@ struct LibraryView: View {
 
     private var selectedBooks: [Book] {
         books.filter { selection.contains($0.id) }
+    }
+
+    private var sortedBooks: [Book] {
+        let newer: (Book, Book) -> Bool = { $0.date > $1.date }
+        let stable: (Book, Book) -> Bool = {
+            newer($0, $1) || ($0.date == $1.date && $0.id < $1.id)
+        }
+        switch settings.librarySort {
+        case .imported:
+            return books.sorted(by: stable)
+        case .lastRead:
+            return books.sorted {
+                let left = $0.lastRead ?? .distantPast
+                let right = $1.lastRead ?? .distantPast
+                guard left == right else { return left > right }
+                return stable($0, $1)
+            }
+        case .author:
+            return books.sorted {
+                guard $0.author != $1.author else { return stable($0, $1) }
+                return $0.author.localizedStandardCompare($1.author) == .orderedAscending
+            }
+        }
     }
 
     private func tap(_ book: Book) {
