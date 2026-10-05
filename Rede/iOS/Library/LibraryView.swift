@@ -21,30 +21,32 @@ struct LibraryView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            Group {
                 switch settings.libraryLayout {
                 case .grid:
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 116), spacing: 0, alignment: .top)], spacing: 8) {
-                        ForEach(books) { book in
-                            BookCard(book: book)
-                                .overlay(alignment: .topTrailing) {
-                                    if isSelecting { selectionMark(for: book).padding(4) }
-                                }
-                                .padding(8)
-                                .contentShape(Rectangle())
-                                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 4))
-                                .onTapGesture { tap(book) }
-                                .contextMenu { menu(for: book) } preview: {
-                                    BookCard(book: book)
-                                        .padding(8)
-                                        .frame(width: 140)
-                                }
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 116), spacing: 0, alignment: .top)], spacing: 8) {
+                            ForEach(books) { book in
+                                BookCard(book: book)
+                                    .overlay(alignment: .topTrailing) {
+                                        if isSelecting { selectionMark(for: book).padding(4) }
+                                    }
+                                    .padding(8)
+                                    .contentShape(Rectangle())
+                                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 4))
+                                    .onTapGesture { tap(book) }
+                                    .contextMenu { menu(for: book) } preview: {
+                                        BookCard(book: book)
+                                            .padding(8)
+                                            .frame(width: 140)
+                                    }
+                            }
                         }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 8)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 8)
                 case .list:
-                    LazyVStack(spacing: 8) {
+                    List {
                         ForEach(books) { book in
                             HStack(spacing: 12) {
                                 if isSelecting { selectionMark(for: book) }
@@ -53,10 +55,24 @@ struct LibraryView: View {
                             }
                             .contentShape(Rectangle())
                             .onTapGesture { tap(book) }
+                            .padding(.horizontal, 16)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                if !isSelecting {
+                                    Button("删除", systemImage: "trash") {
+                                        booksToDelete = [book]
+                                    }
+                                    .tint(.red)
+                                }
+                            }
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .listStyle(.plain)
+                    .listRowSpacing(8)
+                    .scrollContentBackground(.hidden)
+                    .contentMargins(.vertical, 8, for: .scrollContent)
                 }
             }
             .animation(.default, value: settings.libraryLayout)
