@@ -84,8 +84,14 @@ struct LibraryView: View {
             }
             .overlay {
                 if books.isEmpty {
-                    ContentUnavailableView("书架是空的", systemImage: "books.vertical",
-                                           description: Text("点击右上角 + 导入 EPUB"))
+                    ContentUnavailableView {
+                        Label("书架是空的", systemImage: "books.vertical")
+                    } description: {
+                        Text("导入 EPUB 开始阅读")
+                    } actions: {
+                        Button("导入 EPUB") { isImporting = true }
+                            .buttonStyle(.borderedProminent)
+                    }
                 }
             }
             .navigationTitle(isSelecting ? "已选择 \(selection.count) 本" : "我的书库")
@@ -104,16 +110,12 @@ struct LibraryView: View {
                     }
 
                     ToolbarItem {
-                        HStack(spacing: 4) {
-                            LibraryMenu(sort: $settings.librarySort,
-                                        layout: $settings.libraryLayout,
-                                        appearance: $settings.appearance,
-                                        onSelect: { isSelecting = true },
-                                        onSettings: { showSettings = true })
-                            Button { isImporting = true } label: {
-                                Label("导入", systemImage: "plus")
-                            }
-                        }
+                        LibraryMenu(sort: $settings.librarySort,
+                                    layout: $settings.libraryLayout,
+                                    appearance: $settings.appearance,
+                                    onImport: { isImporting = true },
+                                    onSelect: { isSelecting = true },
+                                    onSettings: { showSettings = true })
                     }
                     .sharedBackgroundVisibility(.hidden)
                 }
