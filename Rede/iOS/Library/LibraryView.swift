@@ -9,8 +9,6 @@ struct LibraryView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \Book.date, order: .reverse) private var books: [Book]
     @Bindable private var settings = Settings.shared
-    @State private var importIconMidX: CGFloat = 0
-    @State private var appearanceIconMidX: CGFloat = 0
     @State private var isImporting = false
     @State private var showSettings = false
     @State private var errors: [String] = []
@@ -62,36 +60,6 @@ struct LibraryView: View {
                 }
             }
             .animation(.default, value: settings.libraryLayout)
-            .safeAreaBar(edge: .top) {
-                if !books.isEmpty {
-                    ZStack {
-                        Group {
-                            if isSelecting {
-                                Button("删除", systemImage: "trash") { booksToDelete = selectedBooks }
-                                    .buttonStyle(BarButtonStyle())
-                                    .selectionAction(enabled: !selection.isEmpty)
-                            } else {
-                                Button("选择", systemImage: "checkmark.circle") { isSelecting = true }
-                                    .buttonStyle(BarButtonStyle())
-                            }
-                        }
-                        .alignmentGuide(.leading) { $0[HorizontalAlignment.center] - appearanceIconMidX }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                        Group {
-                            if isSelecting {
-                                shareButton(for: Array(selection))
-                                    .buttonStyle(BarButtonStyle())
-                                    .selectionAction(enabled: !selection.isEmpty)
-                            } else {
-                                LibraryLayoutButton(layout: $settings.libraryLayout)
-                            }
-                        }
-                        .alignmentGuide(.leading) { $0[HorizontalAlignment.center] - importIconMidX }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-            }
             .onChange(of: books.map(\.id), initial: true) { _, ids in
                 selection.formIntersection(ids)
                 if ids.isEmpty { isSelecting = false }
@@ -104,7 +72,7 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle(isSelecting ? "已选择 \(selection.count) 本" : "我的书库")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbarTitleDisplayMode(isSelecting ? .inline : .inlineLarge)
             .containerBackground(colorScheme == .dark ? Color(.sRGB, white: 0x1A / 255)
                                                       : Color(.systemBackground),
                                  for: .navigation)
@@ -120,16 +88,12 @@ struct LibraryView: View {
 
                     ToolbarItem {
                         HStack(spacing: 4) {
-                            Button("设置", systemImage: "gearshape") { showSettings = true }
-                            AppearanceButton(appearance: $settings.appearance)
-                                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midX } action: {
-                                    appearanceIconMidX = $0
-                                }
+                            LibraryMenu(layout: $settings.libraryLayout,
+                                        appearance: $settings.appearance,
+                                        onSelect: { isSelecting = true },
+                                        onSettings: { showSettings = true })
                             Button { isImporting = true } label: {
                                 Label("导入", systemImage: "plus")
-                                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).midX } action: {
-                                        importIconMidX = $0
-                                    }
                             }
                         }
                     }
@@ -190,6 +154,10 @@ struct LibraryView: View {
 
     @ToolbarContentBuilder
     private var selectionToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button("取消", systemImage: "xmark") { endSelecting() }
+        }
+        .sharedBackgroundVisibility(.hidden)
         ToolbarItem {
             HStack(spacing: 4) {
                 if selection.count == books.count {
@@ -197,7 +165,10 @@ struct LibraryView: View {
                 } else {
                     Button("全选", systemImage: "checklist.unchecked") { selection = Set(books.map(\.id)) }
                 }
-                Button("取消", systemImage: "xmark") { endSelecting() }
+                if !selection.isEmpty {
+                    shareButton(for: Array(selection))
+                    Button("删除", systemImage: "trash") { booksToDelete = selectedBooks }
+                }
             }
         }
         .sharedBackgroundVisibility(.hidden)
@@ -321,23 +292,5 @@ struct LibraryView: View {
                 errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
             }
         }
-    }
-}
-
-private struct BarButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .labelStyle(.iconOnly)
-            .imageScale(.large)
-            .frame(width: 44, height: 44)
-            .contentShape(Rectangle())
-            .opacity(configuration.isPressed ? 0.5 : 1)
-    }
-}
-
-private extension View {
-    func selectionAction(enabled: Bool) -> some View {
-        foregroundStyle(enabled ? .primary : .tertiary)
-            .allowsHitTesting(enabled)
     }
 }
