@@ -4,6 +4,7 @@ struct ReaderWindow: View {
     @Environment(ReaderSession.self) private var session
     @Bindable private var settings = Settings.shared
     @State private var noteTarget: NoteTarget?
+    @State private var tocPresented = false
 
     var body: some View {
         ZStack {
@@ -18,7 +19,7 @@ struct ReaderWindow: View {
                     }
                     .toolbar {
                         ToolbarItem(placement: .navigation) {
-                            TOCButton(toc: reader.toc, current: session.chapter?.id, onSelect: reader.go(to:))
+                            TOCButton(isPresented: $tocPresented)
                         }
                         .sharedBackgroundVisibility(.hidden)
 
@@ -84,9 +85,40 @@ struct ReaderWindow: View {
             }
         }
         .ignoresSafeArea()
+        .overlay(alignment: .leading) { tocDrawer }
+        .animation(.snappy(duration: 0.22), value: tocPresented)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .navigationTitle(session.chapter?.path.map(\.title).joined(separator: " › ") ?? session.book?.name ?? "Reader Window")
         .onDisappear { session.close() }
+    }
+
+    private var tocDrawer: some View {
+        ZStack(alignment: .leading) {
+            if tocPresented {
+                Color.clear
+                    .contentShape(.rect)
+                    .onTapGesture { tocPresented = false }
+                    .transition(.opacity)
+            }
+
+            if tocPresented, let reader = session.reader {
+                TOCList(items: reader.toc, current: session.chapter?.id) { entry in
+                    tocPresented = false
+                    reader.go(to: entry)
+                    reader.focus()
+                }
+                .frame(width: 300)
+                .frame(maxHeight: .infinity)
+                .background {
+                    Rectangle()
+                        .fill(.regularMaterial)
+                        .ignoresSafeArea(edges: .top)
+                        .shadow(color: .black.opacity(0.18), radius: 18, x: 6)
+                }
+                .transition(.move(edge: .leading))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func perform(_ action: AnnotationAction) {
