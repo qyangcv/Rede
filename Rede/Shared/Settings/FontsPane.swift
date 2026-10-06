@@ -31,7 +31,6 @@ private struct FontRow: View {
                 Text(font.name)
                 HStack(spacing: 0) {
                     Link(package.author, destination: package.repository)
-                        .buttonStyle(.borderless)
                     Text(" · \(package.license) · \(package.size.formatted(.byteCount(style: .file)))").foregroundStyle(.secondary)
                 }
                 .font(.caption)
