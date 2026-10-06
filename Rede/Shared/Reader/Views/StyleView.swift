@@ -18,7 +18,7 @@ struct StyleButton: View {
         .help("样式")
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
             StylePanel(style: $style, appearance: $appearance, transition: $transition)
-                .frame(width: 290)
+                .frame(minWidth: 290)
         }
         .onChange(of: isPresented) { _, shown in
             if !shown { onDismiss() }
@@ -58,7 +58,7 @@ struct StylePanel: View {
                         HStack(spacing: 9) {
                             FontWeightSlider(weights: style.font.weights,
                                              weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
-                            SliderAccessory { Text("\(weight)").monospacedDigit() }
+                            Text("\(weight)").monospacedDigit()
                         }
                     }
                 }
@@ -67,12 +67,12 @@ struct StylePanel: View {
 
                 GridRow {
                     label("行距")
-                    SpacingPicker(title: "行距", selection: $style.lineSpacing)
+                    SpacingPicker(title: "行距", style: .menu, selection: $style.lineSpacing)
                 }
 
                 GridRow {
                     label("段距")
-                    SpacingPicker(title: "段距", selection: $style.paraSpacing)
+                    SpacingPicker(title: "段距", style: .menu, selection: $style.paraSpacing)
                 }
 
                 Divider()
@@ -133,12 +133,7 @@ private struct FontScaleStepper: View {
             }
             .disabled(scale <= range.lowerBound)
 
-            Text("\(range.upperBound)%")
-                .monospacedDigit()
-                .hidden()
-                .overlay {
-                    Text("\(scale)%").monospacedDigit()
-                }
+            Text("\(scale)%").monospacedDigit()
 
             Button("增大字号", systemImage: "textformat.size.larger") {
                 scale = min(scale + step, range.upperBound)
@@ -206,17 +201,34 @@ struct AppearanceOptions: View {
 }
 
 struct SpacingPicker: View {
+    enum Style {
+        case segmented, menu
+    }
+
     let title: String
+    var style: Style = .segmented
     @Binding var selection: Spacing
 
     var body: some View {
+        switch style {
+        case .segmented:
+            picker
+                .pickerStyle(.segmented)
+                .labelsHidden()
+        case .menu:
+            picker
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .fixedSize()
+        }
+    }
+
+    private var picker: some View {
         Picker(title, selection: $selection) {
             ForEach(Spacing.allCases) { level in
                 Text(level.name).tag(level)
             }
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
     }
 }
 
