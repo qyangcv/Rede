@@ -64,6 +64,7 @@ struct LibraryView: View {
                 return !epubs.isEmpty
             }
             .navigationTitle("我的书库")
+            // .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
             .overlay(alignment: .top) { SyncBanner() }
             .toolbar {
                 if SyncMonitor.shared.hasProblem {
