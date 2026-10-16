@@ -102,19 +102,30 @@ final class SyncMonitor {
             if event.type != .setup { lastSynced = end }
             if event.type == .import { NotificationCenter.default.post(name: Self.didImport, object: nil) }
         } else {
-            Self.log.error("\(event.description, privacy: .public)")
+            Self.log.error("\(event.description, privacy: .public) error=\(String(describing: event.error), privacy: .public)")
             failures[event.type] = event.error.map(Self.describe) ?? "同步失败"
         }
     }
 
     nonisolated private static func describe(_ error: Error) -> String {
         guard let error = error as? CKError else { return error.localizedDescription }
-        let inner = error.code == .partialFailure ? error.partialErrorsByItemID?.values.first as? CKError : nil
-        switch inner?.code ?? error.code {
+        let innermost = underlying(of: error)
+        switch innermost.code {
         case .quotaExceeded: return "iCloud 空间已满"
         case .notAuthenticated: return "未登录 iCloud"
         case .networkUnavailable, .networkFailure: return "网络不可用，恢复后会自动重试"
-        default: return (inner ?? error).localizedDescription
+        case .serverRejectedRequest, .invalidArguments: return "iCloud 拒绝了这次同步，通常是云端结构未部署（需部署 CloudKit schema）"
+        default: return innermost.localizedDescription
         }
+    }
+
+    nonisolated private static func underlying(of error: CKError) -> CKError {
+        var current = error
+        for _ in 0..<5 {
+            let partial = current.partialErrorsByItemID?.values.compactMap { $0 as? CKError }.first
+            guard let next = partial ?? current.userInfo[NSUnderlyingErrorKey] as? CKError else { return current }
+            current = next
+        }
+        return current
     }
 }

@@ -40,6 +40,9 @@ BUILD_NUMBER=$(git rev-list --count HEAD)
 BUILD=build
 DMG=dist/Rede-$VERSION.dmg
 
+# 1b. CloudKit schema must already be deployed to production
+bash scripts/cloudkit-schema.sh check
+
 gum confirm "Build and release $TAG (build $BUILD_NUMBER)?" || exit 0
 
 # 2. Archive (= Xcode → Product → Archive)

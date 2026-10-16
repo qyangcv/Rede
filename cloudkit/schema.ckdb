@@ -1,0 +1,74 @@
+DEFINE SCHEMA
+
+    RECORD TYPE CD_Annotation (
+        CD_bookID       STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_chapter      INT64 QUERYABLE SORTABLE,
+        CD_created      TIMESTAMP QUERYABLE SORTABLE,
+        CD_end          INT64 QUERYABLE SORTABLE,
+        CD_entityName   STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_id           STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_kindRaw      STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_note         STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_start        INT64 QUERYABLE SORTABLE,
+        CD_text         STRING QUERYABLE SEARCHABLE SORTABLE,
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE CD_Book (
+        CD_author         STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_chapterLengths BYTES QUERYABLE SORTABLE,
+        CD_cover          BYTES QUERYABLE SORTABLE,
+        CD_date           TIMESTAMP QUERYABLE SORTABLE,
+        CD_entityName     STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_file           STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_id             STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_lastRead       TIMESTAMP QUERYABLE SORTABLE,
+        CD_name           STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_position       BYTES QUERYABLE SORTABLE,
+        CD_wordCount      INT64 QUERYABLE SORTABLE,
+        "___createTime"   TIMESTAMP,
+        "___createdBy"    REFERENCE,
+        "___etag"         STRING,
+        "___modTime"      TIMESTAMP,
+        "___modifiedBy"   REFERENCE,
+        "___recordID"     REFERENCE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE CD_BookFile (
+        CD_book         STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_data         BYTES QUERYABLE SORTABLE,
+        CD_data_ckAsset ASSET,
+        CD_entityName   STRING QUERYABLE SEARCHABLE SORTABLE,
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Users (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE,
+        roles           LIST<INT64>,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );

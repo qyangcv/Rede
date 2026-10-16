@@ -47,6 +47,9 @@ BUILD_NUMBER=$(date +%Y%m%d%H%M)
 TAG="ios-v$VERSION-$BUILD_NUMBER"
 BUILD=build/ios
 
+# 1b. CloudKit schema must already be deployed to production
+bash scripts/cloudkit-schema.sh check
+
 gum confirm "Upload Rede iOS $VERSION ($BUILD_NUMBER) to TestFlight?" || exit 0
 
 # 2. Archive (= Xcode → Product → Archive)
