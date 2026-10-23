@@ -9,6 +9,8 @@ const XHTML_NS = "http://www.w3.org/1999/xhtml";
 const READIUM_BASE = "rede://app/";
 const ASSET_TIMEOUT_MS = 5000;
 const MIN_COLUMN_EM = 20
+const COLUMN_GAP_RATIO = 0.05;
+const COLUMN_GAP_MIN_EM = 3;
 
 // 版面相关的 ReadiumCSS 变量（页边距随 style 从 Swift 传入）：
 // - 背景色设为 transparent：ReadiumCSS 以 !important 强制章节根元素的背景色，设为透明才能透出外壳页绘制的背景；
@@ -240,13 +242,13 @@ function fontScale() {
   return parseFloat(state.style["--USER__fontSize"] || "100") / 100;
 }
 
-// 每栏左右留白的屏幕像素：--RS__pageGutter 已按字号缩放预先除过（会被 body 的 zoom 放大回来），乘回 scale 才是屏幕上的实际留白
-function gutterPx() {
-  return parseFloat(state.style["--RS__pageGutter"]) * fontScale();
+function columnGapPx(columns) {
+  if (columns < 2) return 0;
+  return Math.max(frame.clientWidth * COLUMN_GAP_RATIO, COLUMN_GAP_MIN_EM * 16 * fontScale());
 }
 
 function columnCount() {
-  const columnEm = (frame.clientWidth / 2 - 2 * gutterPx()) / (16 * fontScale());
+  const columnEm = (frame.clientWidth - columnGapPx(2)) / 2 / (16 * fontScale());
   return columnEm >= MIN_COLUMN_EM ? 2 : 1;
 }
 
@@ -259,7 +261,7 @@ const MEDIA_HEIGHT_RATIO = 0.95;
 
 function mediaLimits() {
   const scale = fontScale();
-  const width = frame.clientWidth / state.columns - 2 * gutterPx();
+  const width = (frame.clientWidth - (state.columns - 1) * columnGapPx(state.columns)) / state.columns;
   const height = frame.clientHeight * MEDIA_HEIGHT_RATIO;
   return { "--rede-media-width": `${width / scale}px`, "--rede-media-height": `${height / scale}px` };
 }
@@ -268,7 +270,13 @@ function mediaLimits() {
 // 章节只认 --USER__* / --RS__* / --rede-media-* / --reader-highlight / --reader-note，外壳页只认 --reader-bg / --reader-pattern，互不干扰
 function applyStyle() {
   state.columns = columnCount();
-  const vars = { ...LAYOUT_VARS, ...state.style, "--USER__colCount": String(state.columns), ...mediaLimits() };
+  const vars = {
+    ...LAYOUT_VARS,
+    ...state.style,
+    "--USER__colCount": String(state.columns),
+    "--RS__colGap": `${columnGapPx(state.columns)}px`,
+    ...mediaLimits(),
+  };
   for (const root of [document.documentElement, doc?.documentElement]) {
     if (!root) continue;
     for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, value);
@@ -277,16 +285,17 @@ function applyStyle() {
 
 // ---------- 分页 ----------
 
-// 一屏宽度即翻页步长（ReadiumCSS 列间距为 0，页边距在 body 的 padding 里）
+// 翻页步长 = 一屏宽 + 一个栏间距：每栏后面都跟一个 column-gap，下一屏的首栏从 (栏宽 + 间距) × 栏数 处开始
 function stride() {
-  return frame.contentWindow.innerWidth;
+  return frame.contentWindow.innerWidth + columnGapPx(state.columns);
 }
 
 // 双栏时总栏数若为奇数，最后一屏只有半屏宽，浏览器会把滚动夹在半屏处；
 // 此时显示补白列凑成整屏
 function measure() {
   pad.style.display = "none";
-  const columns = Math.round(doc.scrollingElement.scrollWidth * state.columns / stride());
+  const gap = columnGapPx(state.columns);
+  const columns = Math.round((doc.scrollingElement.scrollWidth + gap) * state.columns / stride());
   pad.style.display = columns % state.columns ? "" : "none";
   state.spreadCount = Math.max(1, Math.ceil(columns / state.columns));
 }

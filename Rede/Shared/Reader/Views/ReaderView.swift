@@ -12,7 +12,7 @@ struct ReaderView: View {
 
     private var cssVariables: [String: String] {
         var vars = settings.readerStyle.cssVariables(for: colorScheme)
-        vars.merge(ReaderLayout.cssVariables(fontScale: settings.readerStyle.fontScale, safeArea: safeArea)) { $1 }
+        vars.merge(ReaderLayout.cssVariables(safeArea: safeArea)) { $1 }
         #if DEBUG && os(macOS)
         PaletteTuner.shared.apply(to: &vars, scheme: colorScheme)
         #endif

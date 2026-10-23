@@ -15,7 +15,7 @@ enum ReaderLayout {
     static let bookmarkTop = 0
     #endif
 
-    static func cssVariables(fontScale: Int, safeArea: EdgeInsets) -> [String: String] {
+    static func cssVariables(safeArea: EdgeInsets) -> [String: String] {
         var vars = [
             "--safe-top": "\(safeArea.top)px",
             "--safe-bottom": "\(safeArea.bottom)px",
@@ -23,12 +23,11 @@ enum ReaderLayout {
             "--safe-right": "\(safeArea.trailing)px",
             "--page-margin-top": "\(marginTop)px",
             "--page-margin-bottom": "\(marginBottom)px",
-            "--RS__pageGutter": "\(Double(gutter) * 100 / Double(fontScale))px",
+            "--page-gutter": "\(gutter)px",
         ]
         #if os(iOS)
         vars["--bookmark-display"] = "block"
         vars["--bookmark-top"] = "\(bookmarkTop)px"
-        vars["--page-gutter"] = "\(gutter)px"
         #endif
         return vars
     }
