@@ -23,6 +23,10 @@ struct ReaderWindow: View {
                         }
                         .sharedBackgroundVisibility(.hidden)
 
+                        if settings.readerTitle == .hidden {
+                            ToolbarSpacer(.flexible)
+                        }
+
                         #if DEBUG
                         ToolbarItem(placement: .primaryAction) {
                             PaletteTunerButton(onDismiss: reader.focus)
@@ -88,8 +92,17 @@ struct ReaderWindow: View {
         .overlay(alignment: .leading) { tocDrawer }
         .animation(.snappy(duration: 0.22), value: tocPresented)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .navigationTitle(session.chapter?.path.map(\.title).joined(separator: " › ") ?? session.book?.name ?? "Reader Window")
+        .navigationTitle(title ?? session.book?.name ?? "阅读")
+        .toolbar(removing: settings.readerTitle == .hidden ? .title : nil)
         .onDisappear { session.close() }
+    }
+
+    private var title: String? {
+        switch settings.readerTitle {
+        case .hidden: nil
+        case .book: session.book?.name
+        case .chapter: session.chapter?.path.map(\.title).joined(separator: " › ") ?? session.book?.name
+        }
     }
 
     private var tocDrawer: some View {

@@ -209,6 +209,20 @@ enum Appearance: String, CaseIterable, Identifiable, Codable {
        }
 }
 
+enum ReaderTitle: String, CaseIterable, Identifiable, Codable {
+    case hidden, book, chapter
+
+    var id: Self { self }
+
+    var name: String {
+        switch self {
+        case .hidden: "隐藏"
+        case .book: "书名"
+        case .chapter: "章节名"
+        }
+    }
+}
+
 enum LibraryLayout: String, CaseIterable, Identifiable, Codable {
     case grid, list
 
@@ -444,6 +458,8 @@ final class Settings {
 
     var pageTransition: PageTransition { didSet { save() } }
 
+    var readerTitle: ReaderTitle { didSet { save() } }
+
     var brightness: Double { didSet { save() } }
 
     var libraryLayout: LibraryLayout { didSet { save() } }
@@ -462,6 +478,7 @@ final class Settings {
         var readerStyle: ReaderStyle?
         var appearance: Appearance?
         var pageTransition: PageTransition?
+        var readerTitle: ReaderTitle?
         var brightness: Double?
         var libraryLayout: LibraryLayout?
         var librarySort: LibrarySort?
@@ -474,6 +491,7 @@ final class Settings {
         readerStyle = snapshot?.readerStyle ?? .default
         appearance = snapshot?.appearance ?? .system
         pageTransition = snapshot?.pageTransition ?? .default
+        readerTitle = snapshot?.readerTitle ?? .chapter
         brightness = snapshot?.brightness ?? 1
         libraryLayout = snapshot?.libraryLayout ?? .grid
         librarySort = snapshot?.librarySort ?? .imported
@@ -487,7 +505,8 @@ final class Settings {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(Snapshot(readerStyle: readerStyle, appearance: appearance,
-                                    pageTransition: pageTransition, brightness: brightness,
+                                    pageTransition: pageTransition, readerTitle: readerTitle,
+                                    brightness: brightness,
                                     libraryLayout: libraryLayout, librarySort: librarySort,
                                     iCloudSync: iCloudSync))
                 .write(to: AppPaths.settings, options: .atomic)

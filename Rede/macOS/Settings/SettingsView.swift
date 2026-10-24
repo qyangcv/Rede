@@ -3,6 +3,10 @@ import SwiftUI
 struct SettingsView: View {
     var body: some View {
         TabView {
+            Tab("偏好", systemImage: "gearshape") {
+                PreferencesPane()
+                    .frame(width: 480, height: 300)
+            }
             Tab("字体", systemImage: "f.cursive") {
                 FontsPane()
                     .frame(width: 480, height: 300)
@@ -17,5 +21,5 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView()
+    SettingsView() 
 }
