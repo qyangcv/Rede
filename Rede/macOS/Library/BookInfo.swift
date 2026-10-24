@@ -72,7 +72,9 @@ struct BookInfoView: View {
                 .keyboardShortcut(.defaultAction)
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding()
+        .padding(.horizontal, 24)
+        .padding(.top, 24)
+        .padding(.bottom, 16)
         .frame(width: 360)
         .task {
             ChapterLengthIndexer.shared.ensure(book, in: modelContext)
