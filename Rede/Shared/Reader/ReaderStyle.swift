@@ -19,7 +19,11 @@ struct FontPackage {
     let assets: [Asset]
     let faces: [Face]
 
+    static let revisionFile = "revision"
+
     var size: Int { assets.reduce(0) { $0 + $1.size } }
+
+    var revision: String { assets.map(\.sha256).joined(separator: "\n") }
 
     var weights: [Int] {
         Set(faces.flatMap { stride(from: $0.weights.lowerBound, through: $0.weights.upperBound, by: 25) }).sorted()
@@ -147,6 +151,10 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
 
     var directory: URL {
         AppPaths.fonts.appending(component: rawValue, directoryHint: .isDirectory)
+    }
+
+    var installedRevision: String? {
+        try? String(contentsOf: directory.appending(component: FontPackage.revisionFile), encoding: .utf8)
     }
 
     var isBuiltin: Bool { package == nil }

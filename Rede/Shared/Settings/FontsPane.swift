@@ -50,15 +50,21 @@ private struct FontRow: View {
             Button("取消", systemImage: "xmark.circle.fill") { store.cancel(font) }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
-        } else if store.downloaded.contains(font) {
-            Button("删除", role: .destructive) { store.delete(font) }
-                .buttonStyle(.bordered)
         } else {
             if store.failed.contains(font) {
-                Text("下载失败").font(.caption).foregroundStyle(.red)
+                Text(store.downloaded.contains(font) ? "更新失败" : "下载失败").font(.caption).foregroundStyle(.red)
             }
-            Button("下载") { store.download(font) }
-                .buttonStyle(.bordered)
+            if store.outdated.contains(font) {
+                Button("更新") { store.download(font) }
+                    .buttonStyle(.bordered)
+            }
+            if store.downloaded.contains(font) {
+                Button("删除", role: .destructive) { store.delete(font) }
+                    .buttonStyle(.bordered)
+            } else {
+                Button("下载") { store.download(font) }
+                    .buttonStyle(.bordered)
+            }
         }
     }
 }

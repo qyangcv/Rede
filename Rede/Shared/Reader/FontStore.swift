@@ -10,24 +10,29 @@ final class FontStore {
     nonisolated private static let chunkSize = 1 << 18
 
     private(set) var downloaded: Set<ReaderFont>
+    private(set) var outdated: Set<ReaderFont>
     private(set) var received: [ReaderFont: Int] = [:]
     private(set) var failed: Set<ReaderFont> = []
     @ObservationIgnored private var tasks: [ReaderFont: Task<Void, Never>] = [:]
 
     private init() {
-        downloaded = Set(ReaderFont.allCases.filter {
+        let installed = ReaderFont.allCases.filter {
             $0.package != nil && FileManager.default.fileExists(atPath: $0.directory.path(percentEncoded: false))
-        })
+        }
+        downloaded = Set(installed)
+        outdated = Set(installed.filter { $0.installedRevision != $0.package?.revision })
     }
 
     func download(_ font: ReaderFont) {
-        guard let package = font.package, tasks[font] == nil, !downloaded.contains(font) else { return }
+        guard let package = font.package, tasks[font] == nil,
+              !downloaded.contains(font) || outdated.contains(font) else { return }
         failed.remove(font)
         received[font] = 0
         tasks[font] = Task {
             do {
                 try await install(font, from: package)
                 downloaded.insert(font)
+                outdated.remove(font)
             } catch where Task.isCancelled {
             } catch {
                 Self.log.error("下载 \(font.rawValue) 失败：\(error)")
@@ -50,6 +55,7 @@ final class FontStore {
             return
         }
         downloaded.remove(font)
+        outdated.remove(font)
         if Settings.shared.readerStyle.font == font {
             Settings.shared.readerStyle.font = .original
         }
@@ -73,6 +79,7 @@ final class FontStore {
         }
         guard package.faces.allSatisfy({ fm.fileExists(atPath: staging.appending(component: $0.file).path(percentEncoded: false)) })
         else { throw CocoaError(.fileNoSuchFile) }
+        try Data(package.revision.utf8).write(to: staging.appending(component: FontPackage.revisionFile))
 
         try? fm.removeItem(at: font.directory)
         try fm.createDirectory(at: AppPaths.fonts, withIntermediateDirectories: true)
