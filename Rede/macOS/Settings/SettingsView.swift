@@ -12,6 +12,7 @@ struct SettingsView: View {
                     .frame(width: 480, height: 300)
             }
         }
+        .scrollEdgeEffectStyle(.hard, for: .top)
     }
 }
 
