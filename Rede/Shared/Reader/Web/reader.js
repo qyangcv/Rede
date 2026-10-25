@@ -432,6 +432,15 @@ function paintHighlights() {
   spans.forEach((s, i) => { if (s.note) notes.add(ranges[i]); });
 }
 
+function refreshHighlights(chapter) {
+  for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER]) {
+    const highlight = chapter.defaultView.CSS.highlights.get(name);
+    const ranges = [...highlight];
+    highlight.clear();
+    for (const range of ranges) highlight.add(range);
+  }
+}
+
 // 章节视口矩形 → 外壳页坐标（即 WebView 坐标）
 function shellRect(rect) {
   const origin = frame.getBoundingClientRect();
@@ -631,7 +640,10 @@ function onClick(event) {
 function watchGestures(target) {
   target.addEventListener("click", onTap);
   target.addEventListener("contextmenu", onContextMenu);
-  target.addEventListener("selectionchange", () => reportSelection(target));
+  target.addEventListener("selectionchange", () => {
+    reportSelection(target);
+    if (target !== document) refreshHighlights(target);
+  });
   // 换章后旧文档里的选区随之消失，不会再触发 selectionchange
   reportSelection(target);
 }
