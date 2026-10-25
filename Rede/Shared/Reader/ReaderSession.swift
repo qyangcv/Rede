@@ -19,6 +19,8 @@ final class ReaderSession {
     private var store: ProgressStore?
     private var shownPosition: ReadingPosition?
     private var annotationStore: AnnotationStore?
+    private var clock: ReadingClock?
+    private var foreground = false
     private(set) var annotations: [Annotation] = []
 
     var bookmarks: [Annotation] { annotations.filter { $0.kind == .bookmark } }
@@ -47,17 +49,22 @@ final class ReaderSession {
     func open(_ book: Book, context: ModelContext) throws {
         if self.book?.id == book.id, reader != nil { return }
         store?.flush()
+        clock?.stop()
 
         let epub = try book.epub()
         book.lastRead = .now
         ChapterLengthIndexer.shared.ensure(book, in: context)
         let store = ProgressStore(book: book, context: context)
         let annotationStore = AnnotationStore(bookID: book.id, context: context)
+        let clock = ReadingClock(bookID: book.id, context: context)
         let reader = Reader(book: epub, start: book.position)
         let turner = Settings.shared.pageTransition.makeTurner(reader: reader)
         reader.onProgress = { [weak self, weak reader] position, page, chapter in
             MainActor.assumeIsolated {
-                if reader?.navigated == true { store.record(position) }
+                if reader?.navigated == true {
+                    store.record(position)
+                    clock.record(position)
+                }
                 self?.turner?.pages?.prepare(position, page: page, chapter: chapter)
                 self?.page = page
                 self?.chapter = chapter
@@ -66,6 +73,7 @@ final class ReaderSession {
 
         self.store = store
         self.annotationStore = annotationStore
+        self.clock = clock
         self.reader = reader
         self.turner = turner
         self.book = book
@@ -73,14 +81,19 @@ final class ReaderSession {
         self.chapter = nil
         self.shownPosition = book.position
         pushAnnotations()
+        clock.setForeground(foreground)
     }
 
     func flush() {
         store?.flush()
+        clock?.stop()
     }
 
     func close() {
         store?.flush()
+        clock?.stop()
+        clock = nil
+        foreground = false
         store = nil
         annotationStore = nil
         annotations = []
@@ -100,6 +113,11 @@ final class ReaderSession {
             turner.pages?.prepare(position, page: page, chapter: chapter)
         }
         self.turner = turner
+    }
+
+    func setForeground(_ foreground: Bool) {
+        self.foreground = foreground
+        clock?.setForeground(foreground)
     }
 
     private func followRemoteProgress() {

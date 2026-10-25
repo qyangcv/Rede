@@ -20,6 +20,7 @@ struct ReaderScreen: View {
     @State private var annotationKind = Annotation.Kind.bookmark
     @State private var styleHeight: CGFloat?
     @State private var snapshot: PullSnapshot?
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         if let reader = session.reader, let turner = session.turner {
@@ -69,6 +70,7 @@ struct ReaderScreen: View {
                     }
                 }
                 .onChange(of: settings.pageTransition) { _, new in session.setTransition(new) }
+                .onChange(of: scenePhase, initial: true) { _, phase in session.setForeground(phase == .active) }
                 .id(ObjectIdentifier(reader))
         }
     }

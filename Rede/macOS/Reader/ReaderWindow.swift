@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ReaderWindow: View {
     @Environment(ReaderSession.self) private var session
+    @Environment(\.appearsActive) private var appearsActive
     @Bindable private var settings = Settings.shared
     @State private var noteTarget: NoteTarget?
     @State private var tocPresented = false
@@ -95,6 +96,7 @@ struct ReaderWindow: View {
         .navigationTitle(title ?? session.book?.name ?? "阅读")
         .toolbar(removing: settings.readerTitle == .hidden ? .title : nil)
         .onDisappear { session.close() }
+        .onChange(of: appearsActive, initial: true) { _, active in session.setForeground(active) }
     }
 
     private var title: String? {

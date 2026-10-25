@@ -54,6 +54,7 @@ struct BookInfoView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var metadata: EpubMetadata?
     @State private var fileSize: Int?
+    @State private var readingTime: Duration?
 
     var body: some View {
         NavigationStack {
@@ -68,6 +69,7 @@ struct BookInfoView: View {
                 row("字数", book.wordCount?.formatted())
                 row("导入时间", book.date.formatted(date: .abbreviated, time: .shortened))
                 row("最后阅读", book.lastRead?.formatted(date: .abbreviated, time: .shortened))
+                row("阅读时长", readingTime?.readingText)
             }
             .formStyle(.grouped)
             .textSelection(.enabled)
@@ -81,6 +83,7 @@ struct BookInfoView: View {
         }
         .presentationDetents([.medium, .large])
         .task {
+            readingTime = try? modelContext.readingTime(of: book)
             ChapterLengthIndexer.shared.ensure(book, in: modelContext)
             let data = try? book.epubData()
             metadata = try? data.map(parseEpub)?.model.metadata
