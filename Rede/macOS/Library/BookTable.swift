@@ -42,37 +42,41 @@ struct BookTable<Menu: View>: View {
 
             TableColumn("字数", sortUsing: comparator(.wordCount)) { book in
                 if let count = book.wordCount {
-                    Text(count.formatted()).monospacedDigit()
+                    Text(count.formatted())
+                        .monospacedDigit()
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
             .width(min: 60, ideal: 80)
-            .alignment(.numeric)
             .customizationID("wordCount")
 
             TableColumn("最近阅读", sortUsing: comparator(.lastRead)) { book in
                 if let date = book.lastRead {
-                    Text(date.formatted(date: .numeric, time: .shortened)).monospacedDigit()
+                    Text(date.formatted(.dateTime.year().month().day().hour().minute()
+                        .locale(Locale(identifier: "zh_Hans"))))
+                        .monospacedDigit()
                 }
             }
-            .width(min: 110, ideal: 130)
+            .width(min: 140, ideal: 160)
             .customizationID("lastRead")
 
             TableColumn("进度", sortUsing: comparator(.progress)) { book in
                 if let text = book.progressText {
-                    Text(text).monospacedDigit()
+                    Text(text)
+                        .monospacedDigit()
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
             .width(min: 50, ideal: 60)
-            .alignment(.numeric)
             .customizationID("progress")
 
             TableColumn("阅读时长", sortUsing: comparator(.readingTime)) { book in
                 if let text = readingTimes[book.id]?.readingText {
                     Text(text)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
             .width(min: 70, ideal: 100)
-            .alignment(.trailing)
             .customizationID("readingTime")
         }
         .tableStyle(.inset)
