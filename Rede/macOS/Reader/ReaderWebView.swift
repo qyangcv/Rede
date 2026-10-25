@@ -20,9 +20,14 @@ final class ReaderWebView: WKWebView {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented")
     }
 
+    private var toolbarObservation: NSKeyValueObservation?
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         window?.makeFirstResponder(self)
+        toolbarObservation = window?.observe(\.toolbar, options: [.initial, .new]) { window, _ in
+            window.toolbar?.allowsDisplayModeCustomization = false
+        }
     }
 
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
