@@ -5,6 +5,13 @@ final class ReaderWebView: WKWebView {
     var onKeyDown: ((NSEvent) -> Bool)?
     var onContextMenu: ((NSMenu) -> Void)?
 
+    private static let hiddenMenuItems: Set<String> = [
+        "WKMenuItemIdentifierOpenFrameInNewWindow",
+        "WKMenuItemIdentifierReload",
+        "WKMenuItemIdentifierGoBack",
+        "WKMenuItemIdentifierGoForward",
+    ]
+
     override init(frame: CGRect, configuration: WKWebViewConfiguration) {
         super.init(frame: frame, configuration: configuration)
         setValue(false, forKey: "drawsBackground")
@@ -20,6 +27,9 @@ final class ReaderWebView: WKWebView {
 
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         super.willOpenMenu(menu, with: event)
+        for item in menu.items where Self.hiddenMenuItems.contains(item.identifier?.rawValue ?? "") {
+            menu.removeItem(item)
+        }
         onContextMenu?(menu)
     }
 
@@ -53,7 +63,7 @@ extension Reader {
         let items: [NSMenuItem]
         if let hit = contextHighlight {
             items = [
-                ActionMenuItem(title: hasNote(hit.id) ? "编辑笔记…" : "添加笔记…") { onAnnotationAction(.editNote(hit)) },
+                ActionMenuItem(title: hasNote(hit.id) ? "查看笔记" : "添加笔记") { onAnnotationAction(.editNote(hit)) },
                 ActionMenuItem(title: hasNote(hit.id) ? "移除高亮与笔记" : "移除高亮") { onAnnotationAction(.delete(id: hit.id)) },
             ]
         } else if selecting {

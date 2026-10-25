@@ -201,7 +201,7 @@ struct ReaderScreen: View {
         case .highlight(let hit):
             if chromeVisible { chromeVisible = false; return }
             let hasNote = session.reader?.hasNote(hit.id) ?? false
-            let note = UIAction(title: hasNote ? "编辑笔记" : "添加笔记", image: UIImage(systemName: "square.and.pencil")) { _ in
+            let note = UIAction(title: hasNote ? "查看笔记" : "添加笔记", image: UIImage(systemName: "square.and.pencil")) { _ in
                 perform(.editNote(hit))
             }
             let delete = UIAction(title: hasNote ? "移除高亮与笔记" : "移除高亮", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in
