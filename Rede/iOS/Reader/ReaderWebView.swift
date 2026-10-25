@@ -68,7 +68,11 @@ extension Reader {
     func focus() {}
 
     fileprivate func extendMenu(_ builder: UIMenuBuilder) {
-        guard builder.system == .context, let onAnnotationAction else { return }
+        guard builder.system == .context else { return }
+        builder.replaceChildren(ofMenu: .root) { children in
+            children.filter { ($0 as? UIMenu)?.identifier == .standardEdit }
+        }
+        guard let onAnnotationAction else { return }
         let highlight = UIAction(title: "高亮", image: UIImage(systemName: "highlighter")) { _ in
             onAnnotationAction(.highlightSelection)
         }

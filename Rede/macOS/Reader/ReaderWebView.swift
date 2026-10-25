@@ -5,12 +5,7 @@ final class ReaderWebView: WKWebView {
     var onKeyDown: ((NSEvent) -> Bool)?
     var onContextMenu: ((NSMenu) -> Void)?
 
-    private static let hiddenMenuItems: Set<String> = [
-        "WKMenuItemIdentifierOpenFrameInNewWindow",
-        "WKMenuItemIdentifierReload",
-        "WKMenuItemIdentifierGoBack",
-        "WKMenuItemIdentifierGoForward",
-    ]
+    private static let copyMenuItemIdentifier = "WKMenuItemIdentifierCopy"
 
     override init(frame: CGRect, configuration: WKWebViewConfiguration) {
         super.init(frame: frame, configuration: configuration)
@@ -32,10 +27,15 @@ final class ReaderWebView: WKWebView {
 
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         super.willOpenMenu(menu, with: event)
-        for item in menu.items where Self.hiddenMenuItems.contains(item.identifier?.rawValue ?? "") {
+        for item in menu.items where item.identifier?.rawValue != Self.copyMenuItemIdentifier {
             menu.removeItem(item)
         }
         onContextMenu?(menu)
+    }
+
+    override func validRequestor(forSendType sendType: NSPasteboard.PasteboardType?,
+                                 returnType: NSPasteboard.PasteboardType?) -> Any? {
+        nil
     }
 
     override func keyDown(with event: NSEvent) {
@@ -79,7 +79,8 @@ extension Reader {
         } else {
             return
         }
-        for (index, item) in (items + [.separator()]).enumerated() {
+        let trailing: [NSMenuItem] = menu.items.isEmpty ? [] : [.separator()]
+        for (index, item) in (items + trailing).enumerated() {
             menu.insertItem(item, at: index)
         }
     }
