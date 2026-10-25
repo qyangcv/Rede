@@ -329,6 +329,10 @@ enum TextColor {
     }
 }
 
+enum LinkColor {
+    static let dark = "#7EC4E6"
+}
+
 enum HighlightColor {
     static func color(for scheme: ColorScheme) -> String {
         scheme == .dark ? "rgba(255, 200, 60, 0.28)" : "rgba(255, 200, 0, 0.35)"
@@ -404,6 +408,8 @@ struct ReaderStyle: Equatable {
             "--USER__paraSpacing": "\(paraSpacing.paraSpacing)rem",
             "--RS__textColor": forced ? "" : text,
             "--USER__textColor": forced ? text : "",
+            "--USER__linkColor": forced ? LinkColor.dark : "",
+            "--USER__visitedColor": forced ? LinkColor.dark : "",
             "--reader-bg": background.color(for: scheme),
             "--reader-pattern": pattern.css,
             "--reader-highlight": HighlightColor.color(for: scheme),
