@@ -244,7 +244,7 @@ enum LibraryLayout: String, CaseIterable, Identifiable, Codable {
 }
 
 enum LibrarySort: String, CaseIterable, Identifiable, Codable {
-    case imported, lastRead, author
+    case imported, lastRead, title, author, wordCount, progress, readingTime
 
     var id: Self { self }
 
@@ -252,7 +252,18 @@ enum LibrarySort: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .imported: "导入时间"
         case .lastRead: "阅读时间"
+        case .title: "书名"
         case .author: "作者名"
+        case .wordCount: "字数"
+        case .progress: "进度"
+        case .readingTime: "阅读时长"
+        }
+    }
+
+    var defaultOrder: SortOrder {
+        switch self {
+        case .title, .author: .forward
+        default: .reverse
         }
     }
 }
@@ -466,6 +477,8 @@ final class Settings {
 
     var librarySort: LibrarySort { didSet { save() } }
 
+    var libraryOrder: SortOrder { didSet { save() } }
+
     var iCloudSync: Bool { didSet { save() } }
 
     #if DEBUG
@@ -482,6 +495,7 @@ final class Settings {
         var brightness: Double?
         var libraryLayout: LibraryLayout?
         var librarySort: LibrarySort?
+        var libraryOrder: SortOrder?
         var iCloudSync: Bool?
     }
 
@@ -494,7 +508,9 @@ final class Settings {
         readerTitle = snapshot?.readerTitle ?? .chapter
         brightness = snapshot?.brightness ?? 1
         libraryLayout = snapshot?.libraryLayout ?? .grid
-        librarySort = snapshot?.librarySort ?? .imported
+        let librarySort = snapshot?.librarySort ?? .imported
+        self.librarySort = librarySort
+        libraryOrder = snapshot?.libraryOrder ?? librarySort.defaultOrder
         iCloudSync = snapshot?.iCloudSync ?? Self.defaultICloudSync
     }
 
@@ -508,6 +524,7 @@ final class Settings {
                                     pageTransition: pageTransition, readerTitle: readerTitle,
                                     brightness: brightness,
                                     libraryLayout: libraryLayout, librarySort: librarySort,
+                                    libraryOrder: libraryOrder,
                                     iCloudSync: iCloudSync))
                 .write(to: AppPaths.settings, options: .atomic)
         } catch {

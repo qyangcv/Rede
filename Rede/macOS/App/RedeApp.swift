@@ -38,6 +38,9 @@ struct RedeApp: App {
             CommandGroup(before: .windowList) {
                 OpenLibraryCommand()
             }
+            CommandGroup(before: .toolbar) {
+                LibraryLayoutCommands()
+            }
         }
 
         Window("阅读", id: ReaderSession.windowID) {
@@ -79,5 +82,17 @@ struct OpenLibraryCommand: View {
             openWindow(id: "library")
         }
         .keyboardShortcut("0", modifiers: .command)
+    }
+}
+
+struct LibraryLayoutCommands: View {
+    @Bindable private var settings = Settings.shared
+
+    var body: some View {
+        Picker("陈列方式", selection: $settings.libraryLayout) {
+            Text("以卡片方式").tag(LibraryLayout.grid).keyboardShortcut("1")
+            Text("以列表方式").tag(LibraryLayout.list).keyboardShortcut("2")
+        }
+        .pickerStyle(.inline)
     }
 }

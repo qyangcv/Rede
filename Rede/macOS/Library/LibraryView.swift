@@ -4,7 +4,8 @@ import UniformTypeIdentifiers
 
 struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Book.date, order: .reverse) private var books: [Book]
+    @Query private var books: [Book]
+    @Query private var spans: [ReadingSpan]
     @State private var isImporting = false
     @State private var errors: [String] = []
     @State private var booksToDelete: [Book] = []
@@ -20,33 +21,18 @@ struct LibraryView: View {
 
     var body: some View {
         NavigationStack {
-            GeometryReader { proxy in
-                let grid = BookGrid.layout(width: proxy.size.width, cardWidth: 150, minSpacing: 24)
-                ScrollView {
-                    LazyVGrid(columns: grid.columns, spacing: 28) {
-                        ForEach(books) { book in
-                            BookCard(book: book, isSelected: selection.contains(book.id))
-                                .onTapGesture(count: 2) { open(book) }
-                                .simultaneousGesture(TapGesture().onEnded { click(book) })
-                                .contextMenu { menu(for: book) }
-                       }
-                   }
-                   .padding(.horizontal, grid.spacing)
-                   .padding(.vertical, 28)
-                   .frame(minHeight: proxy.size.height, alignment: .top)
-                   .background {
-                       Color.clear
-                           .contentShape(Rectangle())
-                           .onTapGesture { selection = [] }
-                   }
-               }
-               .focusable()
-               .focusEffectDisabled()
-               .focused($focused)
-               .onCommand(#selector(NSResponder.selectAll(_:))) { selection = Set(books.map(\.id)) }
-               .onExitCommand { selection = [] }
-               .onDeleteCommand { booksToDelete = selectedBooks }
-               .onAppear { focused = true }
+            Group {
+                switch settings.libraryLayout {
+                case .grid:
+                    grid
+                case .list:
+                    BookTable(books: sortedBooks, readingTimes: spans.readingTimes,
+                              sort: $settings.librarySort, order: $settings.libraryOrder,
+                              selection: $selection, open: open) { ids in
+                        menu(for: books.filter { ids.contains($0.id) })
+                    }
+                    .onDeleteCommand { booksToDelete = selectedBooks }
+                }
             }
             .overlay {
                 if books.isEmpty {
@@ -78,6 +64,16 @@ struct LibraryView: View {
                     .help("设置")
                 }
                 .sharedBackgroundVisibility(.hidden)
+
+                ToolbarItem {
+                    Picker("陈列方式", selection: $settings.libraryLayout) {
+                        ForEach(LibraryLayout.allCases) { item in
+                            Label(item.name, systemImage: item.icon).tag(item)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .help("陈列方式")
+                }
 
                 ToolbarItemGroup {
                     AppearanceButton(appearance: $settings.appearance)
@@ -138,12 +134,48 @@ struct LibraryView: View {
         }
     }
 
+    private var grid: some View {
+        GeometryReader { proxy in
+            let grid = BookGrid.layout(width: proxy.size.width, cardWidth: 150, minSpacing: 24)
+            ScrollView {
+                LazyVGrid(columns: grid.columns, spacing: 28) {
+                    ForEach(sortedBooks) { book in
+                        BookCard(book: book, isSelected: selection.contains(book.id))
+                            .onTapGesture(count: 2) { open(book) }
+                            .simultaneousGesture(TapGesture().onEnded { click(book) })
+                            .contextMenu { menu(for: selection.contains(book.id) ? selectedBooks : [book]) }
+                    }
+                }
+                .padding(.horizontal, grid.spacing)
+                .padding(.vertical, 28)
+                .frame(minHeight: proxy.size.height, alignment: .top)
+                .background {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { selection = [] }
+                }
+            }
+            .focusable()
+            .focusEffectDisabled()
+            .focused($focused)
+            .onCommand(#selector(NSResponder.selectAll(_:))) { selection = Set(books.map(\.id)) }
+            .onExitCommand { selection = [] }
+            .onDeleteCommand { booksToDelete = selectedBooks }
+            .onAppear { focused = true }
+        }
+    }
+
     private func save() {
         do {
             try modelContext.save()
         } catch {
             errors.append(error.localizedDescription)
         }
+    }
+
+    private var sortedBooks: [Book] {
+        books.sorted(using: BookComparator(key: settings.librarySort, order: settings.libraryOrder,
+                                           readingTimes: spans.readingTimes))
     }
 
     private var selectedBooks: [Book] {
@@ -156,9 +188,10 @@ struct LibraryView: View {
         if flags.contains(.command) {
             if selection.remove(book.id) == nil { selection.insert(book.id) }
             anchor = book.id
-        } else if flags.contains(.shift), let anchor,
-                  let a = books.firstIndex(where: { $0.id == anchor }),
-                  let b = books.firstIndex(where: { $0.id == book.id }) {
+        } else if flags.contains(.shift), let anchor {
+            let books = sortedBooks
+            guard let a = books.firstIndex(where: { $0.id == anchor }),
+                  let b = books.firstIndex(where: { $0.id == book.id }) else { return }
             selection = Set(books[min(a, b)...max(a, b)].map(\.id))
         } else {
             selection = [book.id]
@@ -167,14 +200,13 @@ struct LibraryView: View {
     }
 
     @ViewBuilder
-    private func menu(for book: Book) -> some View {
-        let targets = selection.contains(book.id) ? selectedBooks : [book]
+    private func menu(for targets: [Book]) -> some View {
         if targets.count > 1 {
             Button("导出 \(targets.count) 本", systemImage: "square.and.arrow.up") { export(targets.map(\.id)) }
             Button("删除 \(targets.count) 本", systemImage: "trash", role: .destructive) {
                 booksToDelete = targets
             }
-        } else {
+        } else if let book = targets.first {
             Button("打开", systemImage: "book") { open(book) }
             Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
             Button("编辑信息", systemImage: "pencil") { bookToEdit = book }

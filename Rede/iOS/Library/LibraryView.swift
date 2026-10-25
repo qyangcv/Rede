@@ -110,7 +110,10 @@ struct LibraryView: View {
                     }
 
                     ToolbarItem {
-                        LibraryMenu(sort: $settings.librarySort,
+                        LibraryMenu(sort: Binding { settings.librarySort } set: {
+                                        settings.librarySort = $0
+                                        settings.libraryOrder = $0.defaultOrder
+                                    },
                                     layout: $settings.libraryLayout,
                                     appearance: $settings.appearance,
                                     onImport: { isImporting = true },
@@ -208,26 +211,8 @@ struct LibraryView: View {
     }
 
     private var sortedBooks: [Book] {
-        let newer: (Book, Book) -> Bool = { $0.date > $1.date }
-        let stable: (Book, Book) -> Bool = {
-            newer($0, $1) || ($0.date == $1.date && $0.id < $1.id)
-        }
-        switch settings.librarySort {
-        case .imported:
-            return books.sorted(by: stable)
-        case .lastRead:
-            return books.sorted {
-                let left = $0.lastRead ?? .distantPast
-                let right = $1.lastRead ?? .distantPast
-                guard left == right else { return left > right }
-                return stable($0, $1)
-            }
-        case .author:
-            return books.sorted {
-                guard $0.author != $1.author else { return stable($0, $1) }
-                return $0.author.localizedStandardCompare($1.author) == .orderedAscending
-            }
-        }
+        books.sorted(using: BookComparator(key: settings.librarySort, order: settings.libraryOrder,
+                                           readingTimes: [:]))
     }
 
     private func tap(_ book: Book) {

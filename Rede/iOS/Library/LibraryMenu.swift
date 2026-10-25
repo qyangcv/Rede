@@ -29,7 +29,7 @@ struct LibraryMenu: View {
             .labelsVisibility(.visible)
 
             Picker("排序方式", selection: $sort) {
-                ForEach(LibrarySort.allCases) { item in
+                ForEach([LibrarySort.imported, .lastRead, .author]) { item in
                     Text(item.name).tag(item)
                 }
             }

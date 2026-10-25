@@ -47,6 +47,10 @@ final class Book {
         position.flatMap { progress(chapter: $0.chapter, offset: $0.offset) }
     }
 
+    var progressText: String? {
+        progress?.formatted(.percent.precision(.fractionLength(0...1)).rounded(rule: .down))
+    }
+
     func progress(chapter: Int, offset: Int) -> Double? {
         guard chapter < chapterLengths.count else { return nil }
         let total = chapterLengths.reduce(0, +)

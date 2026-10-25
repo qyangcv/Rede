@@ -91,6 +91,12 @@ extension ModelContext {
     }
 }
 
+extension Sequence<ReadingSpan> {
+    var readingTimes: [String: Duration] {
+        reduce(into: [:]) { $0[$1.bookID, default: .zero] += .seconds($1.duration) }
+    }
+}
+
 extension Duration {
     var readingText: String? {
         guard self >= .seconds(60) else { return nil }
