@@ -69,6 +69,7 @@ struct ReaderScreen: View {
                         panel = nil
                     }
                 }
+                .onDisappear { UIDevice.current.isBatteryMonitoringEnabled = false }
                 .onChange(of: settings.pageTransition) { _, new in session.setTransition(new) }
                 .onChange(of: scenePhase, initial: true) { _, phase in session.setForeground(phase == .active) }
                 .id(ObjectIdentifier(reader))
@@ -183,7 +184,8 @@ struct ReaderScreen: View {
             }
         case .style:
             StyleSheet(style: $settings.readerStyle, appearance: $settings.appearance,
-                       transition: $settings.pageTransition, brightness: $settings.brightness)
+                       transition: $settings.pageTransition, brightness: $settings.brightness,
+                       showsStatus: $settings.showsStatus)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height - $0.safeAreaInsets.bottom } action: { styleHeight = $0 }
                 .presentationDetents([styleHeight.map { .height($0) } ?? .medium])
                 .presentationBackgroundInteraction(.enabled)

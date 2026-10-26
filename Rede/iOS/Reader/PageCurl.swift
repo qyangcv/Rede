@@ -169,14 +169,24 @@ struct PageDecor: View {
                     .padding(.top, ReaderLayout.chapterTitleTop)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            if let page {
-                Text("\(page.page + 1) / \(page.pageCount)")
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, ReaderLayout.pageNumberBottom)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            ZStack {
+                if Settings.shared.showsStatus {
+                    HStack {
+                        TimelineView(.everyMinute) { Text($0.date, format: .dateTime.hour().minute()) }
+                        Spacer()
+                        BatteryLabel()
+                    }
+                }
+                if let page {
+                    Text("\(page.page + 1) / \(page.pageCount)")
+                }
             }
+            .font(.caption)
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, CGFloat(ReaderLayout.gutter))
+            .padding(.bottom, ReaderLayout.pageNumberBottom)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
         .allowsHitTesting(false)
     }

@@ -209,20 +209,6 @@ enum Appearance: String, CaseIterable, Identifiable, Codable {
        }
 }
 
-enum ReaderTitle: String, CaseIterable, Identifiable, Codable {
-    case hidden, book, chapter
-
-    var id: Self { self }
-
-    var name: String {
-        switch self {
-        case .hidden: "隐藏"
-        case .book: "书名"
-        case .chapter: "章节名"
-        }
-    }
-}
-
 enum LibraryLayout: String, CaseIterable, Identifiable, Codable {
     case grid, list
 
@@ -475,9 +461,15 @@ final class Settings {
 
     var pageTransition: PageTransition { didSet { save() } }
 
+    #if os(macOS)
     var readerTitle: ReaderTitle { didSet { save() } }
+    #endif
 
+    #if os(iOS)
     var brightness: Double { didSet { save() } }
+
+    var showsStatus: Bool { didSet { save() } }
+    #endif
 
     var libraryLayout: LibraryLayout { didSet { save() } }
 
@@ -497,8 +489,13 @@ final class Settings {
         var readerStyle: ReaderStyle?
         var appearance: Appearance?
         var pageTransition: PageTransition?
+        #if os(macOS)
         var readerTitle: ReaderTitle?
+        #endif
+        #if os(iOS)
         var brightness: Double?
+        var showsStatus: Bool?
+        #endif
         var libraryLayout: LibraryLayout?
         var librarySort: LibrarySort?
         var libraryOrder: SortOrder?
@@ -511,8 +508,13 @@ final class Settings {
         readerStyle = snapshot?.readerStyle ?? .default
         appearance = snapshot?.appearance ?? .system
         pageTransition = snapshot?.pageTransition ?? .default
+        #if os(macOS)
         readerTitle = snapshot?.readerTitle ?? .chapter
+        #endif
+        #if os(iOS)
         brightness = snapshot?.brightness ?? 1
+        showsStatus = snapshot?.showsStatus ?? true
+        #endif
         libraryLayout = snapshot?.libraryLayout ?? .grid
         let librarySort = snapshot?.librarySort ?? .imported
         self.librarySort = librarySort
@@ -526,12 +528,19 @@ final class Settings {
                                                     withIntermediateDirectories: true)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(Snapshot(readerStyle: readerStyle, appearance: appearance,
-                                    pageTransition: pageTransition, readerTitle: readerTitle,
-                                    brightness: brightness,
+            var snapshot = Snapshot(readerStyle: readerStyle, appearance: appearance,
+                                    pageTransition: pageTransition,
                                     libraryLayout: libraryLayout, librarySort: librarySort,
                                     libraryOrder: libraryOrder,
-                                    iCloudSync: iCloudSync))
+                                    iCloudSync: iCloudSync)
+            #if os(macOS)
+            snapshot.readerTitle = readerTitle
+            #endif
+            #if os(iOS)
+            snapshot.brightness = brightness
+            snapshot.showsStatus = showsStatus
+            #endif
+            try encoder.encode(snapshot)
                 .write(to: AppPaths.settings, options: .atomic)
         } catch {
             Self.log.error("保存设置失败：\(error.localizedDescription, privacy: .public)")

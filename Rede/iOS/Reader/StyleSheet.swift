@@ -5,6 +5,7 @@ struct StyleSheet: View {
     @Binding var appearance: Appearance
     @Binding var transition: PageTransition
     @Binding var brightness: Double
+    @Binding var showsStatus: Bool
     @State private var choosingFont = false
 
     var body: some View {
@@ -86,6 +87,19 @@ struct StyleSheet: View {
                     label("翻页")
                     TransitionPicker(selection: $transition)
                 }
+            }
+
+            GridRow {
+                HStack(spacing: 16) {
+                    label("时间和电量")
+                    Picker("时间和电量", selection: $showsStatus) {
+                        Text("显示").tag(true)
+                        Text("隐藏").tag(false)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
+                .gridCellColumns(2)
             }
         }
         .padding([.horizontal, .top], 20)
