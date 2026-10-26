@@ -58,8 +58,8 @@ BUILD_NUMBER=$(date +%Y%m%d%H%M)
 TAG="ios-v$VERSION-$BUILD_NUMBER"
 BUILD=build/ios
 
-# 1b. CloudKit schema must already be deployed to production
-bash scripts/cloudkit-schema.sh check
+# 1b. Generate the CloudKit schema from the models, commit it if changed, and deploy it to Production
+bash scripts/cloudkit-schema.sh release
 
 # 1c. What to Test for TestFlight testers
 NOTES_FILE=$(mktemp -t rede-what-to-test)
@@ -67,8 +67,6 @@ zsh -f scripts/what-to-test.zsh "$NOTES_FILE" "$(git log --format='- %s' --grep=
 NOTES=$(<"$NOTES_FILE")
 rm "$NOTES_FILE"
 [[ -n $NOTES ]] || { echo "What to Test cannot be empty"; exit 1; }
-
-gum confirm "Upload Rede iOS $VERSION ($BUILD_NUMBER) to TestFlight?" || exit 0
 
 # 2. Archive (= Xcode → Product → Archive)
 rm -rf $BUILD
@@ -88,10 +86,11 @@ gum spin --title "Uploading to App Store Connect…" --show-error -- \
     -exportOptionsPlist scripts/ExportOptions-iOS.plist \
     -exportPath $BUILD/export
 
-# 4. Tag the uploaded commit
-git push origin main
+# 4. Push main and tag the uploaded commit
 git tag "$TAG"
-git push origin "$TAG" --quiet
+git push --quiet origin main "$TAG"
+echo "Pushed branch main -> origin/main"
+echo "Pushed tag $TAG -> origin/$TAG"
 
 # 5. Wait for processing, then hand the build to external testers
 echo "Waiting for App Store Connect to process ${BUILD_NUMBER}…"

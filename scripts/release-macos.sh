@@ -36,12 +36,12 @@ if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
 fi
 
 TAG="v$VERSION"
-BUILD_NUMBER=$(git rev-list --count HEAD)
 BUILD=build
 DMG=dist/Rede-$VERSION.dmg
 
-# 1b. CloudKit schema must already be deployed to production
-bash scripts/cloudkit-schema.sh check
+# 1b. Generate the CloudKit schema from the models, commit it if changed, and deploy it to Production
+bash scripts/cloudkit-schema.sh release
+BUILD_NUMBER=$(git rev-list --count HEAD)
 
 gum confirm "Build and release $TAG (build $BUILD_NUMBER)?" || exit 0
 
@@ -87,12 +87,14 @@ $BUILD/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_appcast
 CHANGES=$(git log ${LATEST:+$LATEST..}HEAD --no-merges --pretty='- %s')
 NOTES=$(printf '## 更新内容\n\n%s' "$CHANGES")
 
-git push origin main
+git push --quiet origin main
+echo "Pushed branch main -> origin/main"
 gh release create "$TAG" "$DMG" $BUILD/appcast/appcast.xml \
   --target "$(git rev-parse HEAD)" \
   --title "Rede $VERSION" \
   --notes "$NOTES" \
-  --generate-notes
+  --generate-notes > /dev/null
+echo "Created tag $TAG on origin"
 git fetch --tags --quiet
 
 echo "Released $TAG"

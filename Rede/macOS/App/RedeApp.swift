@@ -17,6 +17,17 @@ struct RedeApp: App {
        }()
 
     init () {
+        #if DEBUG
+        if CommandLine.arguments.contains(CloudKitSchema.argument) {
+            do {
+                try CloudKitSchema.initialize()
+                exit(0)
+            } catch {
+                print(error)
+                exit(1)
+            }
+        }
+        #endif
         Settings.shared.appearance.apply()
         SyncMonitor.shared.start()
         NSWindow.allowsAutomaticWindowTabbing = false

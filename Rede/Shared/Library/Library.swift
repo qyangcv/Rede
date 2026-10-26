@@ -23,6 +23,10 @@ enum CloudSync {
     static let isActive = Settings.shared.iCloudSync
 }
 
+enum LibrarySchema {
+    static let models: [any PersistentModel.Type] = [Book.self, BookFile.self, Annotation.self, ReadingSpan.self]
+}
+
 @Model
 final class Book {
     var id: String = ""
@@ -101,7 +105,7 @@ extension ModelContainer {
             let configuration = ModelConfiguration(
                 url: AppPaths.store,
                 cloudKitDatabase: CloudSync.isActive ? .private(CloudSync.container) : .none)
-            return try ModelContainer(for: Book.self, BookFile.self, Annotation.self, ReadingSpan.self, configurations: configuration)
+            return try ModelContainer(for: Schema(LibrarySchema.models), configurations: configuration)
         } catch {
             fatalError("无法创建数据库：\(error)")
         }

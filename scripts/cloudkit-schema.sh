@@ -2,12 +2,12 @@
 # CloudKit schema gate.
 #
 # Usage:
-#   bash scripts/cloudkit-schema.sh record   # export the Development schema to cloudkit/schema.ckdb
-#   bash scripts/cloudkit-schema.sh check    # schema.ckdb matches Development and Production contains it
-#   bash scripts/cloudkit-schema.sh deploy   # record, open the CloudKit Console to deploy, then check
+#   bash scripts/cloudkit-schema.sh generate # create the Development schema from the models in code
+#   bash scripts/cloudkit-schema.sh record   # generate, then export Development to cloudkit/schema.ckdb
+#   bash scripts/cloudkit-schema.sh release  # record, commit schema.ckdb if changed, then wait until Production contains it
 #
 # cktool can only write the Development schema; Production is deployed from the
-# CloudKit Console (Schema → Deploy Schema Changes).
+# CloudKit Console (iCloud.dev.qyang.Rede → Development → Deploy Schema Changes…).
 
 set -euo pipefail
 
@@ -16,13 +16,15 @@ cd "$(dirname "$0")/.."
 TEAM_ID=BTW6LD2Q74
 CONTAINER_ID=iCloud.dev.qyang.Rede
 SCHEMA=cloudkit/schema.ckdb
-CONSOLE_URL=https://icloud.developer.apple.com/
+DERIVED_DATA=build/schema
+APP=$DERIVED_DATA/Build/Products/Debug/Rede.app
+CONSOLE_URL=https://icloud.developer.apple.com/dashboard/database
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 usage() {
-  sed -n '2,10p' "$0"
+  sed -n '2,9p' "$0"
 }
 
 fail() {
@@ -58,68 +60,66 @@ normalize() {
   ' "$1" | grep -v '^Users ' | LC_ALL=C sort -u
 }
 
-# Lines of $1 (normalized) that Production lacks
-missing_in_production() {
-  export_env production "$TMP/production.ckdb"
-  normalize "$TMP/production.ckdb" > "$TMP/production"
-  comm -23 "$1" "$TMP/production"
+# Debug macOS build calls initializeCloudKitSchema for every model in LibrarySchema
+generate() {
+  gum spin --title "Building schema generator…" --show-error -- \
+    xcodebuild build -quiet -allowProvisioningUpdates \
+      -scheme Rede -configuration Debug \
+      -destination "platform=macOS,arch=$(uname -m)" \
+      -derivedDataPath "$DERIVED_DATA"
+  gum spin --title "Generating Development schema from models…" --show-error -- \
+    "$APP/Contents/MacOS/Rede" --initialize-cloudkit-schema
 }
 
 record() {
+  generate
   mkdir -p "$(dirname "$SCHEMA")"
-  export_env development "$SCHEMA"
-  echo "Wrote $SCHEMA"
-  git diff --stat -- "$SCHEMA" || true
+  export_env development "$TMP/development.ckdb"
+  if cmp -s "$TMP/development.ckdb" "$SCHEMA"; then
+    echo "$SCHEMA unchanged"
+  else
+    mv "$TMP/development.ckdb" "$SCHEMA"
+    echo "Updated $SCHEMA"
+  fi
 }
 
-check() {
-  [[ -f "$SCHEMA" ]] || fail "$SCHEMA not found; run: bash scripts/cloudkit-schema.sh record"
+# Loop until Production contains every line of $1 (normalized); guides the Console deploy when interactive
+await_production() {
+  local missing opened=false
+  while :; do
+    export_env production "$TMP/production.ckdb"
+    normalize "$TMP/production.ckdb" > "$TMP/production"
+    missing=$(comm -23 "$1" "$TMP/production")
+    [[ -n "$missing" ]] || break
 
-  export_env development "$TMP/development.ckdb"
-  normalize "$SCHEMA" > "$TMP/committed"
-  normalize "$TMP/development.ckdb" > "$TMP/development"
-
-  if ! diff -u "$TMP/committed" "$TMP/development" > "$TMP/stale.diff"; then
-    cat "$TMP/stale.diff" >&2
-    fail "$SCHEMA is behind Development; run: bash scripts/cloudkit-schema.sh record"
-  fi
-
-  local missing
-  missing=$(missing_in_production "$TMP/development")
-  if [[ -n "$missing" ]]; then
+    echo "Pending for Production:" >&2
     printf '%s\n' "$missing" >&2
-    fail "Production is missing the structures above; deploy at $CONSOLE_URL ($CONTAINER_ID → Schema → Deploy Schema Changes)"
-  fi
-
+    [[ -t 0 ]] || fail "Deploy at $CONSOLE_URL ($CONTAINER_ID → Development → Deploy Schema Changes…)"
+    if ! $opened; then
+      open "$CONSOLE_URL"
+      opened=true
+    fi
+    gum confirm "Deploy in the Console: $CONTAINER_ID → Development → Deploy Schema Changes…" \
+      --affirmative "Re-check" --negative "Abort" || exit 1
+  done
   echo "Production schema is up to date"
 }
 
-deploy() {
+release() {
   record
+  if [[ -n $(git status --porcelain -- "$SCHEMA") ]]; then
+    git add "$SCHEMA"
+    git commit --quiet -m "chore: 更新 CloudKit schema" -- "$SCHEMA"
+    echo "Committed $SCHEMA"
+  fi
 
   normalize "$SCHEMA" > "$TMP/wanted"
-  local missing
-  missing=$(missing_in_production "$TMP/wanted")
-  if [[ -z "$missing" ]]; then
-    echo "Production schema is up to date"
-    return
-  fi
-
-  echo "Pending for Production:"
-  printf '%s\n' "$missing"
-
-  open "$CONSOLE_URL"
-  echo "Opened CloudKit Console: $CONTAINER_ID → Schema → Deploy Schema Changes"
-  if [[ -t 0 ]]; then
-    read -r -p "Press Enter after deploying to verify" _
-  fi
-
-  check
+  await_production "$TMP/wanted"
 }
 
 case "${1:-}" in
-  record) record ;;
-  check)  check ;;
-  deploy) deploy ;;
-  *)      usage; exit 64 ;;
+  generate) generate ;;
+  record)   record ;;
+  release)  release ;;
+  *)        usage; exit 64 ;;
 esac
