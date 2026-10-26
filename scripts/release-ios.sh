@@ -14,11 +14,22 @@ git fetch origin main --tags --quiet
 # App Store Connect API key (Users and Access → Integrations → Team Keys)
 ASC_KEY_ID=2GF2XJF2WX
 ASC_ISSUER_ID=a1359993-1cf9-4beb-aacc-9b0dee256ca2
+ASC_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8"
 ASC_AUTH=(
-  -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8"
+  -authenticationKeyPath "$ASC_KEY_PATH"
   -authenticationKeyID $ASC_KEY_ID
   -authenticationKeyIssuerID $ASC_ISSUER_ID
 )
+
+APP_ID=6817790500
+BETA_GROUP_ID=ea9d9708-80a6-4832-8594-2b7118f9f135
+
+asc() {
+  curl -sSg --fail-with-body -X "$1" "https://api.appstoreconnect.apple.com/v1/$2" \
+    -H "Authorization: Bearer $(swift scripts/asc-jwt.swift $ASC_KEY_ID $ASC_ISSUER_ID "$ASC_KEY_PATH")" \
+    -H "Content-Type: application/json" \
+    ${3:+-d} ${3:+"$3"}
+}
 
 # 1. Choose version (tags look like ios-v1.2.3-202610011530)
 LATEST=$(git tag -l 'ios-v*' --sort=-v:refname | head -1)
@@ -50,6 +61,12 @@ BUILD=build/ios
 # 1b. CloudKit schema must already be deployed to production
 bash scripts/cloudkit-schema.sh check
 
+# 1c. What to Test for TestFlight testers
+NOTES=$(gum write --header "What to Test for $VERSION ($BUILD_NUMBER) · Enter for newline, Ctrl+D to finish" \
+  --value "$(git log --format='- %s' --grep='^iOS' "${LATEST:+$LATEST..}HEAD")" \
+  --width 80 --height 12 --char-limit 4000)
+[[ -n $NOTES ]] || { echo "What to Test cannot be empty"; exit 1; }
+
 gum confirm "Upload Rede iOS $VERSION ($BUILD_NUMBER) to TestFlight?" || exit 0
 
 # 2. Archive (= Xcode → Product → Archive)
@@ -75,4 +92,27 @@ git push origin main
 git tag "$TAG"
 git push origin "$TAG" --quiet
 
-echo "Uploaded $TAG — it will appear in TestFlight after processing"
+# 5. Wait for processing, then hand the build to external testers
+echo "Waiting for App Store Connect to process $BUILD_NUMBER…"
+while :; do
+  BUILD_JSON=$(asc GET "builds?filter[app]=$APP_ID&filter[version]=$BUILD_NUMBER")
+  STATE=$(jq -r '.data[0].attributes.processingState // empty' <<< "$BUILD_JSON")
+  case $STATE in
+    VALID)          break ;;
+    FAILED|INVALID) echo "Build processing $STATE"; exit 1 ;;
+  esac
+  sleep 30
+done
+BUILD_ID=$(jq -r '.data[0].id' <<< "$BUILD_JSON")
+
+LOCALIZATION_ID=$(asc GET "betaBuildLocalizations?filter[build]=$BUILD_ID&filter[locale]=zh-Hans" | jq -r '.data[0].id')
+asc PATCH "betaBuildLocalizations/$LOCALIZATION_ID" "$(jq -n --arg id "$LOCALIZATION_ID" --arg notes "$NOTES" \
+  '{data: {type: "betaBuildLocalizations", id: $id, attributes: {whatsNew: $notes}}}')" > /dev/null
+
+asc POST "builds/$BUILD_ID/relationships/betaGroups" \
+  "{\"data\":[{\"type\":\"betaGroups\",\"id\":\"$BETA_GROUP_ID\"}]}" > /dev/null
+
+asc POST betaAppReviewSubmissions \
+  "{\"data\":{\"type\":\"betaAppReviewSubmissions\",\"relationships\":{\"build\":{\"data\":{\"type\":\"builds\",\"id\":\"$BUILD_ID\"}}}}}" > /dev/null
+
+echo "Submitted $TAG for Beta App Review — testers get it automatically once approved"
