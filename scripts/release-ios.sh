@@ -62,9 +62,10 @@ BUILD=build/ios
 bash scripts/cloudkit-schema.sh check
 
 # 1c. What to Test for TestFlight testers
-NOTES=$(gum write --header "What to Test for $VERSION ($BUILD_NUMBER) · Enter for newline, Ctrl+D to finish" \
-  --value "$(git log --format='- %s' --grep='^iOS' "${LATEST:+$LATEST..}HEAD")" \
-  --width 80 --height 12 --char-limit 4000)
+NOTES_FILE=$(mktemp -t rede-what-to-test)
+zsh -f scripts/what-to-test.zsh "$NOTES_FILE" "$(git log --format='- %s' --grep='^iOS' "${LATEST:+$LATEST..}HEAD")"
+NOTES=$(<"$NOTES_FILE")
+rm "$NOTES_FILE"
 [[ -n $NOTES ]] || { echo "What to Test cannot be empty"; exit 1; }
 
 gum confirm "Upload Rede iOS $VERSION ($BUILD_NUMBER) to TestFlight?" || exit 0
