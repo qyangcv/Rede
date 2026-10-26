@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 git fetch origin main --tags --quiet
 
 # App Store Connect API key (Users and Access → Integrations → Team Keys)
-ASC_KEY_ID=2GF2XJF2WX
+ASC_KEY_ID=3T9BZJ4X96
 ASC_ISSUER_ID=a1359993-1cf9-4beb-aacc-9b0dee256ca2
 ASC_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_$ASC_KEY_ID.p8"
 ASC_AUTH=(
@@ -94,7 +94,7 @@ git tag "$TAG"
 git push origin "$TAG" --quiet
 
 # 5. Wait for processing, then hand the build to external testers
-echo "Waiting for App Store Connect to process $BUILD_NUMBER…"
+echo "Waiting for App Store Connect to process ${BUILD_NUMBER}…"
 while :; do
   BUILD_JSON=$(asc GET "builds?filter[app]=$APP_ID&filter[version]=$BUILD_NUMBER")
   STATE=$(jq -r '.data[0].attributes.processingState // empty' <<< "$BUILD_JSON")
