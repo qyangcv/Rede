@@ -178,6 +178,9 @@ async function prepare(doc) {
     { background-color: var(--reader-highlight); }
     ::highlight(${NOTE_LAYER}) { text-decoration: underline dashed 1.5px var(--reader-note); }
     @layer rede {
+      body {
+        text-align: justify;
+      }
       img, svg, video, object, embed, iframe, canvas, input[type="image"] {
         max-width: min(100%, var(--rede-media-width)) !important;
         max-height: var(--rede-media-height) !important;
