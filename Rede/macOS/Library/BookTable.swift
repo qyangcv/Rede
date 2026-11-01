@@ -49,6 +49,14 @@ struct BookTable<Menu: View>: View {
             }
             .width(min: 60, ideal: 80)
             .customizationID("wordCount")
+            
+            TableColumn("添加日期", sortUsing: comparator(.imported)) { book in
+                Text(book.date.formatted(.dateTime.year().month().day().hour().minute()
+                    .locale(Locale(identifier: "zh_Hans"))))
+                    .monospacedDigit()
+            }
+            .width(min: 140, ideal: 160)
+            .customizationID("date")
 
             TableColumn("最近阅读", sortUsing: comparator(.lastRead)) { book in
                 if let date = book.lastRead {

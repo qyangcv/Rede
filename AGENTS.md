@@ -13,4 +13,4 @@ Rede: native EPUB reader for macOS 26+ and iOS 26+, built for Chinese text. Libr
 Models under `Rede/Shared` sync to CloudKit; the release scripts generate and deploy the schema.
 - Register every new `@Model` in `LibrarySchema.models`.
 - Production schema is additive-only: never rename or remove a stored property or model.
-- Every property needs a default or is optional; relationships are optional; no `@Attribute(.unique)`.
+- Every property needs a default or is optional; relationships are optional; no `@Attribute(.unique)`.g
