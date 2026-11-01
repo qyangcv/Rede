@@ -49,7 +49,7 @@ struct ReaderWindow: View {
                         .sharedBackgroundVisibility(.hidden)
 
                         ToolbarItem(placement: .primaryAction) {
-                            AnnotationButton(bookmarks: session.bookmarks, highlights: session.highlights,
+                            AnnotationButton(toc: reader.toc, bookmarks: session.bookmarks, highlights: session.highlights,
                                              progress: session.progress(of:), onSelect: session.go(to:),
                                              onDelete: { session.deleteAnnotation(id: $0.id) })
                         }

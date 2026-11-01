@@ -152,6 +152,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
     static let gestureChannel = "gesture"
 
     private(set) var position: ReadingPosition?
+    private var anchors: [String: Int] = [:]
 
     var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
     var onGesture: ((ReaderGesture) -> Void)?
@@ -306,18 +307,26 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     fileprivate func receive(_ report: ProgressReport) {
         position = report.position
-        onProgress?(report.position, report.page, tocItem(at: report.position, anchors: report.anchors))
+        anchors = report.anchors
+        onProgress?(report.position, report.page,
+                    tocItem(chapter: report.position.chapter, offset: report.position.offset, anchors: report.anchors))
     }
 
     func peek(from position: ReadingPosition, step: Int) async -> RenderedPage? {
         guard let report = await bridge.peek(from: position, step: step),
               let image = await snapshot() else { return nil }
         return RenderedPage(image: image, position: report.position, page: report.page,
-                            chapter: tocItem(at: report.position, anchors: report.anchors))
+                            chapter: tocItem(chapter: report.position.chapter, offset: report.position.offset,
+                                             anchors: report.anchors))
     }
 
-    private func tocItem(at position: ReadingPosition, anchors: [String: Int]) -> TOCItem? {
-        let target = (position.chapter, position.offset < 0 ? Int.max : position.offset)
+    func tocItem(at offset: Int) -> TOCItem? {
+        guard let position else { return nil }
+        return tocItem(chapter: position.chapter, offset: offset, anchors: anchors)
+    }
+
+    func tocItem(chapter: Int, offset: Int, anchors: [String: Int]) -> TOCItem? {
+        let target = (chapter, offset < 0 ? Int.max : offset)
         let keys = toc.indices.compactMap { i -> (Int, Int, Int)? in
             let entry = toc[i].entry
             guard let spine = spineIndex[entry.path] else { return nil }

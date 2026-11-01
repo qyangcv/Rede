@@ -80,7 +80,7 @@ const reader = {
     if (start >= end || rects.length === 0) return null;
     // 原生侧把笔记编辑框指向选区末行
     const rect = shellRect(rects[rects.length - 1]);
-    return { chapter: state.chapterId, start, end, text: excerpt(start, end - start), rect };
+    return { chapter: state.chapterId, start, end, text: excerpt(start, end - start), rect, anchors: state.anchors };
   },
 
   // 前后翻 delta 页，返回是否落位

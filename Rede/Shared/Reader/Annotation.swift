@@ -18,14 +18,16 @@ final class Annotation {
     var text: String = ""
     var note: String = ""
     var created: Date = Date.now
+    var tocID: String?
 
-    init(bookID: String, kind: Kind, chapter: Int, start: Int, end: Int, text: String) {
+    init(bookID: String, kind: Kind, chapter: Int, start: Int, end: Int, text: String, tocID: String?) {
         self.bookID = bookID
         self.kindRaw = kind.rawValue
         self.chapter = chapter
         self.start = start
         self.end = end
         self.text = text
+        self.tocID = tocID
     }
 
     var kind: Kind? { Kind(rawValue: kindRaw) }
@@ -60,6 +62,7 @@ struct TextSelection: Decodable {
     let end: Int
     let text: String
     let rect: WebRect
+    let anchors: [String: Int]
 }
 
 final class AnnotationStore {
@@ -86,15 +89,15 @@ final class AnnotationStore {
         }
     }
 
-    func addBookmark(chapter: Int, offset: Int, text: String) {
+    func addBookmark(chapter: Int, offset: Int, text: String, tocID: String?) {
         context.insert(Annotation(bookID: bookID, kind: .bookmark, chapter: chapter,
-                                  start: offset, end: offset, text: text))
+                                  start: offset, end: offset, text: text, tocID: tocID))
         save()
     }
 
-    func addHighlight(_ selection: TextSelection) -> Annotation {
+    func addHighlight(_ selection: TextSelection, tocID: String?) -> Annotation {
         let annotation = Annotation(bookID: bookID, kind: .highlight, chapter: selection.chapter,
-                                    start: selection.start, end: selection.end, text: selection.text)
+                                    start: selection.start, end: selection.end, text: selection.text, tocID: tocID)
         context.insert(annotation)
         save()
         return annotation

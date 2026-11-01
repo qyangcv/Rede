@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AnnotationList: View {
     let kind: Annotation.Kind
-    let annotations: [Annotation]
+    let sections: [AnnotationSections.Section]
     let progress: (Annotation) -> Double?
     let onSelect: (Annotation) -> Void
     let onDelete: (Annotation) -> Void
@@ -10,7 +10,7 @@ struct AnnotationList: View {
     @State private var contentHeight: CGFloat = 0
 
     var body: some View {
-        if annotations.isEmpty {
+        if sections.isEmpty {
             switch kind {
             case .bookmark:
                 EmptyState(title: "没有书签", systemImage: "bookmark", description: "按 ⌘D 添加本页书签")
@@ -20,14 +20,25 @@ struct AnnotationList: View {
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(annotations) { annotation in
-                        AnnotationRow(annotation: annotation, isBookmark: kind == .bookmark, progress: progress(annotation)) {
-                            onSelect(annotation)
+                    ForEach(sections) { section in
+                        if let title = section.title {
+                            Text(title)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 16)
+                                .padding(.top, section.id == sections.first?.id ? 8 : 16)
+                                .padding(.bottom, 4)
+                                .accessibilityAddTraits(.isHeader)
                         }
-                        .contextMenu {
-                            Button(kind == .bookmark ? "移除书签" : annotation.note.isEmpty ? "移除高亮" : "移除高亮与笔记",
-                                   systemImage: "trash", role: .destructive) {
-                                onDelete(annotation)
+                        ForEach(section.annotations) { annotation in
+                            AnnotationRow(annotation: annotation, isBookmark: kind == .bookmark, progress: progress(annotation)) {
+                                onSelect(annotation)
+                            }
+                            .contextMenu {
+                                Button(kind == .bookmark ? "移除书签" : annotation.note.isEmpty ? "移除高亮" : "移除高亮与笔记",
+                                       systemImage: "trash", role: .destructive) {
+                                    onDelete(annotation)
+                                }
                             }
                         }
                     }

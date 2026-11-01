@@ -128,10 +128,11 @@ final class ReaderSession {
     }
 
     func toggleBookmark() {
-        guard let annotationStore, let page, let position = reader?.position else { return }
+        guard let annotationStore, let page, let reader, let position = reader.position else { return }
         if page.bookmarks.isEmpty {
             guard let start = page.start else { return }
-            annotationStore.addBookmark(chapter: position.chapter, offset: start, text: page.excerpt)
+            annotationStore.addBookmark(chapter: position.chapter, offset: start, text: page.excerpt,
+                                        tocID: reader.tocItem(at: start)?.id)
         } else {
             annotationStore.delete(ids: page.bookmarks)
         }
@@ -142,7 +143,8 @@ final class ReaderSession {
         guard let reader, let annotationStore else { return }
         Task {
             guard let selection = await reader.takeSelection() else { return }
-            let annotation = annotationStore.addHighlight(selection)
+            let tocID = reader.tocItem(chapter: selection.chapter, offset: selection.start, anchors: selection.anchors)?.id
+            let annotation = annotationStore.addHighlight(selection, tocID: tocID)
             pushAnnotations()
             created?(annotation, selection.rect.cgRect)
         }
