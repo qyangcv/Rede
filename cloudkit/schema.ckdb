@@ -18,6 +18,8 @@ DEFINE SCHEMA
         CD_start               INT64 QUERYABLE SORTABLE,
         CD_text                STRING QUERYABLE SEARCHABLE SORTABLE,
         CD_text_ckAsset        ASSET,
+        CD_tocID               STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_tocID_ckAsset       ASSET,
         "___createTime"        TIMESTAMP,
         "___createdBy"         REFERENCE,
         "___etag"              STRING,
