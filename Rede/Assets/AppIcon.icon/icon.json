@@ -1,17 +1,34 @@
 {
-  "fill" : {
-    "solid" : "srgb:0.93333,0.94510,0.94902,1.00000"
-  },
+  "fill-specializations" : [
+    {
+      "value" : {
+        "solid" : "srgb:0.93333,0.92549,0.90588,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : "system-dark"
+    }
+  ],
   "groups" : [
     {
       "blur-material" : null,
       "layers" : [
         {
-          "image-name" : "Frame.svg",
+          "image-name-specializations" : [
+            {
+              "value" : "Frame.svg"
+            },
+            {
+              "appearance" : "dark",
+              "value" : "FrameDark.svg"
+            }
+          ],
           "name" : "Frame"
         }
       ],
       "lighting" : "individual",
+      "name" : "Group",
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
