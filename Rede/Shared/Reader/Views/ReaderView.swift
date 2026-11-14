@@ -27,7 +27,7 @@ struct ReaderView: View {
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { _ in pages?.invalidate() }
             if let page {
                 Text("\(page.page + 1) / \(page.pageCount)")
-                    .font(.caption)
+                    .font(.callout)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                     .padding(.bottom, ReaderLayout.pageNumberBottom)
