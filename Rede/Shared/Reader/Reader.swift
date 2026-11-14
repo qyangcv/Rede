@@ -279,10 +279,11 @@ final class Reader: NSObject,  WKNavigationDelegate {
         }
     }
 
-    func turn(_ step: Int) {
+    @discardableResult
+    func turn(_ step: Int) -> Task<Void, Never> {
         navigated = true
         onTurn?()
-        Task { await bridge.turn(step) }
+        return Task { await bridge.turn(step) }
     }
 
     func show(_ position: ReadingPosition) async {

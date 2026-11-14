@@ -13,8 +13,37 @@ struct ReaderWindow: View {
 
     var body: some View {
         ZStack {
-            if let reader = session.reader {
-                ReaderView(reader: reader, pages: session.turner?.pages, page: session.page)
+            if let reader = session.reader, let turner = session.turner {
+                ReaderView(reader: reader, pages: turner.pages, page: nil)
+                    .background {
+                        settings.readerStyle.background.swatch(for: colorScheme)
+                            .ignoresSafeArea()
+                    }
+                    .background {
+                        if let pages = turner.pages {
+                            PageRendererHost(pages: pages)
+                                .ignoresSafeArea()
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                                .id(ObjectIdentifier(pages))
+                        }
+                    }
+                    .overlay {
+                        turner.layer
+                            .ignoresSafeArea()
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
+                    .overlay(alignment: .bottom) {
+                        if let page = session.page {
+                            Text("\(page.page + 1) / \(page.pageCount)")
+                                .font(.callout)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                                .padding(.bottom, ReaderLayout.pageNumberBottom)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .overlay(alignment: .top) {
                         Color.clear
                             .frame(height: 28)
@@ -86,6 +115,7 @@ struct ReaderWindow: View {
                         reader.onAnnotationAction = { perform($0) }
                     }
                     .onChange(of: settings.pageTransition) { _, new in session.setTransition(new) }
+                    .onDisappear { turner.detach() }
                     .id(ObjectIdentifier(reader))
             } else {
                 ContentUnavailableView("No book opened", systemImage: "book")

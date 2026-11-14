@@ -19,10 +19,12 @@ final class PageRenderer {
 
     let readers: [PageDirection: Reader]
     var onCurrent: ((RenderedPage) -> Void)?
+    var onInvalidate: (() -> Void)?
     private var window: [RenderedPage] = []
     private var center = 0
     private var rendering: Set<PageDirection> = []
     private let main: Reader
+    private let followsMain: Bool
     private var ready: Set<PageDirection> = []
     private var generation = 0
 
@@ -30,8 +32,9 @@ final class PageRenderer {
         window.indices.contains(center) ? window[center] : nil
     }
 
-    init(main: Reader, book: EpubBook, start: ReadingPosition?) {
+    init(main: Reader, book: EpubBook, start: ReadingPosition?, followsMain: Bool = false) {
         self.main = main
+        self.followsMain = followsMain
         readers = Dictionary(uniqueKeysWithValues: PageDirection.allCases.map {
             ($0, Reader(book: book, start: start))
         })
@@ -64,10 +67,17 @@ final class PageRenderer {
         generation += 1
         window = []
         center = 0
+        onInvalidate?()
     }
 
     func prepare(_ position: ReadingPosition, page: PageInfo, chapter: TOCItem?) {
-        guard index(of: position) == nil else { return }
+        if let index = index(of: position) {
+            if !followsMain { return }
+            if window[index].page == page {
+                if index != center { move(to: window[index]) }
+                return
+            }
+        }
         invalidate()
         let generation = generation
         Task {

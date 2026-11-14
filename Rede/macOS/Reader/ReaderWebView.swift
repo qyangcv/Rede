@@ -4,6 +4,9 @@ import WebKit
 final class ReaderWebView: WKWebView {
     var onKeyDown: ((NSEvent) -> Bool)?
     var onContextMenu: ((NSMenu) -> Void)?
+    weak var swipeTurner: SwipePageTurner?
+
+    private var trackingSwipe = false
 
     private static let copyMenuItemIdentifier = "WKMenuItemIdentifierCopy"
 
@@ -19,6 +22,7 @@ final class ReaderWebView: WKWebView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        guard onKeyDown != nil else { return }
         window?.makeFirstResponder(self)
         toolbarObservation = window?.observe(\.toolbar, options: [.initial, .new]) { window, _ in
             window.toolbar?.allowsDisplayModeCustomization = false
@@ -42,6 +46,32 @@ final class ReaderWebView: WKWebView {
         if onKeyDown?(event) == true { return }
         super.keyDown(with: event)
     }
+
+    override func scrollWheel(with event: NSEvent) {
+        if trackingSwipe { return }
+        guard event.phase == .began, event.hasPreciseScrollingDeltas,
+              abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY),
+              NSEvent.isSwipeTrackingFromScrollEventsEnabled else {
+            super.scrollWheel(with: event)
+            return
+        }
+        let direction: PageDirection = event.scrollingDeltaX < 0 ? .next : .prev
+        guard let swipeTurner, swipeTurner.beginSwipe(direction) else {
+            super.scrollWheel(with: event)
+            return
+        }
+
+        trackingSwipe = true
+        event.trackSwipeEvent(options: [.lockDirection, .clampGestureAmount],
+                              dampenAmountThresholdMin: -1, max: 1) { [weak self, weak swipeTurner] amount, _, complete, stop in
+            guard let self else {
+                stop.pointee = true
+                return
+            }
+            if complete { self.trackingSwipe = false }
+            swipeTurner?.updateSwipe(abs(amount), complete: complete)
+        }
+    }
 }
 
 struct ReaderWebViewContainer: NSViewRepresentable {
@@ -56,6 +86,23 @@ struct ReaderWebViewContainer: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: ReaderWebView, context: Context) {}
+}
+
+struct PageRendererHost: NSViewRepresentable {
+    let pages: PageRenderer
+
+    func makeNSView(context: Context) -> NSView {
+        let host = NSView()
+        for reader in pages.readers.values {
+            let webView = reader.webView
+            webView.frame = host.bounds
+            webView.autoresizingMask = [.width, .height]
+            host.addSubview(webView)
+        }
+        return host
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
 extension Reader {

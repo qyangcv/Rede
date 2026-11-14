@@ -111,7 +111,7 @@ struct OpenLibraryCommand: View {
 }
 
 struct LibraryDisplayCommands: View {
-    static let layoutMenuTitle = "陈列"
+    static let layoutMenuTitle = "陈列方式"
 
     @FocusedValue(\.libraryMenuContext) private var context
     @Bindable private var settings = Settings.shared
@@ -127,13 +127,6 @@ struct LibraryDisplayCommands: View {
     }
 
     var body: some View {
-        Button(context?.columnVisibility.wrappedValue == .detailOnly ? "显示侧边栏" : "隐藏侧边栏") {
-            guard let visibility = context?.columnVisibility else { return }
-            visibility.wrappedValue = visibility.wrappedValue == .detailOnly ? .all : .detailOnly
-        }
-        .keyboardShortcut(context == nil ? nil : KeyboardShortcut("b"))
-        .disabled(context == nil)
-
         Menu(Self.layoutMenuTitle) {
             Picker(Self.layoutMenuTitle, selection: $settings.libraryLayout) {
                 Text(LibraryLayout.grid.name).tag(LibraryLayout.grid).keyboardShortcut("1")
@@ -163,5 +156,12 @@ struct LibraryDisplayCommands: View {
         .disabled(context == nil)
 
         Divider()
+
+        Button(context?.columnVisibility.wrappedValue == .detailOnly ? "显示侧边栏" : "隐藏侧边栏") {
+            guard let visibility = context?.columnVisibility else { return }
+            visibility.wrappedValue = visibility.wrappedValue == .detailOnly ? .all : .detailOnly
+        }
+        .keyboardShortcut(context == nil ? nil : KeyboardShortcut("b"))
+        .disabled(context == nil)
     }
 }

@@ -40,7 +40,7 @@ extension JSBridge {
         await call("reader.setAnnotations(list)", ["list": marks.map(\.jsObject)])
     }
     func turn(_ step: Int) async {
-        await call("reader.turn(step)", ["step": step])
+        await call("return reader.turn(step)", ["step": step])
     }
     func jump(chapter: Int, anchor: String?) async
     {
