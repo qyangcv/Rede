@@ -67,22 +67,23 @@ enum ReaderFont: String, CaseIterable, Identifiable, Codable, CodingKeyRepresent
     var defaultWeight: Int? {
         switch self {
         case .original: nil
-        case .system: 350
-        case .pingfang: 400
-        case .songti: 700
+        case .system: 325
+        case .pingfang: 300
+        case .songti: 400
         case .hiragino: 400
-        case .lxgwWenKai, .zhuqueFangsong: 400
-        case .sourceHanSans: 325
-        case .sourceHanSerif: 400
+        case .lxgwWenKai: 300
+        case .zhuqueFangsong: 400
+        case .sourceHanSans: 300
+        case .sourceHanSerif: 375
         }
     }
 
     var weights: [Int] {
         switch self {
         case .original: []
-        case .system: Array(stride(from: 200, through: 500, by: 25))
-        case .pingfang: [200, 300, 400, 500]
-        case .songti: [400, 700, 900]
+        case .system: Array(stride(from: 175, through: 500, by: 25))
+        case .pingfang: [100, 200, 300, 400, 500]
+        case .songti: [300, 400, 700, 900]
         case .hiragino: [400, 600]
         case .sourceHanSans: Array(stride(from: 250, through: 500, by: 25))
         case .sourceHanSerif: Array(stride(from: 250, through: 600, by: 25))
