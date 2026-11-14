@@ -9,7 +9,30 @@ struct BookTable<Menu: View>: View {
     let open: (Book) -> Void
     @ViewBuilder let menu: (Set<Book.ID>) -> Menu
 
-    @SceneStorage("BookTableColumns") private var columns = TableColumnCustomization<Book>()
+    @AppStorage private var savedColumns: TableColumnCustomization<Book>
+    @State private var columns: TableColumnCustomization<Book>
+
+    init(
+        books: [Book],
+        readingTimes: [Book.ID: Duration],
+        sort: Binding<LibrarySort>,
+        order: Binding<SortOrder>,
+        selection: Binding<Set<Book.ID>>,
+        open: @escaping (Book) -> Void,
+        @ViewBuilder menu: @escaping (Set<Book.ID>) -> Menu
+    ) {
+        self.books = books
+        self.readingTimes = readingTimes
+        _sort = sort
+        _order = order
+        _selection = selection
+        self.open = open
+        self.menu = menu
+
+        let storage = AppStorage(wrappedValue: TableColumnCustomization<Book>(), "BookTableColumns")
+        _savedColumns = storage
+        _columns = State(initialValue: storage.wrappedValue)
+    }
 
     private var sortOrder: Binding<[BookComparator]> {
         Binding {
@@ -89,6 +112,9 @@ struct BookTable<Menu: View>: View {
         }
         .tableStyle(.inset)
         .alternatingRowBackgrounds()
+        .onChange(of: columns) { _, columns in
+            savedColumns = columns
+        }
         .contextMenu(forSelectionType: Book.ID.self, menu: menu) { ids in
             guard ids.count == 1, let book = books.first(where: { ids.contains($0.id) }) else { return }
             open(book)
