@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct LibraryMenuContext {
+    let columnVisibility: Binding<NavigationSplitViewVisibility>
     let beginImport: () -> Void
     let createCategory: () -> Void
     let open: (() -> Void)?
@@ -126,6 +127,13 @@ struct LibraryDisplayCommands: View {
     }
 
     var body: some View {
+        Button(context?.columnVisibility.wrappedValue == .detailOnly ? "显示侧边栏" : "隐藏侧边栏") {
+            guard let visibility = context?.columnVisibility else { return }
+            visibility.wrappedValue = visibility.wrappedValue == .detailOnly ? .all : .detailOnly
+        }
+        .keyboardShortcut(context == nil ? nil : KeyboardShortcut("b"))
+        .disabled(context == nil)
+
         Menu(Self.layoutMenuTitle) {
             Picker(Self.layoutMenuTitle, selection: $settings.libraryLayout) {
                 Text(LibraryLayout.grid.name).tag(LibraryLayout.grid).keyboardShortcut("1")

@@ -7,6 +7,7 @@ struct LibraryView: View {
     @Query private var books: [Book]
     @Query private var spans: [ReadingSpan]
     @Query(sort: BookCategories.sortDescriptors) private var categories: [BookCategory]
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var categorySelection: LibrarySection? = .library
     @State private var categoryToEdit: CategoryEdit?
     @State private var categoryToDelete: BookCategory?
@@ -24,7 +25,7 @@ struct LibraryView: View {
     @Bindable private var settings = Settings.shared
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             sidebar
         } detail: {
             library
@@ -304,6 +305,7 @@ struct LibraryView: View {
     private func menuContext(for targets: [Book]) -> LibraryMenuContext {
         let book = targets.count == 1 ? targets.first : nil
         return LibraryMenuContext(
+            columnVisibility: $columnVisibility,
             beginImport: beginImport,
             createCategory: createCategory,
             open: book.map { book in { open(book) } },

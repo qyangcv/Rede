@@ -28,6 +28,7 @@ struct ReaderMenuCommands: View {
         Button("下一页") { context?.turn(.next) }
             .disabled(context?.canTurnForward != true)
         Button(context?.tocPresented == true ? "隐藏目录" : "显示目录") { context?.toggleTOC() }
+            .keyboardShortcut(context?.hasTOC == true ? KeyboardShortcut("b") : nil)
             .disabled(context?.hasTOC != true)
 
         Divider()
