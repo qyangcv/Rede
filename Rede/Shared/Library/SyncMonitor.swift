@@ -47,7 +47,7 @@ final class SyncMonitor {
         switch status {
         case .off: "未开启"
         case .noAccount: "未登录 iCloud，或在系统设置中关闭了 Rede 的 iCloud"
-        case .syncing: "正在同步…"
+        case .syncing: "正在同步"
         case .synced: "已同步"
         case .failed(let message): message
         }

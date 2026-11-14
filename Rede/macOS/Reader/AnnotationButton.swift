@@ -1,15 +1,14 @@
 import SwiftUI
 
 struct AnnotationButton: View {
+    @Binding var isPresented: Bool
+    @Binding var kind: Annotation.Kind
     let toc: [TOCItem]
     let bookmarks: [Annotation]
     let highlights: [Annotation]
     let progress: (Annotation) -> Double?
     let onSelect: (Annotation) -> Void
     let onDelete: (Annotation) -> Void
-
-    @State private var isPresented = false
-    @State private var kind = Annotation.Kind.bookmark
 
     var body: some View {
         Button("标注", systemImage: "highlighter") {

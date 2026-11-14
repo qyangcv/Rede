@@ -29,6 +29,7 @@ struct LibraryView: View {
         } detail: {
             library
         }
+        .focusedSceneValue(\.libraryMenuContext, menuContext(for: selectedBooks))
         .onChange(of: categorySelection) {
             selection = []
             anchor = nil
@@ -93,11 +94,10 @@ struct LibraryView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text("分类")
                     Spacer(minLength: 8)
-                    Button("新建分类", systemImage: "folder.badge.plus") { categoryToEdit = CategoryEdit() }
+                    Button("新建分类", systemImage: "folder.badge.plus", action: createCategory)
                         .labelStyle(.iconOnly)
                         .buttonStyle(.plain)
                         .help("新建分类")
-                        .keyboardShortcut("n", modifiers: [.command, .shift])
                 }
                 .padding(.trailing, 12)
                 .font(.caption)
@@ -118,7 +118,8 @@ struct LibraryView: View {
                 BookTable(books: sortedBooks, readingTimes: spans.readingTimes,
                           sort: $settings.librarySort, order: $settings.libraryOrder,
                           selection: $selection, open: open) { ids in
-                    menu(for: visibleBooks.filter { ids.contains($0.id) })
+                    let targets = visibleBooks.filter { ids.contains($0.id) }
+                    LibraryBookContextMenu(selectionCount: targets.count, context: menuContext(for: targets))
                 }
                 .onDeleteCommand { booksToDelete = selectedBooks }
             }
@@ -152,18 +153,18 @@ struct LibraryView: View {
             .sharedBackgroundVisibility(.hidden)
 
             ToolbarItem {
-                Picker("陈列方式", selection: $settings.libraryLayout) {
+                Picker("书库布局", selection: $settings.libraryLayout) {
                     ForEach(LibraryLayout.allCases) { item in
                         Label(item.name, systemImage: item.icon).tag(item)
                     }
                 }
                 .pickerStyle(.segmented)
-                .help("陈列方式")
+                .help("书库布局")
             }
 
             ToolbarItemGroup {
                 AppearanceButton(appearance: $settings.appearance)
-                Button("导入", systemImage: "plus") { isImporting = true }
+                Button("导入 EPUB", systemImage: "plus", action: beginImport)
             }
         }
         .fileImporter(
@@ -230,7 +231,11 @@ struct LibraryView: View {
                         BookCard(book: book, isSelected: selection.contains(book.id))
                             .onTapGesture(count: 2) { open(book) }
                             .simultaneousGesture(TapGesture().onEnded { click(book) })
-                            .contextMenu { menu(for: selection.contains(book.id) ? selectedBooks : [book]) }
+                            .contextMenu {
+                                let targets = selection.contains(book.id) ? selectedBooks : [book]
+                                LibraryBookContextMenu(selectionCount: targets.count,
+                                                       context: menuContext(for: targets))
+                            }
                     }
                 }
                 .padding(.horizontal, grid.spacing)
@@ -296,39 +301,34 @@ struct LibraryView: View {
         }
     }
 
-    @ViewBuilder
-    private func menu(for targets: [Book]) -> some View {
-        if targets.count > 1 {
-            categoryMenu(for: targets)
-            Button("导出 \(targets.count) 本", systemImage: "square.and.arrow.up") { export(targets.map(\.id)) }
-            Button("删除 \(targets.count) 本", systemImage: "trash", role: .destructive) {
-                booksToDelete = targets
-            }
-        } else if let book = targets.first {
-            Button("打开", systemImage: "book") { open(book) }
-            categoryMenu(for: targets)
-            Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
-            Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
-            Button("导出", systemImage: "square.and.arrow.up") { export([book.id]) }
-            Button("删除", systemImage: "trash", role: .destructive) { booksToDelete = [book] }
-        }
+    private func menuContext(for targets: [Book]) -> LibraryMenuContext {
+        let book = targets.count == 1 ? targets.first : nil
+        return LibraryMenuContext(
+            beginImport: beginImport,
+            createCategory: createCategory,
+            open: book.map { book in { open(book) } },
+            showInfo: book.map { book in { bookToShowInfo = book } },
+            editInfo: book.map { book in { bookToEdit = book } },
+            export: targets.isEmpty ? nil : { export(targets.map(\.id)) },
+            delete: targets.isEmpty ? nil : { booksToDelete = targets },
+            category: targets.isEmpty ? nil : LibraryMenuContext.Category(
+                categories: categories,
+                currentCategory: targets.first?.category.flatMap { category in
+                    targets.allSatisfy { $0.category?.id == category.id } ? category.id : nil
+                },
+                canRemove: targets.contains { $0.category != nil },
+                assign: { assign(targets, to: $0) },
+                create: { categoryToEdit = CategoryEdit(books: targets) }
+            )
+        )
     }
 
-    private func categoryMenu(for targets: [Book]) -> some View {
-        Menu("设置分类", systemImage: "folder") {
-            ForEach(categories) { category in
-                Toggle(category.name, isOn: Binding(
-                    get: { targets.allSatisfy { $0.category?.id == category.id } },
-                    set: { assign(targets, to: $0 ? category : nil) }
-                ))
-            }
-            if targets.contains(where: { $0.category != nil }) {
-                Divider()
-                Button("从当前分类移除") { assign(targets, to: nil) }
-            }
-            Divider()
-            Button("新建分类") { categoryToEdit = CategoryEdit(books: targets) }
-        }
+    private func beginImport() {
+        isImporting = true
+    }
+
+    private func createCategory() {
+        categoryToEdit = CategoryEdit()
     }
 
     private func moveCategories(from offsets: IndexSet, to destination: Int) {

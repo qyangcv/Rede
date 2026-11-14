@@ -289,10 +289,12 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
 
     var id: Self { self }
 
-    var name: String {
-        switch self {
-        case .neutral: "白色"
-        case .warm: "暖黄"
+    func name(for scheme: ColorScheme) -> String {
+        switch (self, scheme) {
+        case (.neutral, .dark): "松烟"
+        case (.neutral, _): "霜白"
+        case (.warm, .dark): "茶墨"
+        case (.warm, _): "米笺"
         }
     }
 

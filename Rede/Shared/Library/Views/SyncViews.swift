@@ -4,7 +4,7 @@ struct SyncBanner: View {
     private enum Phase {
         case syncing, done
 
-        var title: String { self == .syncing ? "正在从 iCloud 同步…" : "已同步" }
+        var title: String { self == .syncing ? "正在从 iCloud 同步" : "已同步" }
         var symbol: String { self == .syncing ? "arrow.trianglehead.2.clockwise.rotate.90.icloud" : "checkmark.icloud" }
     }
 

@@ -23,7 +23,7 @@ struct CheckForUpdatesView: View {
     }
 
     var body: some View {
-        Button("检查更新…", action: updater.checkForUpdates)
+        Button("检查更新", action: updater.checkForUpdates)
             .disabled(!model.canCheckForUpdates)
     }
 }

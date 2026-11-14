@@ -28,7 +28,7 @@ struct NoteEditor: View {
                     .scrollContentBackground(.hidden)
                     .overlay(alignment: .topLeading) {
                         if text.isEmpty {
-                            Text("添加笔记…")
+                            Text("添加笔记")
                                 .foregroundStyle(Color(.placeholderText))
                                 .padding(.top, 8)
                                 .padding(.leading, 5)

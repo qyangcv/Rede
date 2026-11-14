@@ -46,7 +46,7 @@ struct StyleSheet: View {
 
             if let weight = style.fontWeight, style.font.weights.count > 1 {
                 GridRow {
-                    label("粗细")
+                    label("字重")
                     HStack(spacing: 9) {
                         FontWeightSlider(weights: style.font.weights,
                                          weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))

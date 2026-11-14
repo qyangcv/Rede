@@ -1,12 +1,11 @@
 import SwiftUI
 
 struct StyleButton: View {
+    @Binding var isPresented: Bool
     @Binding var style: ReaderStyle
     @Binding var appearance: Appearance
     @Binding var transition: PageTransition
     var onDismiss: () -> Void = {}
-
-    @State private var isPresented = false
 
     var body: some View {
         Button {
@@ -54,7 +53,7 @@ struct StylePanel: View {
 
                 if let weight = style.fontWeight, style.font.weights.count > 1 {
                     GridRow {
-                        label("粗细")
+                        label("字重")
                         HStack(spacing: 9) {
                             FontWeightSlider(weights: style.font.weights,
                                              weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
@@ -123,24 +122,44 @@ struct StylePanel: View {
 private struct FontScaleStepper: View {
     @Binding var scale: Int
 
+    var body: some View {
+        HStack(spacing: 9) {
+            FontScaleButtons(scale: $scale, showsScale: true)
+        }
+        .labelStyle(.iconOnly)
+    }
+}
+
+struct FontScaleButtons: View {
+    @Binding var scale: Int
+    var showsScale = false
+
     private let range = ReaderStyle.fontScaleRange
     private let step = ReaderStyle.fontScaleStep
 
     var body: some View {
-        HStack(spacing: 9) {
-            Button("减小字号", systemImage: "textformat.size.smaller") {
-                scale = max(scale - step, range.lowerBound)
-            }
-            .disabled(scale <= range.lowerBound)
-
+        if showsScale {
+            decrease
             Text("\(scale)%").monospacedDigit()
-
-            Button("增大字号", systemImage: "textformat.size.larger") {
-                scale = min(scale + step, range.upperBound)
-            }
-            .disabled(scale >= range.upperBound)
+            increase
+        } else {
+            increase
+            decrease
         }
-        .labelStyle(.iconOnly)
+    }
+
+    private var increase: some View {
+        Button("放大字体", systemImage: "textformat.size.larger") {
+            scale = min(scale + step, range.upperBound)
+        }
+        .disabled(scale >= range.upperBound)
+    }
+
+    private var decrease: some View {
+        Button("缩小字体", systemImage: "textformat.size.smaller") {
+            scale = max(scale - step, range.lowerBound)
+        }
+        .disabled(scale <= range.lowerBound)
     }
 }
 

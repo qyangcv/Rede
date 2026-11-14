@@ -74,7 +74,7 @@ extension Reader {
         } else if selecting {
             items = [
                 ActionMenuItem(title: "高亮") { onAnnotationAction(.highlightSelection) },
-                ActionMenuItem(title: "添加笔记…") { onAnnotationAction(.noteSelection) },
+                ActionMenuItem(title: "添加笔记") { onAnnotationAction(.noteSelection) },
             ]
         } else {
             return

@@ -3,9 +3,13 @@ import SwiftUI
 struct ReaderWindow: View {
     @Environment(ReaderSession.self) private var session
     @Environment(\.appearsActive) private var appearsActive
+    @Environment(\.colorScheme) private var colorScheme
     @Bindable private var settings = Settings.shared
     @State private var noteTarget: NoteTarget?
     @State private var tocPresented = false
+    @State private var annotationsPresented = false
+    @State private var annotationKind = Annotation.Kind.bookmark
+    @State private var stylePresented = false
 
     var body: some View {
         ZStack {
@@ -36,27 +40,25 @@ struct ReaderWindow: View {
                         #endif
 
                         ToolbarItem(placement: .primaryAction) {
-                            Button {
-                                session.toggleBookmark()
-                                reader.focus()
-                            } label: {
+                            Button(action: toggleBookmark) {
                                 Label(session.isBookmarked ? "移除书签" : "添加书签",
                                       systemImage: session.isBookmarked ? "bookmark.fill" : "bookmark")
                             }
-                            .keyboardShortcut("d")
                             .disabled(!session.canBookmark)
                         }
                         .sharedBackgroundVisibility(.hidden)
 
                         ToolbarItem(placement: .primaryAction) {
-                            AnnotationButton(toc: reader.toc, bookmarks: session.bookmarks, highlights: session.highlights,
+                            AnnotationButton(isPresented: $annotationsPresented, kind: $annotationKind, toc: reader.toc,
+                                             bookmarks: session.bookmarks, highlights: session.highlights,
                                              progress: session.progress(of:), onSelect: session.go(to:),
                                              onDelete: { session.deleteAnnotation(id: $0.id) })
                         }
                         .sharedBackgroundVisibility(.hidden)
 
                         ToolbarItem(placement: .primaryAction) {
-                            StyleButton(style: $settings.readerStyle, appearance: $settings.appearance,
+                            StyleButton(isPresented: $stylePresented, style: $settings.readerStyle,
+                                        appearance: $settings.appearance,
                                         transition: $settings.pageTransition, onDismiss: reader.focus)
                         }
                         .sharedBackgroundVisibility(.hidden)
@@ -76,7 +78,7 @@ struct ReaderWindow: View {
                         reader.onGesture = { gesture in
                             switch gesture {
                             case .turn(let direction):
-                                session.turner?.turn(direction)
+                                turn(direction)
                             case .tap, .highlight:
                                 break
                             }
@@ -89,6 +91,7 @@ struct ReaderWindow: View {
                 ContentUnavailableView("No book opened", systemImage: "book")
             }
         }
+        .focusedSceneValue(\.readerMenuContext, menuContext)
         .ignoresSafeArea()
         .overlay(alignment: .leading) { tocDrawer }
         .animation(.snappy(duration: 0.22), value: tocPresented)
@@ -97,6 +100,45 @@ struct ReaderWindow: View {
         .toolbar(removing: settings.readerTitle == .hidden ? .title : nil)
         .onDisappear { session.close() }
         .onChange(of: appearsActive, initial: true) { _, active in session.setForeground(active) }
+    }
+
+    private var menuContext: ReaderMenuContext? {
+        guard let reader = session.reader else { return nil }
+        var canTurnBack = false
+        var canTurnForward = false
+        if let position = reader.position, let page = session.page {
+            canTurnBack = position.chapter > 0 || page.page > 0
+            canTurnForward = position.chapter + 1 < reader.book.model.spine.count || page.page + 1 < page.pageCount
+        }
+
+        return ReaderMenuContext(
+            colorScheme: colorScheme,
+            canTurnBack: canTurnBack,
+            canTurnForward: canTurnForward,
+            hasTOC: !reader.toc.isEmpty,
+            tocPresented: tocPresented,
+            canBookmark: session.canBookmark,
+            isBookmarked: session.isBookmarked,
+            turn: turn,
+            toggleTOC: { tocPresented.toggle() },
+            toggleBookmark: toggleBookmark,
+            showAnnotations: showAnnotations,
+            showStyle: { stylePresented = true }
+        )
+    }
+
+    private func showAnnotations(_ kind: Annotation.Kind) {
+        annotationKind = kind
+        annotationsPresented = true
+    }
+
+    private func turn(_ direction: PageDirection) {
+        session.turner?.turn(direction)
+    }
+
+    private func toggleBookmark() {
+        session.toggleBookmark()
+        session.reader?.focus()
     }
 
     private var title: String? {

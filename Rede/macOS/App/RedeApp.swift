@@ -46,11 +46,27 @@ struct RedeApp: App {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updater: updaterController.updater)
             }
-            CommandGroup(before: .windowList) {
-                OpenLibraryCommand()
+            CommandGroup(after: .appSettings) {
+                SettingsLink { Text("设置") }
+                    .keyboardShortcut(",")
+            }
+            CommandGroup(after: .newItem) {
+                LibraryFileCommands()
+            }
+            CommandGroup(replacing: .saveItem) {
+                CloseWindowCommands()
             }
             CommandGroup(before: .toolbar) {
-                LibraryLayoutCommands()
+                LibraryDisplayCommands()
+            }
+            CommandMenu("阅读") {
+                ReaderMenuCommands()
+            }
+            CommandMenu("样式") {
+                ReaderStyleCommands()
+            }
+            CommandGroup(before: .windowList) {
+                OpenLibraryCommand()
             }
         }
 
@@ -66,11 +82,66 @@ struct RedeApp: App {
         SwiftUI.Settings {
             SettingsView()
         }
+        .commandsRemoved()
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let session = ReaderSession()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        guard let menu = NSApp.mainMenu else { return }
+
+        if let edit = menu.items.first(where: { item in
+            let commands = item.submenu?.items ?? []
+            return commands.contains { $0.action == #selector(NSText.copy(_:)) }
+                && commands.contains { $0.action == #selector(NSText.paste(_:)) }
+        }), let help = menu.items.first(where: { $0.submenu === NSApp.helpMenu }) {
+            menu.removeItem(edit)
+            menu.insertItem(edit, at: menu.index(of: help))
+        }
+
+        updateMenuTitles(in: menu)
+        for name in [NSMenu.didAddItemNotification, NSMenu.didChangeItemNotification] {
+            NotificationCenter.default.addObserver(self, selector: #selector(menuItemDidUpdate(_:)),
+                                                   name: name, object: nil)
+        }
+    }
+
+    @objc private func menuItemDidUpdate(_ notification: Notification) {
+        guard let menu = notification.object as? NSMenu,
+              let index = notification.userInfo?["NSMenuItemIndex"] as? Int,
+              let item = menu.item(at: index) else { return }
+        var rootMenu = menu
+        while let parent = rootMenu.supermenu { rootMenu = parent }
+        guard rootMenu === NSApp.mainMenu else { return }
+        updateMenuTitle(of: item)
+    }
+
+    private func updateMenuTitles(in menu: NSMenu) {
+        for item in menu.items {
+            updateMenuTitle(of: item)
+        }
+    }
+
+    private func updateMenuTitle(of item: NSMenuItem) {
+        if item.title.hasSuffix("…") {
+            item.title = String(item.title.dropLast())
+        } else if item.title.hasSuffix("...") {
+            item.title = String(item.title.dropLast(3))
+        }
+        if item.title == "全部关闭", item.keyEquivalent == "w",
+           item.keyEquivalentModifierMask == [.command, .option], !item.isAlternate {
+            item.isAlternate = true
+        }
+        if let submenu = item.submenu {
+            if item.menu === NSApp.mainMenu, submenu.item(withTitle: LibraryDisplayCommands.layoutMenuTitle) != nil {
+                if submenu.title != "书库" { submenu.title = "书库" }
+                if item.title != "书库" { item.title = "书库" }
+            }
+            updateMenuTitles(in: submenu)
+        }
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let start = Date.now
@@ -85,25 +156,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+private struct CloseWindowCommands: View {
+    @State private var canClose = false
+
+    var body: some View {
+        Button("关闭窗口") {
+            NSApp.sendAction(#selector(NSWindow.performClose(_:)), to: nil, from: nil)
+        }
+        .keyboardShortcut("w")
+        .disabled(!canClose)
+        .onAppear(perform: updateAvailability)
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            updateAvailability()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+            updateAvailability()
+        }
+
+        Button("全部关闭") {
+            for window in NSApp.windows where window.isVisible || window.isMiniaturized {
+                if window.styleMask.contains(.closable) { window.performClose(nil) }
+            }
+        }
+        .keyboardShortcut("w", modifiers: [.command, .option])
+        .disabled(!canClose)
+    }
+
+    private func updateAvailability() {
+        let window = NSApp.target(forAction: #selector(NSWindow.performClose(_:))) as? NSWindow
+        canClose = window?.styleMask.contains(.closable) == true
+    }
+}
+
 struct OpenLibraryCommand: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("书库") {
+        Button("显示书库") {
             openWindow(id: "library")
         }
         .keyboardShortcut("0", modifiers: .command)
-    }
-}
-
-struct LibraryLayoutCommands: View {
-    @Bindable private var settings = Settings.shared
-
-    var body: some View {
-        Picker("陈列方式", selection: $settings.libraryLayout) {
-            Text("以卡片方式").tag(LibraryLayout.grid).keyboardShortcut("1")
-            Text("以列表方式").tag(LibraryLayout.list).keyboardShortcut("2")
-        }
-        .pickerStyle(.inline)
     }
 }

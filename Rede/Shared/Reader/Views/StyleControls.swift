@@ -13,7 +13,7 @@ struct FontWeightSlider: View {
 
     var body: some View {
         Slider(value: index, in: 0...Double(weights.count - 1), step: 1) {
-            Text("粗细")
+            Text("字重")
         } tick: { SliderTick($0) }
         .labelsHidden()
     }
@@ -73,7 +73,7 @@ struct ColorSwatches: View {
     var body: some View {
         HStack(spacing: 6) {
             ForEach(BackgroundColor.allCases) { item in
-                BackgroundSwatch(color: item.swatch(for: colorScheme), name: item.name,
+                BackgroundSwatch(color: item.swatch(for: colorScheme), name: item.name(for: colorScheme),
                                  isSelected: item == selection) {
                     selection = item
                 }
