@@ -407,7 +407,7 @@ struct LibraryView: View {
     private func open(_ book: Book) {
         do {
             try session.open(book, context: modelContext)
-            openWindow(id: ReaderSession.windowID)
+            openWindow(id: RedeApp.readerWindowID)
         } catch {
             errors.append(error.localizedDescription)
         }

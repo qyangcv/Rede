@@ -1,16 +1,12 @@
 import Foundation
 import Observation
 import SwiftData
-#if os(macOS)
-import AppKit
-#else
+#if os(iOS)
 import UIKit
 #endif
 
 @Observable
 final class ReaderSession {
-    static let windowID = "reader"
-
     private(set) var reader: Reader?
     private(set) var turner: (any PageTurner)?
     private(set) var book: Book?
@@ -29,15 +25,12 @@ final class ReaderSession {
     var canBookmark: Bool { page?.start != nil }
 
     init() {
-        #if os(macOS)
-        let name = NSApplication.willTerminateNotification
-        #else
-        let name = UIApplication.didEnterBackgroundNotification
-        #endif
         let center = NotificationCenter.default
-        center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+        #if os(iOS)
+        center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.flush() }
         }
+        #endif
         center.addObserver(forName: SyncMonitor.didImport, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.followRemoteProgress()

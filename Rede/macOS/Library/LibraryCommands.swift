@@ -98,6 +98,17 @@ struct LibraryFileCommands: View {
     }
 }
 
+struct OpenLibraryCommand: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("显示书库") {
+            openWindow(id: RedeApp.libraryWindowID)
+        }
+        .keyboardShortcut("0", modifiers: .command)
+    }
+}
+
 struct LibraryDisplayCommands: View {
     static let layoutMenuTitle = "陈列"
 

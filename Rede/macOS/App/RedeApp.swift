@@ -4,6 +4,9 @@ import Sparkle
 
 @main
 struct RedeApp: App {
+    static let libraryWindowID = "library"
+    static let readerWindowID = "reader"
+
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
     private var session: ReaderSession { appDelegate.session }
     private let updaterController: SPUStandardUpdaterController = {
@@ -36,8 +39,9 @@ struct RedeApp: App {
     }
 
     var body: some Scene {
-        Window("书库", id: "library") {
-            ContentView()
+        Window("书库", id: Self.libraryWindowID) {
+            LibraryView()
+                .background(WindowFramePersistence(name: "Rede.Library"))
         }
         .defaultSize(width: 600, height: 400)
         .modelContainer(.library)
@@ -70,10 +74,20 @@ struct RedeApp: App {
             }
         }
 
-        Window("阅读", id: ReaderSession.windowID) {
+        Window("阅读", id: Self.readerWindowID) {
             ReaderWindow()
+                .background(WindowFramePersistence(name: "Rede.Reader"))
         }
-        .defaultSize(width: 734, height: 861)
+        .defaultWindowPlacement { _, context in
+            let bounds = context.defaultDisplay.bounds
+            let scale: CGFloat = 3.0 / 4.0
+            let size = CGSize(width: bounds.width * scale, height: bounds.height * scale)
+            let position = CGPoint(
+                x: bounds.midX - size.width / 2,
+                y: bounds.midY - size.height / 2
+            )
+            return WindowPlacement(position, size: size)
+        }
         .environment(session)
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
@@ -83,76 +97,6 @@ struct RedeApp: App {
             SettingsView()
         }
         .commandsRemoved()
-    }
-}
-
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    let session = ReaderSession()
-
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        guard let menu = NSApp.mainMenu else { return }
-
-        if let edit = menu.items.first(where: { item in
-            let commands = item.submenu?.items ?? []
-            return commands.contains { $0.action == #selector(NSText.copy(_:)) }
-                && commands.contains { $0.action == #selector(NSText.paste(_:)) }
-        }), let help = menu.items.first(where: { $0.submenu === NSApp.helpMenu }) {
-            menu.removeItem(edit)
-            menu.insertItem(edit, at: menu.index(of: help))
-        }
-
-        updateMenuTitles(in: menu)
-        for name in [NSMenu.didAddItemNotification, NSMenu.didChangeItemNotification] {
-            NotificationCenter.default.addObserver(self, selector: #selector(menuItemDidUpdate(_:)),
-                                                   name: name, object: nil)
-        }
-    }
-
-    @objc private func menuItemDidUpdate(_ notification: Notification) {
-        guard let menu = notification.object as? NSMenu,
-              let index = notification.userInfo?["NSMenuItemIndex"] as? Int,
-              let item = menu.item(at: index) else { return }
-        var rootMenu = menu
-        while let parent = rootMenu.supermenu { rootMenu = parent }
-        guard rootMenu === NSApp.mainMenu else { return }
-        updateMenuTitle(of: item)
-    }
-
-    private func updateMenuTitles(in menu: NSMenu) {
-        for item in menu.items {
-            updateMenuTitle(of: item)
-        }
-    }
-
-    private func updateMenuTitle(of item: NSMenuItem) {
-        if item.title.hasSuffix("…") {
-            item.title = String(item.title.dropLast())
-        } else if item.title.hasSuffix("...") {
-            item.title = String(item.title.dropLast(3))
-        }
-        if item.title == "全部关闭", item.keyEquivalent == "w",
-           item.keyEquivalentModifierMask == [.command, .option], !item.isAlternate {
-            item.isAlternate = true
-        }
-        if let submenu = item.submenu {
-            if item.menu === NSApp.mainMenu, submenu.item(withTitle: LibraryDisplayCommands.layoutMenuTitle) != nil {
-                if submenu.title != "书库" { submenu.title = "书库" }
-                if item.title != "书库" { item.title = "书库" }
-            }
-            updateMenuTitles(in: submenu)
-        }
-    }
-
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        let start = Date.now
-        session.flush()
-        guard CloudSync.isActive else { return .terminateNow }
-        for window in sender.windows { window.orderOut(nil) }
-        Task {
-            await SyncMonitor.shared.waitForExport(since: start, timeout: .seconds(10))
-            sender.reply(toApplicationShouldTerminate: true)
-        }
-        return .terminateLater
     }
 }
 
@@ -185,16 +129,5 @@ private struct CloseWindowCommands: View {
     private func updateAvailability() {
         let window = NSApp.target(forAction: #selector(NSWindow.performClose(_:))) as? NSWindow
         canClose = window?.styleMask.contains(.closable) == true
-    }
-}
-
-struct OpenLibraryCommand: View {
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Button("显示书库") {
-            openWindow(id: "library")
-        }
-        .keyboardShortcut("0", modifiers: .command)
     }
 }
