@@ -61,12 +61,12 @@ BUILD=build/ios
 # 1b. Generate the CloudKit schema from the models, commit it if changed, and deploy it to Production
 bash scripts/cloudkit-schema.sh release
 
-# 1c. What to Test for TestFlight testers
+# 1c. Test Message for TestFlight testers
 NOTES_FILE=$(mktemp -t rede-what-to-test)
 zsh -f scripts/what-to-test.zsh "$NOTES_FILE" "$(git log --format='- %s' --grep='^iOS' "${LATEST:+$LATEST..}HEAD")"
 NOTES=$(<"$NOTES_FILE")
 rm "$NOTES_FILE"
-[[ -n $NOTES ]] || { echo "What to Test cannot be empty"; exit 1; }
+[[ -n $NOTES ]] || { echo "Test Message cannot be empty"; exit 1; }
 
 # 2. Archive (= Xcode → Product → Archive)
 rm -rf $BUILD
