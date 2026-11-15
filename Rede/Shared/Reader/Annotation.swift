@@ -57,12 +57,20 @@ struct AnnotationMark: Equatable {
 }
 
 struct TextSelection: Decodable {
+    struct Merge: Decodable {
+        let id: String
+        let start: Int
+        let end: Int
+        let text: String
+    }
+
     let chapter: Int
     let start: Int
     let end: Int
     let text: String
     let rect: WebRect
     let anchors: [String: Int]
+    let merge: Merge?
 }
 
 final class AnnotationStore {
@@ -96,6 +104,21 @@ final class AnnotationStore {
     }
 
     func addHighlight(_ selection: TextSelection, tocID: String?) -> Annotation {
+        if let merge = selection.merge,
+           let existing = annotations().first(where: {
+               $0.id == merge.id && $0.kind == .highlight && $0.chapter == selection.chapter &&
+               $0.start == merge.start && $0.end == merge.end
+           }) {
+            if selection.start < existing.start {
+                existing.start = selection.start
+                existing.tocID = tocID
+            }
+            existing.end = max(existing.end, selection.end)
+            existing.text = merge.text
+            save()
+            return existing
+        }
+
         let annotation = Annotation(bookID: bookID, kind: .highlight, chapter: selection.chapter,
                                     start: selection.start, end: selection.end, text: selection.text, tocID: tocID)
         context.insert(annotation)

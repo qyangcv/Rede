@@ -41,6 +41,7 @@ const state = {
 
 let doc = null;  // 当前章节文档
 let pad = null;  // 当前章节的补白列，见 measure()
+let selectionBounds = null;  // 当前屏的 DOM Range，有选区时才计算
 let highlights = [];  // 本章已绘制的高亮 [{id, start, end, range}]，供点击命中检测
 
 // Swift 调用接口
@@ -70,17 +71,21 @@ const reader = {
 
   // 取出章节里的选区并清除：返回 {chapter, start, end, text}；没有选区或选区不含任何单位时返回 null
   takeSelection() {
-    const selection = doc?.getSelection();
+    const selection = pageSelection();
     if (!selection || selection.isCollapsed) return null;
     const range = selection.getRangeAt(0);
     const start = offsetAt(range.startContainer, range.startOffset);
     const end = offsetAt(range.endContainer, range.endOffset);
-    const rects = range.getClientRects();
+    const lastRect = Array.from(range.getClientRects()).findLast((rect) =>
+      hasArea(rect) && spreadOfRect(rect) === state.spread);
     selection.removeAllRanges();
-    if (start >= end || rects.length === 0) return null;
+    if (start >= end || !lastRect) return null;
     // 原生侧把笔记编辑框指向选区末行
-    const rect = shellRect(rects[rects.length - 1]);
-    return { chapter: state.chapterId, start, end, text: excerpt(start, end - start), rect, anchors: state.anchors };
+    const rect = shellRect(lastRect);
+    return {
+      chapter: state.chapterId, start, end, text: excerpt(start, end - start), rect, anchors: state.anchors,
+      merge: crossPageMerge(start, end),
+    };
   },
 
   // 前后翻 delta 页，返回是否落位
@@ -307,8 +312,11 @@ function scrollToSpread(page) {
 
 // 翻页落位：滚动 + 刷新锚点 + 上报进度
 function settle(page, offset = null) {
+  const previousSpread = state.spread;
   scrollToSpread(page);
-  state.range = pageRange();
+  updatePageRange();
+  if (state.spread !== previousSpread) doc.getSelection().removeAllRanges();
+  else pageSelection();
   state.offset = offset ?? state.range?.start ?? -1;
   report();
 }
@@ -477,6 +485,55 @@ function highlightAt(x, y) {
   return hit;
 }
 
+// 第二次标注时，按当前排版检查最近的前后两条高亮；同一屏的两栏不算跨页。
+function crossPageMerge(start, end) {
+  let previous = null;
+  let next = null;
+  for (const mark of highlights) {
+    if (mark.end <= start && (!previous || mark.end > previous.end)) previous = mark;
+    if (mark.start >= end && (!next || mark.start < next.start)) next = mark;
+  }
+
+  for (const [mark, direction] of [[previous, -1], [next, 1]]) {
+    if (!mark) continue;
+    const rects = Array.from(mark.range.getClientRects());
+    const edge = direction < 0 ? rects.findLast(hasArea) : rects.find(hasArea);
+    if (!edge || spreadOfRect(edge) !== state.spread + direction) continue;
+
+    const gapStart = direction < 0 ? mark.end : end;
+    const gapEnd = direction < 0 ? start : mark.start;
+    if (!gapIsCollapsedWhitespace(gapStart, gapEnd)) continue;
+
+    const mergedStart = Math.min(start, mark.start);
+    const mergedEnd = Math.max(end, mark.end);
+    return { id: mark.id, start: mark.start, end: mark.end, text: excerpt(mergedStart, mergedEnd - mergedStart) };
+  }
+  return null;
+}
+
+// 只允许跨过排版折叠的 HTML 空白，保留标点、可见空格和媒体形成的间隔。
+function gapIsCollapsedWhitespace(start, end) {
+  if (start === end) return true;
+  const range = doc.createRange();
+  for (const { node, start: offset, length, text } of units()) {
+    if (offset + length <= start) continue;
+    if (offset >= end) break;
+    if (!text) return false;
+
+    const from = Math.max(0, start - offset);
+    const to = Math.min(length, end - offset);
+    if (/[^ \t\r\n\f]/.test(node.data.slice(from, to))) return false;
+    range.setStart(node, from);
+    range.setEnd(node, to);
+    if (Array.from(range.getClientRects()).some(hasArea)) return false;
+  }
+  return true;
+}
+
+function hasArea(rect) {
+  return rect.width > 0 && rect.height > 0;
+}
+
 // 坐标区间 [start, end) → DOM Range
 function rangesOf(spans) {
   const points = boundaries(spans.flatMap((s) => [s.start, s.end]));
@@ -556,6 +613,11 @@ function pageRange() {
   return { start, end: next < 0 ? state.total : next };
 }
 
+function updatePageRange() {
+  state.range = pageRange();
+  selectionBounds = null;
+}
+
 function progress() {
   return {
     chapter: state.chapterId,
@@ -609,7 +671,8 @@ function reflow() {
   measure();
   const spread = spreadAt(state.offset);
   scrollToSpread(spread >= 0 ? spread : state.spread);
-  state.range = pageRange();
+  updatePageRange();
+  pageSelection();
   report();
 }
 
@@ -636,11 +699,43 @@ function onClick(event) {
 
 // ---------- 手势 ----------
 
+// 约束原生选区而非只截断标注偏移，让拖选、复制和标注使用相同范围。
+function pageSelection() {
+  if (!doc || frame.classList.contains("loading")) return null;
+  const selection = doc.getSelection();
+  if (selection.isCollapsed) return selection;
+
+  if (!state.range) {
+    selection.removeAllRanges();
+    return selection;
+  }
+
+  const bounds = selectionBounds ??= rangesOf([state.range])[0];
+  const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
+  const anchorSide = bounds.comparePoint(anchorNode, anchorOffset);
+  const focusSide = bounds.comparePoint(focusNode, focusOffset);
+  if (anchorSide === 0 && focusSide === 0) return selection;
+
+  if (anchorSide === focusSide) {
+    selection.removeAllRanges();
+  } else {
+    const point = (side, node, offset) => {
+      if (side < 0) return [bounds.startContainer, bounds.startOffset];
+      if (side > 0) return [bounds.endContainer, bounds.endOffset];
+      return [node, offset];
+    };
+    selection.setBaseAndExtent(...point(anchorSide, anchorNode, anchorOffset),
+                               ...point(focusSide, focusNode, focusOffset));
+  }
+  return selection;
+}
+
 // 外壳页和每个章节文档各自绑定：iframe 里的事件不会冒泡到外壳页，上下页边距上的点击落在外壳页
 function watchGestures(target) {
   target.addEventListener("click", onTap);
   target.addEventListener("contextmenu", onContextMenu);
   target.addEventListener("selectionchange", () => {
+    if (target !== document && target !== doc) return;
     reportSelection(target);
     if (target !== document) refreshHighlights(target);
   });
@@ -649,10 +744,11 @@ function watchGestures(target) {
 }
 
 // 有选区时拖动是在调整选区，原生侧据此不把下滑当作关闭
-function reportSelection(doc) {
+function reportSelection(target) {
+  const selection = target === doc ? pageSelection() : target.getSelection();
   window.webkit?.messageHandlers?.gesture?.postMessage({
     type: "selection",
-    active: !doc.getSelection().isCollapsed,
+    active: selection != null && !selection.isCollapsed,
   });
 }
 
@@ -661,10 +757,11 @@ function reportSelection(doc) {
 // 右键未选中的词时 WebKit 在派发前已选中该词，这里读到的选区状态也比 selectionchange 及时
 function onContextMenu(event) {
   const hit = event.view === window ? null : highlightAt(event.clientX, event.clientY);
+  const selection = event.currentTarget === doc ? pageSelection() : event.view.getSelection();
   window.webkit?.messageHandlers?.gesture?.postMessage({
     type: "context",
     highlight: hit ? { id: hit.id, rect: shellRect(hit.rect) } : null,
-    selecting: !event.view.getSelection().isCollapsed,
+    selecting: selection != null && !selection.isCollapsed,
   });
 }
 
