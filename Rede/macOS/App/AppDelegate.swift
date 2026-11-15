@@ -6,15 +6,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let menu = NSApp.mainMenu else { return }
 
-        if let edit = menu.items.first(where: { item in
-            let commands = item.submenu?.items ?? []
-            return commands.contains { $0.action == #selector(NSText.copy(_:)) }
-                && commands.contains { $0.action == #selector(NSText.paste(_:)) }
-        }), let help = menu.items.first(where: { $0.submenu === NSApp.helpMenu }) {
-            menu.removeItem(edit)
-            menu.insertItem(edit, at: menu.index(of: help))
-        }
-
         updateMenuTitles(in: menu)
         for name in [NSMenu.didAddItemNotification, NSMenu.didChangeItemNotification] {
             NotificationCenter.default.addObserver(self, selector: #selector(menuItemDidUpdate(_:)),

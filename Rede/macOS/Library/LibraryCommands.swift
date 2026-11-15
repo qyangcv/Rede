@@ -28,7 +28,7 @@ private struct LibraryCategoryMenu: View {
     let context: LibraryMenuContext.Category?
 
     var body: some View {
-        Menu("移至分类", systemImage: "folder") {
+        Menu("分类", systemImage: "folder") {
             if let context, !context.categories.isEmpty {
                 ForEach(context.categories) { category in
                     Toggle(category.name, isOn: Binding(
@@ -61,11 +61,11 @@ struct LibraryBookContextMenu: View {
             }
         } else if let open = context.open {
             Button("阅读", systemImage: "book", action: open)
+            Button("显示简介", systemImage: "info.circle") { context.showInfo?() }
+            Button("编辑", systemImage: "pencil") { context.editInfo?() }
             LibraryCategoryMenu(context: context.category)
-            Button("显示书籍简介", systemImage: "info.circle") { context.showInfo?() }
-            Button("编辑书籍信息", systemImage: "pencil") { context.editInfo?() }
-            Button("导出 EPUB", systemImage: "square.and.arrow.up") { context.export?() }
-            Button("从书库删除", systemImage: "trash", role: .destructive) { context.delete?() }
+            Button("导出", systemImage: "square.and.arrow.up") { context.export?() }
+            Button("删除", systemImage: "trash", role: .destructive) { context.delete?() }
         }
     }
 }
@@ -106,7 +106,7 @@ struct OpenLibraryCommand: View {
         Button("显示书库") {
             openWindow(id: RedeApp.libraryWindowID)
         }
-        .keyboardShortcut("0", modifiers: .command)
+        .keyboardShortcut("l", modifiers: .command)
     }
 }
 

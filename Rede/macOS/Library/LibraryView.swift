@@ -62,7 +62,7 @@ struct LibraryView: View {
         ) { category in
             Button("删除分类", role: .destructive) { deleteCategory(category) }
         } message: { _ in
-            Text("分类中的书籍会保留在“我的书库”中。")
+            Text("分类中的书籍会被保留。")
         }
     }
 
@@ -83,7 +83,11 @@ struct LibraryView: View {
                                 categoryToEdit = CategoryEdit(category: category)
                             }
                             Button("删除分类", systemImage: "trash", role: .destructive) {
-                                categoryToDelete = category
+                                if (category.books ?? []).isEmpty {
+                                    deleteCategory(category)
+                                } else {
+                                    categoryToDelete = category
+                                }
                             }
                         }
                         .dropDestination(for: URL.self) { urls, _ in
@@ -203,7 +207,7 @@ struct LibraryView: View {
         ) { books in
             Button("删除书籍", role: .destructive) { books.forEach(delete) }
         } message: { _ in
-            Text("书籍及其阅读进度和批注将从“我的书库”和所属分类中删除。")
+            Text("书籍和其相关数据将被删除。")
         }
         .alert(
             "操作失败",
