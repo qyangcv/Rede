@@ -4,9 +4,9 @@
 
 # Rede
 
-一款开源、轻量的 EPUB 阅读器，专为中文阅读设计，比 Apple Books 更快更好用。
+一款开源、轻量、现代化的 EPUB 阅读器，专为中文阅读设计。
 
-支持 macOS 与 iOS，支持 iCloud 云同步，完全免费。
+支持 macOS 与 iOS 双端 iCloud 同步。
 
 ![macOS](https://img.shields.io/badge/macOS-26.0+-000?logo=apple&logoColor=white)
 ![iOS](https://img.shields.io/badge/iOS-26.0+-000?logo=apple&logoColor=white)
@@ -16,26 +16,13 @@
 
 ## 预览
 
-### Rede for iOS
-
-<table>
-  <tr>
-    <td align="center"><img src=".asserts/ios_reader_style.png" width="320"><br>样式面板</td>
-    <td align="center"><img src=".asserts/ios_dark_1.png" width="320"><br>深色模式1</td>
-  </tr>
-</table>
-
-### Rede for macOS
-
-![Rede 截图](.asserts/frame-1.png)
-![Rede 截图](.asserts/frame-2.png)
+![Rede 截图](.asserts/rede-promo.png)
 
 ## 功能
 
 - 书籍管理：导入和导出书籍、批量管理、查看元信息
 - 阅读样式：调节字号与粗细、调节行距段距、切换深色模式/浅色模式
 - 内容标注：书签、高亮、笔记
-- iCloud 双端同步
 
 ## 安装
 

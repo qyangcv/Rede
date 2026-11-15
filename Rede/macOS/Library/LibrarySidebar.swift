@@ -176,6 +176,11 @@ struct LibrarySidebar: NSViewRepresentable {
             if sidebar.selection != selection { sidebar.selection = selection }
         }
 
+        func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
+            guard (item as? SidebarItem)?.section != nil else { return nil }
+            return SidebarRowView()
+        }
+
         func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
             guard let item = item as? SidebarItem else { return nil }
             guard let section = item.section else {
@@ -277,6 +282,7 @@ struct LibrarySidebar: NSViewRepresentable {
 
             let icon = NSImageView()
             icon.imageScaling = .scaleProportionallyDown
+            icon.contentTintColor = NSColor(srgbRed: 154.0 / 255, green: 109.0 / 255, blue: 46.0 / 255, alpha: 1)
             icon.translatesAutoresizingMaskIntoConstraints = false
             cell.addSubview(icon)
             cell.imageView = icon
@@ -337,6 +343,13 @@ private final class SidebarOutlineView: NSOutlineView {
         let row = row(at: convert(event.locationInWindow, from: nil))
         menu = row >= 0 ? menuForRow?(row) : nil
         return super.menu(for: event)
+    }
+}
+
+private final class SidebarRowView: NSTableRowView {
+    override var isEmphasized: Bool {
+        get { false }
+        set { super.isEmphasized = false }
     }
 }
 
