@@ -133,6 +133,7 @@ private struct FontScaleStepper: View {
 struct FontScaleButtons: View {
     @Binding var scale: Int
     var showsScale = false
+    var assignsKeyboardShortcuts = false
 
     private let range = ReaderStyle.fontScaleRange
     private let step = ReaderStyle.fontScaleStep
@@ -152,6 +153,7 @@ struct FontScaleButtons: View {
         Button("放大字体", systemImage: "textformat.size.larger") {
             scale = min(scale + step, range.upperBound)
         }
+        .keyboardShortcut(assignsKeyboardShortcuts ? KeyboardShortcut("+") : nil)
         .disabled(scale >= range.upperBound)
     }
 
@@ -159,6 +161,7 @@ struct FontScaleButtons: View {
         Button("缩小字体", systemImage: "textformat.size.smaller") {
             scale = max(scale - step, range.lowerBound)
         }
+        .keyboardShortcut(assignsKeyboardShortcuts ? KeyboardShortcut("-") : nil)
         .disabled(scale <= range.lowerBound)
     }
 }

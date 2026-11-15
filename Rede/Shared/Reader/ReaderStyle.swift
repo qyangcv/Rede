@@ -375,7 +375,7 @@ struct ReaderStyle: Equatable {
     var background: BackgroundColor
     var pattern: BackgroundPattern
 
-    static let fontScaleRange = 90...200
+    static let fontScaleRange = 80...300
     static let fontScaleStep = 5
     static let `default` = ReaderStyle(fontScale: 100, font: .original, fontWeights: [:],
                                       lineSpacing: .standard, paraSpacing: .standard,

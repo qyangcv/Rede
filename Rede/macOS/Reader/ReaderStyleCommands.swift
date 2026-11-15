@@ -79,7 +79,10 @@ struct ReaderStyleCommands: View {
         }
         .disabled(context == nil || weights.count < 2)
 
-        FontScaleButtons(scale: $settings.readerStyle.fontScale)
+        FontScaleButtons(
+            scale: $settings.readerStyle.fontScale,
+            assignsKeyboardShortcuts: true
+        )
             .disabled(context == nil)
         Button("默认大小") { settings.readerStyle.fontScale = ReaderStyle.default.fontScale }
             .disabled(context == nil || settings.readerStyle.fontScale == ReaderStyle.default.fontScale)
