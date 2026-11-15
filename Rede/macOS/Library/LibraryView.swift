@@ -67,50 +67,33 @@ struct LibraryView: View {
     }
 
     private var sidebar: some View {
-        List(selection: $categorySelection) {
-            Label(BookCategories.libraryName, systemImage: "books.vertical")
-                .tag(LibrarySection.library)
-                .dropDestination(for: URL.self) { urls, _ in
+        LibrarySidebar(
+            categories: categories.map { .init(id: $0.id, name: $0.name) },
+            selection: $categorySelection,
+            createCategory: createCategory,
+            renameCategory: { id in
+                guard let category = categories.first(where: { $0.id == id }) else { return }
+                categoryToEdit = CategoryEdit(category: category)
+            },
+            deleteCategory: { id in
+                guard let category = categories.first(where: { $0.id == id }) else { return }
+                if (category.books ?? []).isEmpty {
+                    deleteCategory(category)
+                } else {
+                    categoryToDelete = category
+                }
+            },
+            moveCategories: moveCategories,
+            importEPUBs: { urls, section in
+                switch section {
+                case .library:
                     return importEPUBs(urls, category: nil)
+                case .category(let id):
+                    guard let category = categories.first(where: { $0.id == id }) else { return false }
+                    return importEPUBs(urls, category: category)
                 }
-
-            Section {
-                ForEach(categories) { category in
-                    Label(category.name, systemImage: "folder")
-                        .tag(LibrarySection.category(category.id))
-                        .contextMenu {
-                            Button("重命名", systemImage: "pencil") {
-                                categoryToEdit = CategoryEdit(category: category)
-                            }
-                            Button("删除分类", systemImage: "trash", role: .destructive) {
-                                if (category.books ?? []).isEmpty {
-                                    deleteCategory(category)
-                                } else {
-                                    categoryToDelete = category
-                                }
-                            }
-                        }
-                        .dropDestination(for: URL.self) { urls, _ in
-                            return importEPUBs(urls, category: category)
-                        }
-                }
-                .onMove(perform: moveCategories)
-            } header: {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("分类")
-                    Spacer(minLength: 8)
-                    Button("新建分类", systemImage: "folder.badge.plus", action: createCategory)
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.plain)
-                        .help("新建分类")
-                }
-                .padding(.trailing, 12)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
             }
-        }
-        .listStyle(.sidebar)
+        )
         .navigationSplitViewColumnWidth(min: 150, ideal: 180, max: 260)
     }
 
@@ -337,13 +320,15 @@ struct LibraryView: View {
         categoryToEdit = CategoryEdit()
     }
 
-    private func moveCategories(from offsets: IndexSet, to destination: Int) {
+    private func moveCategories(from offsets: IndexSet, to destination: Int) -> Bool {
         var reordered = categories
         reordered.move(fromOffsets: offsets, toOffset: destination)
         do {
             try BookCategories.reorder(reordered, in: modelContext)
+            return true
         } catch {
             errors.append(error.localizedDescription)
+            return false
         }
     }
 
@@ -438,11 +423,6 @@ struct LibraryView: View {
             }
         }
     }
-}
-
-private enum LibrarySection: Hashable {
-    case library
-    case category(UUID)
 }
 
 private struct CategoryEdit: Identifiable {
