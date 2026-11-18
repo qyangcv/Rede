@@ -89,6 +89,7 @@ struct RedeApp: App {
             return WindowPlacement(position, size: size)
         }
         .environment(session)
+        .windowManagerRole(.principal)
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
         .commandsRemoved()
