@@ -20,7 +20,7 @@ struct LibraryView: View {
     @State private var selection: Set<Book.ID> = []
     @State private var bookToEdit: Book?
     @State private var bookToShowInfo: Book?
-    @State private var filesToShare: [URL] = []
+    @State private var shareItem: ShareItem?
 
     var body: some View {
         NavigationStack {
@@ -163,11 +163,15 @@ struct LibraryView: View {
             .sheet(item: $bookToShowInfo) { book in
                 BookInfoView(book: book)
             }
-            .sheet(isPresented: Binding(get: { !filesToShare.isEmpty },
-                                        set: { if !$0 { endSharing() } })) {
-                ActivityView(items: filesToShare, onComplete: endSharing)
-                    .presentationDetents([.medium, .large])
-                    .ignoresSafeArea()
+            .sheet(item: $shareItem) { item in
+                ActivityView(items: [item.url]) {
+                    if shareItem?.id == item.id { shareItem = nil }
+                }
+                .presentationDetents([.medium, .large])
+                .ignoresSafeArea()
+            }
+            .onChange(of: shareItem?.folder) { oldFolder, _ in
+                if let oldFolder { try? FileManager.default.removeItem(at: oldFolder) }
             }
             .alert(
                 booksToDelete.count > 1 ? "删除选中的 \(booksToDelete.count) 本书？"
@@ -306,40 +310,12 @@ struct LibraryView: View {
     }
 
     private func share(_ ids: [Book.ID]) {
-        let books: [Book]
         do {
-            books = try modelContext.books(ids).filter { $0.file != nil }
+            let books = try modelContext.books(ids).filter { $0.file != nil }
+            shareItem = try ShareItem(books: books)
         } catch {
             errors.append(error.localizedDescription)
-            return
         }
-        guard !books.isEmpty else { return }
-        let folder = URL.temporaryDirectory.appending(component: UUID().uuidString, directoryHint: .isDirectory)
-        let content = books.count > 1 ? folder.appending(component: "Rede 分享", directoryHint: .isDirectory)
-                                      : folder
-        do {
-            try FileManager.default.createDirectory(at: content, withIntermediateDirectories: true)
-            for book in books {
-                try book.epubData().write(to: content.appending(component: book.exportName))
-            }
-            if books.count > 1 {
-                let zip = folder.appending(component: content.lastPathComponent + ".zip")
-                try FileManager.default.zipItem(at: content, to: zip, compressionMethod: .none)
-                filesToShare = [zip]
-            } else {
-                filesToShare = [content.appending(component: books[0].exportName)]
-            }
-        } catch {
-            try? FileManager.default.removeItem(at: folder)
-            errors.append(error.localizedDescription)
-        }
-    }
-
-    private func endSharing() {
-        if let folder = filesToShare.first?.deletingLastPathComponent() {
-            try? FileManager.default.removeItem(at: folder)
-        }
-        filesToShare = []
     }
 
     private func save() {
@@ -373,5 +349,32 @@ struct LibraryView: View {
 
     private func importBooks(_ urls: [URL]) {
         errors += BookImporter.importBooks(from: urls, into: modelContext, category: selectedCategory)
+    }
+}
+
+private struct ShareItem: Identifiable {
+    let url: URL
+    let folder: URL
+    var id: URL { url }
+
+    init?(books: [Book]) throws {
+        guard let first = books.first else { return nil }
+        folder = URL.temporaryDirectory.appending(component: UUID().uuidString, directoryHint: .isDirectory)
+        let content = books.count == 1 ? folder : folder.appending(component: "Rede 分享", directoryHint: .isDirectory)
+        do {
+            try FileManager.default.createDirectory(at: content, withIntermediateDirectories: true)
+            for book in books {
+                try book.epubData().write(to: content.appending(component: book.exportName))
+            }
+            if books.count == 1 {
+                url = content.appending(component: first.exportName)
+            } else {
+                url = folder.appending(component: content.lastPathComponent + ".zip")
+                try FileManager.default.zipItem(at: content, to: url, compressionMethod: .none)
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: folder)
+            throw error
+        }
     }
 }

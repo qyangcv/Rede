@@ -6,7 +6,7 @@ enum LibrarySection: Hashable {
     case category(UUID)
 }
 
-struct LibrarySidebar: NSViewRepresentable {
+struct LibrarySidebar: View {
     struct Category: Equatable {
         let id: UUID
         let name: String
@@ -20,13 +20,33 @@ struct LibrarySidebar: NSViewRepresentable {
     let moveCategories: (IndexSet, Int) -> Bool
     let importEPUBs: ([URL], LibrarySection) -> Bool
 
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            SidebarOutline(sidebar: self)
+            Button(action: createCategory) {
+                Label("新建分类", systemImage: "plus")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 28, height: 28)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.borderless)
+            .help("新建分类")
+            .padding(.leading, 8)
+            .padding(.bottom, 6)
+        }
+    }
+}
+
+private struct SidebarOutline: NSViewRepresentable {
+    let sidebar: LibrarySidebar
+
     func makeCoordinator() -> Coordinator {
-        Coordinator(sidebar: self)
+        Coordinator(sidebar: sidebar)
     }
 
-    func makeNSView(context: Context) -> SidebarContentView {
-        let sidebarView = SidebarContentView()
-        let outline = sidebarView.outline
+    func makeNSView(context: Context) -> NSScrollView {
+        let coordinator = context.coordinator
+        let outline = coordinator.outline
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("LibrarySidebar"))
         column.resizingMask = .autoresizingMask
         outline.addTableColumn(column)
@@ -40,7 +60,6 @@ struct LibrarySidebar: NSViewRepresentable {
         outline.setDraggingSourceOperationMask(.move, forLocal: true)
         outline.setDraggingSourceOperationMask([], forLocal: false)
 
-        let coordinator = context.coordinator
         outline.dataSource = coordinator
         outline.delegate = coordinator
         outline.menuForRow = { [weak coordinator, weak outline] row in
@@ -54,38 +73,11 @@ struct LibrarySidebar: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.documentView = outline
 
-        let add = NSButton()
-        add.image = NSImage(systemSymbolName: "plus", accessibilityDescription: nil)
-        add.imagePosition = .imageOnly
-        add.isBordered = false
-        add.target = coordinator
-        add.action = #selector(Coordinator.createCategory(_:))
-        add.toolTip = "新建分类"
-        add.setAccessibilityLabel("新建分类")
-
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        add.translatesAutoresizingMaskIntoConstraints = false
-        sidebarView.addSubview(scrollView)
-        sidebarView.addSubview(add)
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: sidebarView.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: sidebarView.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: add.topAnchor, constant: -4),
-            add.leadingAnchor.constraint(equalTo: sidebarView.leadingAnchor, constant: 8),
-            add.bottomAnchor.constraint(equalTo: sidebarView.bottomAnchor, constant: -6),
-            add.widthAnchor.constraint(equalToConstant: 28),
-            add.heightAnchor.constraint(equalToConstant: 28)
-        ])
-        return sidebarView
+        return scrollView
     }
 
-    func updateNSView(_ sidebarView: SidebarContentView, context: Context) {
-        context.coordinator.update(sidebar: self, in: sidebarView.outline)
-    }
-
-    final class SidebarContentView: NSView {
-        fileprivate let outline = SidebarOutlineView()
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        context.coordinator.update(sidebar: sidebar)
     }
 
     final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
@@ -93,19 +85,20 @@ struct LibrarySidebar: NSViewRepresentable {
         private static let itemCellID = NSUserInterfaceItemIdentifier("LibrarySidebarItem")
         private static let headingCellID = NSUserInterfaceItemIdentifier("LibrarySidebarHeading")
 
+        let outline = SidebarOutlineView()
         private var sidebar: LibrarySidebar
         private let library = SidebarItem(section: .library, name: BookCategories.libraryName)
         private let heading = SidebarItem(section: nil, name: "分类")
         private var items: [SidebarItem] = []
         private var categoryItems: [UUID: SidebarItem] = [:]
-        private var displayedCategories: [Category]?
+        private var displayedCategories: [LibrarySidebar.Category]?
         private var isUpdating = false
 
         init(sidebar: LibrarySidebar) {
             self.sidebar = sidebar
         }
 
-        func update(sidebar: LibrarySidebar, in outline: NSOutlineView) {
+        func update(sidebar: LibrarySidebar) {
             self.sidebar = sidebar
             isUpdating = true
             defer { isUpdating = false }
@@ -207,10 +200,6 @@ struct LibrarySidebar: NSViewRepresentable {
                 menu.addItem(action)
             }
             return menu
-        }
-
-        @objc fileprivate func createCategory(_ sender: NSButton) {
-            sidebar.createCategory()
         }
 
         @objc private func renameCategory(_ sender: NSMenuItem) {

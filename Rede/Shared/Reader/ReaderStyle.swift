@@ -169,17 +169,6 @@ extension ReaderStyle: Codable {
         pattern = try container.decodeIfPresent(BackgroundPattern.self, forKey: .pattern) ?? fallback.pattern
     }
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(fontScale, forKey: .fontScale)
-        try container.encode(font, forKey: .font)
-        try container.encode(fontWeights, forKey: .fontWeights)
-        try container.encode(lineSpacing, forKey: .lineSpacing)
-        try container.encode(paraSpacing, forKey: .paraSpacing)
-        try container.encode(background, forKey: .background)
-        try container.encode(pattern, forKey: .pattern)
-    }
-
     init?(rawValue: String) {
         guard let value = try? JSONDecoder().decode(ReaderStyle.self, from: Data(rawValue.utf8)) else {
             return nil
