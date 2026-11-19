@@ -140,6 +140,7 @@ struct ReaderScreen: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         case .annotations:
+            let annotations = annotationKind == .bookmark ? session.bookmarks : session.highlights
             VStack(spacing: 0) {
                 PanelHeader(title: "标注") {
                     if annotationKind == .bookmark {
@@ -160,7 +161,7 @@ struct ReaderScreen: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 AnnotationList(kind: annotationKind,
-                               annotations: annotationKind == .bookmark ? session.bookmarks : session.highlights,
+                               sections: AnnotationSections(toc: reader.toc).sections(for: annotations),
                                progress: session.progress(of:)) { annotation in
                     panel = nil
                     session.go(to: annotation)

@@ -2,13 +2,13 @@ import SwiftUI
 
 struct AnnotationList: View {
     let kind: Annotation.Kind
-    let annotations: [Annotation]
+    let sections: [AnnotationSections.Section]
     let progress: (Annotation) -> Double?
     let onSelect: (Annotation) -> Void
     let onDelete: (Annotation) -> Void
 
     var body: some View {
-        if annotations.isEmpty {
+        if sections.isEmpty {
             switch kind {
             case .bookmark:
                 ContentUnavailableView("没有书签", systemImage: "bookmark", description: Text("点击按钮添加当前页书签"))
@@ -18,18 +18,24 @@ struct AnnotationList: View {
             }
         } else {
             List {
-                ForEach(annotations) { annotation in
-                    Button {
-                        onSelect(annotation)
-                    } label: {
-                        AnnotationRow(annotation: annotation, isBookmark: kind == .bookmark, progress: progress(annotation))
-                    }
-                    .buttonStyle(.plain)
-                    .listRowBackground(Color.clear)
-                    .swipeActions {
-                        Button("移除", systemImage: "trash", role: .destructive) {
-                            onDelete(annotation)
+                ForEach(sections) { section in
+                    Section {
+                        ForEach(section.annotations) { annotation in
+                            Button {
+                                onSelect(annotation)
+                            } label: {
+                                AnnotationRow(annotation: annotation, isBookmark: kind == .bookmark, progress: progress(annotation))
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(Color.clear)
+                            .swipeActions {
+                                Button("移除", systemImage: "trash", role: .destructive) {
+                                    onDelete(annotation)
+                                }
+                            }
                         }
+                    } header: {
+                        if let title = section.title { Text(title) }
                     }
                 }
             }
