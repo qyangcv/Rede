@@ -8,6 +8,9 @@ struct LibraryView: View {
     @Environment(ReaderSession.self) private var session
     @Environment(\.colorScheme) private var colorScheme
     @Query private var books: [Book]
+    @Query(sort: BookCategories.sortDescriptors) private var categories: [BookCategory]
+    @State private var categoryID: UUID?
+    @State private var categoryPanel: LibraryCategoryPanel?
     @Bindable private var settings = Settings.shared
     @State private var isImporting = false
     @State private var showSettings = false
@@ -77,25 +80,40 @@ struct LibraryView: View {
             }
             .animation(.default, value: settings.libraryLayout)
             .animation(.default, value: settings.librarySort)
-            .onChange(of: books.map(\.id), initial: true) { _, ids in
-                selection.formIntersection(ids)
-                if ids.isEmpty { isSelecting = false }
+            .onChange(of: books.map(\.id), initial: true) {
                 Task { BookMerger.merge(in: modelContext) }
             }
+            .onChange(of: visibleBooks.map(\.id)) { _, ids in
+                selection.formIntersection(ids)
+                if ids.isEmpty { isSelecting = false }
+            }
+            .onChange(of: categories.map(\.id)) { _, ids in
+                if let categoryID, !ids.contains(categoryID) {
+                    self.categoryID = nil
+                    endSelecting()
+                }
+            }
             .overlay {
-                if books.isEmpty {
+                if visibleBooks.isEmpty {
                     ContentUnavailableView {
-                        Label("书架是空的", systemImage: "books.vertical")
+                        if categoryID == nil {
+                            Label("书架是空的", systemImage: "books.vertical")
+                        } else {
+                            Label("这个分类是空的", systemImage: "folder")
+                        }
                     } description: {
-                        Text("导入 EPUB 开始阅读")
+                        if categoryID == nil {
+                            Text("导入 EPUB 开始阅读")
+                        }
                     } actions: {
                         Button("导入 EPUB") { isImporting = true }
                             .buttonStyle(.borderedProminent)
+                            .padding(.top, categoryID == nil ? 0 : 12)
                     }
                 }
             }
-            .navigationTitle(isSelecting ? "已选择 \(selection.count) 本" : "我的书库")
-            .toolbarTitleDisplayMode(isSelecting ? .inline : .inlineLarge)
+            .navigationTitle(isSelecting ? "已选择 \(selection.count) 本" : shelfTitle)
+            .toolbarTitleDisplayMode(isSelecting || !categories.isEmpty ? .inline : .inlineLarge)
             .containerBackground(colorScheme == .dark ? Color(.sRGB, white: 0x1A / 255)
                                                       : Color(.systemBackground),
                                  for: .navigation)
@@ -104,6 +122,9 @@ struct LibraryView: View {
                 if isSelecting {
                     selectionToolbar
                 } else {
+                    if !categories.isEmpty {
+                        ToolbarTitleMenu { categoryOptions }
+                    }
                     if SyncMonitor.shared.hasProblem {
                         ToolbarItem { SyncAlertButton() }
                         ToolbarSpacer(.fixed)
@@ -132,6 +153,9 @@ struct LibraryView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
+            }
+            .sheet(item: $categoryPanel) { panel in
+                LibraryCategories(panel: panel, onMove: endSelecting)
             }
             .sheet(item: $bookToEdit) { book in
                 BookInfoEditor(book: book, onSave: save)
@@ -175,6 +199,21 @@ struct LibraryView: View {
         }
     }
 
+    private var shelfTitle: String { selectedCategory?.name ?? BookCategories.libraryName }
+
+    @ViewBuilder
+    private var categoryOptions: some View {
+        Picker("分类", selection: $categoryID) {
+            Text("\(BookCategories.libraryName)（\(books.count)）").tag(nil as UUID?)
+            ForEach(categories) { category in
+                Text("\(category.name)（\(category.books?.count ?? 0)）").tag(Optional(category.id))
+            }
+        }
+        .pickerStyle(.inline)
+        Divider()
+        Button("管理分类…", systemImage: "folder") { categoryPanel = .manage }
+    }
+
     @ToolbarContentBuilder
     private var selectionToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
@@ -182,19 +221,22 @@ struct LibraryView: View {
         }
         .sharedBackgroundVisibility(.hidden)
         ToolbarItem {
-            HStack(spacing: 4) {
-                if selection.count == books.count {
-                    Button("取消全选", systemImage: "checklist.checked") { selection = [] }
-                } else {
-                    Button("全选", systemImage: "checklist.unchecked") { selection = Set(books.map(\.id)) }
-                }
-                if !selection.isEmpty {
-                    shareButton(for: Array(selection))
-                    Button("删除", systemImage: "trash") { booksToDelete = selectedBooks }
-                }
+            if selection.count == visibleBooks.count {
+                Button("取消全选", systemImage: "checklist.checked") { selection = [] }
+            } else {
+                Button("全选", systemImage: "checklist.unchecked") { selection = Set(visibleBooks.map(\.id)) }
             }
         }
         .sharedBackgroundVisibility(.hidden)
+        if !selection.isEmpty {
+            ToolbarItemGroup(placement: .bottomBar) {
+                moveButton(for: selectedBooks)
+                Spacer()
+                shareButton(for: Array(selection))
+                Spacer()
+                Button("删除", systemImage: "trash") { booksToDelete = selectedBooks }
+            }
+        }
     }
 
     private func selectionMark(for book: Book) -> some View {
@@ -207,12 +249,21 @@ struct LibraryView: View {
     }
 
     private var selectedBooks: [Book] {
-        books.filter { selection.contains($0.id) }
+        visibleBooks.filter { selection.contains($0.id) }
+    }
+
+    private var selectedCategory: BookCategory? {
+        categories.first { $0.id == categoryID }
+    }
+
+    private var visibleBooks: [Book] {
+        guard let categoryID else { return books }
+        return books.filter { $0.category?.id == categoryID }
     }
 
     private var sortedBooks: [Book] {
-        books.sorted(using: BookComparator(key: settings.librarySort, order: settings.libraryOrder,
-                                           readingTimes: [:]))
+        visibleBooks.sorted(using: BookComparator(key: settings.librarySort, order: settings.libraryOrder,
+                                                  readingTimes: [:]))
     }
 
     private func tap(_ book: Book) {
@@ -229,6 +280,7 @@ struct LibraryView: View {
     private func menu(for book: Book) -> some View {
         let targets = isSelecting && selection.contains(book.id) ? selectedBooks : [book]
         if targets.count > 1 {
+            moveButton(for: targets)
             shareButton(for: targets.map(\.id))
             Button("删除 \(targets.count) 本", systemImage: "trash", role: .destructive) {
                 booksToDelete = targets
@@ -236,8 +288,15 @@ struct LibraryView: View {
         } else {
             Button("显示简介", systemImage: "info.circle") { bookToShowInfo = book }
             Button("编辑信息", systemImage: "pencil") { bookToEdit = book }
+            moveButton(for: targets)
             if book.file != nil { shareButton(for: [book.id]) }
             Button("删除", systemImage: "trash", role: .destructive) { booksToDelete = [book] }
+        }
+    }
+
+    private func moveButton(for books: [Book]) -> some View {
+        Button("移至分类…", systemImage: "folder") {
+            categoryPanel = .move(books.map(\.id))
         }
     }
 
@@ -315,7 +374,7 @@ struct LibraryView: View {
     private func importBooks(_ urls: [URL]) {
         for url in urls {
             do {
-                try BookImporter.importBook(from: url, into: modelContext)
+                try BookImporter.importBook(from: url, into: modelContext, category: selectedCategory)
             } catch {
                 errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
             }
