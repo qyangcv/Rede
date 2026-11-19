@@ -9,8 +9,15 @@
 // 这是存储数据依赖的契约：标注存下后改动 MEDIA 会让已有偏移整体错位。
 // Swift 侧 EpubBook.textStats 按本定义近似计数，仅用于百分比和字数。
 const MEDIA = new Set(["img", "svg", "video"]);
+const unitIndexes = new WeakMap();
 
-function* units(doc) {
+function units(doc) {
+  const body = doc.body;
+  const cached = unitIndexes.get(body);
+  if (cached && cached.observer.takeRecords().length === 0) return cached.entries;
+  cached?.observer.disconnect();
+
+  const entries = [];
   const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
     acceptNode: (node) => node.nodeType === Node.TEXT_NODE || MEDIA.has(node.localName)
       ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP,
@@ -20,7 +27,7 @@ function* units(doc) {
     const node = walker.currentNode;
     const text = node.nodeType === Node.TEXT_NODE;
     const length = text ? node.length : 1;
-    yield { node, start, length, text };
+    entries.push({ node, start, length, text });
     start += length;
     if (!text) {
       // 跳过媒体内部（svg 的 <text>、video 的后备内容）：把游标移到其最后一个后代，下一步即离开子树
@@ -29,13 +36,33 @@ function* units(doc) {
       walker.currentNode = last;
     }
   }
+
+  // 只索引正文坐标，不缓存排版。章节脚本修改文本或子树时，下次读取重建索引。
+  const observer = new MutationObserver(() => {
+    observer.disconnect();
+    unitIndexes.delete(body);
+  });
+  observer.observe(body, { childList: true, characterData: true, subtree: true });
+  unitIndexes.set(body, { entries, observer });
+  return entries;
+}
+
+function* unitsFrom(doc, offset) {
+  const entries = units(doc);
+  let lo = 0, hi = entries.length;
+  while (lo < hi) {
+    const mid = lo + Math.floor((hi - lo) / 2);
+    const unit = entries[mid];
+    if (unit.start + unit.length <= offset) lo = mid + 1;
+    else hi = mid;
+  }
+  for (let i = lo; i < entries.length; i++) yield entries[i];
 }
 
 // 本章总单位数
 function contentLength(doc) {
-  let total = 0;
-  for (const unit of units(doc)) total += unit.length;
-  return total;
+  const last = units(doc).at(-1);
+  return last ? last.start + last.length : 0;
 }
 
 // 节点起点在坐标中的位置，即排在它之前的单位数（不含其后代）
@@ -110,9 +137,9 @@ function boundaries(doc, offsets) {
 function excerpt(doc, start, length) {
   const end = start + length;
   let text = "";
-  for (const unit of units(doc)) {
+  for (const unit of unitsFrom(doc, start)) {
     if (unit.start >= end) break;
-    if (!unit.text || unit.start + unit.length <= start) continue;
+    if (!unit.text) continue;
     text += unit.node.data.slice(Math.max(start - unit.start, 0), end - unit.start);
   }
   return text.replace(/\s+/g, " ").trim();

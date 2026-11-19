@@ -468,8 +468,7 @@ function spreadOfRect(rect) {
 function spreadAt(offset) {
   if (offset < 0) return -1;
   const range = doc.createRange();
-  for (const { node, start, length, text } of units(doc)) {
-    if (start + length <= offset) continue;
+  for (const { node, start, length, text } of unitsFrom(doc, offset)) {
     if (!text) {
       const rect = node.getClientRects()[0];
       if (rect) return spreadOfRect(rect);
