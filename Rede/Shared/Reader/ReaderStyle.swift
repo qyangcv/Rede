@@ -77,17 +77,8 @@ enum HighlightColor {
     }
 }
 
-enum BackgroundPattern: String, CaseIterable, Identifiable, Codable {
+enum BackgroundPattern: String, Codable {
     case none, bamboo
-
-    var id: Self { self }
-
-    var name: String {
-        switch self {
-        case .none: "默认"
-        case .bamboo: "竹叶"
-        }
-    }
 
     var file: String? {
         switch self {
@@ -169,15 +160,4 @@ extension ReaderStyle: Codable {
         pattern = try container.decodeIfPresent(BackgroundPattern.self, forKey: .pattern) ?? fallback.pattern
     }
 
-    init?(rawValue: String) {
-        guard let value = try? JSONDecoder().decode(ReaderStyle.self, from: Data(rawValue.utf8)) else {
-            return nil
-        }
-        self = value
-    }
-
-    var rawValue: String {
-        let data = (try? JSONEncoder().encode(self)) ?? Data()
-        return String(decoding: data, as: UTF8.self)
-    }
 }

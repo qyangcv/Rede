@@ -8,7 +8,7 @@ import UIKit
 
 final class EpubSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "epub"
-    static let host = "book"
+    static let baseURL = URL(string: "\(scheme)://book/")!
 
     let book: EpubBook
     private let mediaTypes: [String: String]
@@ -19,15 +19,6 @@ final class EpubSchemeHandler: NSObject, WKURLSchemeHandler {
             book.model.manifest.values.map { ($0.path, $0.mediaType) },
             uniquingKeysWith: { first, _ in first }
         )
-    }
-
-    static func url(for path: String, fragment: String? = nil) -> URL? {
-        var components = URLComponents()
-        components.scheme = scheme
-        components.host = host
-        components.path = "/" + path
-        components.fragment = fragment
-        return components.url
     }
 
     func webView(_ webView: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
@@ -169,7 +160,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
     private(set) var annotations: [AnnotationMark] = []
     private var ready = false
 
-    init(book: EpubBook, start: ReadingPosition? = nil) {
+    init(book: EpubBook, start: ReadingPosition?) {
         self.book = book
         self.position = start
         self.toc = TOCItem.flatten(book.model.toc)
@@ -201,11 +192,10 @@ final class Reader: NSObject,  WKNavigationDelegate {
     func open(style: [String: String]) {
         self.style = style
         ready = false
-        guard let baseURL = EpubSchemeHandler.url(for: ""),
-              let html = try? AppResourceSchemeHandler.data(named: "reader.html") else { return }
+        guard let html = try? AppResourceSchemeHandler.data(named: "reader.html") else { return }
         injectInitialStyle(style)
         shellNavigation = webView.load(html, mimeType: "text/html",
-                                       characterEncodingName: "utf-8", baseURL: baseURL)
+                                       characterEncodingName: "utf-8", baseURL: EpubSchemeHandler.baseURL)
     }
 
     private func injectInitialStyle(_ style: [String: String]) {
