@@ -87,8 +87,7 @@ struct ReaderWindow: View {
 
                         ToolbarItem(placement: .primaryAction) {
                             StyleButton(isPresented: $stylePresented, style: $settings.readerStyle,
-                                        appearance: $settings.appearance,
-                                        transition: $settings.pageTransition, onDismiss: reader.focus)
+                                        appearance: $settings.appearance, onDismiss: reader.focus)
                         }
                         .sharedBackgroundVisibility(.hidden)
                     }
@@ -114,7 +113,6 @@ struct ReaderWindow: View {
                         }
                         reader.onAnnotationAction = { perform($0) }
                     }
-                    .onChange(of: settings.pageTransition) { _, new in session.setTransition(new) }
                     .onDisappear { turner.detach() }
                     .id(ObjectIdentifier(reader))
             } else {

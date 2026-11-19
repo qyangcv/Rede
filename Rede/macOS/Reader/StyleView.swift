@@ -4,7 +4,6 @@ struct StyleButton: View {
     @Binding var isPresented: Bool
     @Binding var style: ReaderStyle
     @Binding var appearance: Appearance
-    @Binding var transition: PageTransition
     var onDismiss: () -> Void = {}
 
     var body: some View {
@@ -16,7 +15,7 @@ struct StyleButton: View {
         }
         .help("样式")
         .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            StylePanel(style: $style, appearance: $appearance, transition: $transition)
+            StylePanel(style: $style, appearance: $appearance)
                 .frame(minWidth: 210)
         }
         .onChange(of: isPresented) { _, shown in
@@ -28,7 +27,6 @@ struct StyleButton: View {
 struct StylePanel: View {
     @Binding var style: ReaderStyle
     @Binding var appearance: Appearance
-    @Binding var transition: PageTransition
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -89,15 +87,6 @@ struct StylePanel: View {
                 GridRow {
                     label("颜色")
                     ColorSwatches(selection: $style.background)
-                }
-
-                if PageTransition.allCases.count > 1 {
-                    Divider()
-
-                    GridRow {
-                        label("翻页")
-                        TransitionPicker(selection: $transition)
-                    }
                 }
             }
 
@@ -193,6 +182,5 @@ struct AppearanceOptions: View {
 #Preview("stylePanel") {
     @Previewable @State var style = ReaderStyle.default
     @Previewable @State var appearance = Appearance.system
-    @Previewable @State var transition = PageTransition.default
-    StylePanel(style: $style, appearance: $appearance, transition: $transition)
+    StylePanel(style: $style, appearance: $appearance)
 }

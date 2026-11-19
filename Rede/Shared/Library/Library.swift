@@ -86,6 +86,20 @@ final class Book {
     }
 }
 
+struct BookDetails {
+    let metadata: EpubMetadata?
+    let fileSize: Int?
+    let readingTime: Duration?
+
+    init(book: Book, in context: ModelContext) {
+        readingTime = try? context.readingTime(of: book)
+        ChapterLengthIndexer.shared.ensure(book, in: context)
+        let data = try? book.epubData()
+        metadata = try? data.map(parseEpub)?.model.metadata
+        fileSize = data?.count
+    }
+}
+
 @Model
 final class BookCategory {
     var id: UUID = UUID()
@@ -201,6 +215,18 @@ extension ModelContainer {
 
 enum BookImporter {
     private static let coverSize = 600
+
+    static func importBooks(from urls: [URL], into context: ModelContext, category: BookCategory?) -> [String] {
+        var errors: [String] = []
+        for url in urls {
+            do {
+                try importBook(from: url, into: context, category: category)
+            } catch {
+                errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+            }
+        }
+        return errors
+    }
 
     @discardableResult
     static func importBook(from source: URL, into context: ModelContext,

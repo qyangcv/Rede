@@ -1,18 +1,13 @@
 import SwiftUI
-#if os(iOS)
 import UIKit
-#endif
 
 final class InstantTurner: NSObject, PageTurner {
     private let reader: Reader
-    #if os(iOS)
     private var swipes: [UISwipeGestureRecognizer] = []
-    #endif
 
     init(reader: Reader) {
         self.reader = reader
         super.init()
-        #if os(iOS)
         for direction in [UISwipeGestureRecognizer.Direction.left, .right] {
             let swipe = UISwipeGestureRecognizer(target: self, action: #selector(swiped))
             swipe.direction = direction
@@ -20,7 +15,6 @@ final class InstantTurner: NSObject, PageTurner {
             reader.webView.addGestureRecognizer(swipe)
             swipes.append(swipe)
         }
-        #endif
     }
 
     var pages: PageRenderer? { nil }
@@ -31,20 +25,15 @@ final class InstantTurner: NSObject, PageTurner {
     }
 
     func detach() {
-        #if os(iOS)
         swipes.forEach { reader.webView.removeGestureRecognizer($0) }
         swipes = []
-        #endif
     }
 
-    #if os(iOS)
     @objc private func swiped(_ swipe: UISwipeGestureRecognizer) {
         turn(swipe.direction == .left ? .next : .prev)
     }
-    #endif
 }
 
-#if os(iOS)
 extension InstantTurner: UIGestureRecognizerDelegate {
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         !reader.selecting
@@ -55,4 +44,3 @@ extension InstantTurner: UIGestureRecognizerDelegate {
         true
     }
 }
-#endif

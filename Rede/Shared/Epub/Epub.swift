@@ -3,7 +3,6 @@ import Kanna
 import ZIPFoundation
 
 nonisolated struct EpubModel {
-    let opfPath: String
     let metadata: EpubMetadata
     let manifest: [String: EpubManifestItem]
     let spine: [EpubManifestItem]
@@ -22,7 +21,6 @@ nonisolated struct EpubMetadata {
 }
 
 nonisolated struct EpubManifestItem {
-    let id: String
     let path: String
     let mediaType: String
     let properties: Set<String>
@@ -42,7 +40,6 @@ nonisolated struct EpubBook {
 }
 
 nonisolated enum EpubParsingError: Error {
-    case containerNotFound
     case opfNotFound
     case entryNotFound(String)
 }
@@ -65,8 +62,7 @@ nonisolated func parseEpub(_ data: Data) throws -> EpubBook {
     let toc = parseToc(fetcher: fetcher, opfXML: opfXML, manifest: manifest)
     let cover = findCover(opfXML, manifest: manifest)
 
-    let model = EpubModel(opfPath: opfPath, metadata: metadata,
-                          manifest: manifest, spine: spine, toc: toc, cover: cover)
+    let model = EpubModel(metadata: metadata, manifest: manifest, spine: spine, toc: toc, cover: cover)
     return EpubBook(model: model, fetcher: fetcher)
 }
 
@@ -104,8 +100,7 @@ nonisolated private func parseManifest(_ opfXML: Searchable, opfPath: String) ->
         let path = resolveHref(href, relativeTo: opfPath).path
         let properties = element["properties"]?
             .split(whereSeparator: \.isWhitespace).map(String.init) ?? []
-        manifest[id] = EpubManifestItem(id: id, path: path, mediaType: mediaType,
-                                        properties: Set(properties))
+        manifest[id] = EpubManifestItem(path: path, mediaType: mediaType, properties: Set(properties))
     }
     return manifest
 }
@@ -232,10 +227,6 @@ nonisolated private func normalizePath(_ path: String) -> String {
 
 nonisolated struct EpubFetcher {
     let archive: Archive
-
-    func exist(at path: String) -> Bool {
-        archive[path] != nil
-    }
 
     func data(at path: String) throws -> Data {
         guard let entry = archive[path] else {

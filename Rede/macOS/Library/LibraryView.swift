@@ -366,13 +366,7 @@ struct LibraryView: View {
     }
 
     private func importBooks(_ urls: [URL], category: BookCategory?) {
-        for url in urls {
-            do {
-                try BookImporter.importBook(from: url, into: modelContext, category: category)
-            } catch {
-                errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
-            }
-        }
+        errors += BookImporter.importBooks(from: urls, into: modelContext, category: category)
     }
 }
 

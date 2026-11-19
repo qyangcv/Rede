@@ -52,24 +52,22 @@ struct BookInfoView: View {
     let book: Book
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @State private var metadata: EpubMetadata?
-    @State private var fileSize: Int?
-    @State private var readingTime: Duration?
+    @State private var details: BookDetails?
 
     var body: some View {
         NavigationStack {
             Form {
                 row("书名", book.name)
                 row("作者", book.author)
-                row("出版社", metadata?.publisher)
-                row("出版日期", metadata?.date)
-                row("ISBN", metadata?.isbn)
-                row("EPUB 版本", metadata?.version)
-                row("文件大小", fileSize.map { Int64($0).formatted(.byteCount(style: .file)) })
+                row("出版社", details?.metadata?.publisher)
+                row("出版日期", details?.metadata?.date)
+                row("ISBN", details?.metadata?.isbn)
+                row("EPUB 版本", details?.metadata?.version)
+                row("文件大小", details?.fileSize.map { Int64($0).formatted(.byteCount(style: .file)) })
                 row("字数", book.wordCount?.formatted())
                 row("导入时间", book.date.formatted(date: .abbreviated, time: .shortened))
                 row("最后阅读", book.lastRead?.formatted(date: .abbreviated, time: .shortened))
-                row("阅读时长", readingTime?.readingText)
+                row("阅读时长", details?.readingTime?.readingText)
             }
             .formStyle(.grouped)
             .textSelection(.enabled)
@@ -83,11 +81,7 @@ struct BookInfoView: View {
         }
         .presentationDetents([.medium, .large])
         .task {
-            readingTime = try? modelContext.readingTime(of: book)
-            ChapterLengthIndexer.shared.ensure(book, in: modelContext)
-            let data = try? book.epubData()
-            metadata = try? data.map(parseEpub)?.model.metadata
-            fileSize = data?.count
+            details = BookDetails(book: book, in: modelContext)
         }
     }
 
