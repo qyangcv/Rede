@@ -98,6 +98,11 @@ struct LibraryView: View {
 
     private var library: some View {
         Group {
+            let needsReadingTimes = settings.libraryLayout == .list || settings.librarySort == .readingTime
+            let readingTimes = needsReadingTimes ? spans.readingTimes : [:]
+            let sortedBooks = visibleBooks.sorted(using: BookComparator(
+                key: settings.librarySort, order: settings.libraryOrder, readingTimes: readingTimes
+            ))
             switch settings.libraryLayout {
             case .grid:
                 BookGrid(books: sortedBooks, selection: $selection, anchor: $anchor, open: open) { book in
@@ -106,7 +111,7 @@ struct LibraryView: View {
                 }
                 .onDeleteCommand { booksToDelete = selectedBooks }
             case .list:
-                BookTable(books: sortedBooks, readingTimes: spans.readingTimes,
+                BookTable(books: sortedBooks, readingTimes: readingTimes,
                           sort: $settings.librarySort, order: $settings.libraryOrder,
                           selection: $selection, open: open) { ids in
                     let targets = visibleBooks.filter { ids.contains($0.id) }
@@ -229,11 +234,6 @@ struct LibraryView: View {
     private var visibleBooks: [Book] {
         guard let category = selectedCategory else { return books }
         return books.filter { $0.category?.id == category.id }
-    }
-
-    private var sortedBooks: [Book] {
-        visibleBooks.sorted(using: BookComparator(key: settings.librarySort, order: settings.libraryOrder,
-                                           readingTimes: spans.readingTimes))
     }
 
     private var selectedBooks: [Book] {
