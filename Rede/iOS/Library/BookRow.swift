@@ -24,15 +24,11 @@ struct BookRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            if let progress = book.progress {
-                Text(progress.formatted(
-                    .percent
-                        .precision(.fractionLength(0...1))
-                        .rounded(rule: .down)
-                ))
-                .font(.caption)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
+            if let text = book.progressText {
+                Text(text)
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, 16)

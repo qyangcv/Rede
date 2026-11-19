@@ -45,6 +45,7 @@ struct LibraryCategories: View {
                         .onMove(perform: reorder)
                     }
                 case .move:
+                    let selection = BookCategories.Selection(books)
                     Section {
                         ForEach(categories) { category in
                             Button {
@@ -53,7 +54,7 @@ struct LibraryCategories: View {
                                 HStack {
                                     Text(category.name)
                                     Spacer()
-                                    if !books.isEmpty && books.allSatisfy({ $0.category?.id == category.id }) {
+                                    if selection.commonID == category.id {
                                         Image(systemName: "checkmark")
                                             .accessibilityLabel("当前分类")
                                     }
@@ -61,7 +62,7 @@ struct LibraryCategories: View {
                             }
                         }
                     }
-                    if books.contains(where: { $0.category != nil }) {
+                    if selection.canRemove {
                         Button("移出分类", systemImage: "folder.badge.minus") { assign(to: nil) }
                     }
                     Section {

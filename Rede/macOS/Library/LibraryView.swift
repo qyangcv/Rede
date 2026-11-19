@@ -98,10 +98,11 @@ struct LibraryView: View {
 
     private var library: some View {
         Group {
-            let needsReadingTimes = settings.libraryLayout == .list || settings.librarySort == .readingTime
+            let sorting = settings.librarySorting
+            let needsReadingTimes = settings.libraryLayout == .list || sorting.key == .readingTime
             let readingTimes = needsReadingTimes ? spans.readingTimes : [:]
             let sortedBooks = visibleBooks.sorted(using: BookComparator(
-                key: settings.librarySort, order: settings.libraryOrder, readingTimes: readingTimes
+                key: sorting.key, order: sorting.order, readingTimes: readingTimes
             ))
             switch settings.libraryLayout {
             case .grid:
@@ -112,7 +113,7 @@ struct LibraryView: View {
                 .onDeleteCommand { booksToDelete = selectedBooks }
             case .list:
                 BookTable(books: sortedBooks, readingTimes: readingTimes,
-                          sort: $settings.librarySort, order: $settings.libraryOrder,
+                          sorting: $settings.librarySorting,
                           selection: $selection, open: open) { ids in
                     let targets = visibleBooks.filter { ids.contains($0.id) }
                     LibraryBookContextMenu(selectionCount: targets.count, context: menuContext(for: targets))
@@ -253,10 +254,7 @@ struct LibraryView: View {
             delete: targets.isEmpty ? nil : { booksToDelete = targets },
             category: targets.isEmpty ? nil : LibraryMenuContext.Category(
                 categories: categories,
-                currentCategory: targets.first?.category.flatMap { category in
-                    targets.allSatisfy { $0.category?.id == category.id } ? category.id : nil
-                },
-                canRemove: targets.contains { $0.category != nil },
+                selection: BookCategories.Selection(targets),
                 assign: { assign(targets, to: $0) },
                 create: { categoryToEdit = CategoryEdit(books: targets) }
             )

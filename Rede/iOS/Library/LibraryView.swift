@@ -79,7 +79,7 @@ struct LibraryView: View {
                 }
             }
             .animation(.default, value: settings.libraryLayout)
-            .animation(.default, value: settings.librarySort)
+            .animation(.default, value: settings.librarySorting.key)
             .onChange(of: books.map(\.id), initial: true) {
                 Task { BookMerger.merge(in: modelContext) }
             }
@@ -131,9 +131,8 @@ struct LibraryView: View {
                     }
 
                     ToolbarItem {
-                        LibraryMenu(sort: Binding { settings.librarySort } set: {
-                                        settings.librarySort = $0
-                                        settings.libraryOrder = $0.defaultOrder
+                        LibraryMenu(sort: Binding { settings.librarySorting.key } set: {
+                                        settings.librarySorting = LibrarySorting(key: $0)
                                     },
                                     layout: $settings.libraryLayout,
                                     appearance: $settings.appearance,
@@ -266,7 +265,7 @@ struct LibraryView: View {
     }
 
     private var sortedBooks: [Book] {
-        visibleBooks.sorted(using: BookComparator(key: settings.librarySort, order: settings.libraryOrder,
+        visibleBooks.sorted(using: BookComparator(key: settings.librarySorting.key, order: settings.librarySorting.order,
                                                   readingTimes: [:]))
     }
 

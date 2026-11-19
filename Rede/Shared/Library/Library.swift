@@ -87,6 +87,12 @@ final class Book {
 }
 
 struct BookDetails {
+    struct Field: Identifiable {
+        let label: String
+        let value: String
+        var id: String { label }
+    }
+
     let metadata: EpubMetadata?
     let fileSize: Int?
     let readingTime: Duration?
@@ -97,6 +103,26 @@ struct BookDetails {
         let data = try? book.epubData()
         metadata = try? data.map(parseEpub)?.model.metadata
         fileSize = data?.count
+    }
+
+    static func fields(for book: Book, details: BookDetails?) -> [Field] {
+        let values: [(String, String?)] = [
+            ("书名", book.name),
+            ("作者", book.author),
+            ("出版社", details?.metadata?.publisher),
+            ("出版日期", details?.metadata?.date),
+            ("ISBN", details?.metadata?.isbn),
+            ("EPUB 版本", details?.metadata?.version),
+            ("文件大小", details?.fileSize.map { Int64($0).formatted(.byteCount(style: .file)) }),
+            ("字数", book.wordCount?.formatted()),
+            ("导入时间", book.date.formatted(date: .abbreviated, time: .shortened)),
+            ("最后阅读", book.lastRead?.formatted(date: .abbreviated, time: .shortened)),
+            ("阅读时长", details?.readingTime?.readingText),
+        ]
+        return values.compactMap { label, value in
+            guard let value, !value.isEmpty else { return nil }
+            return Field(label: label, value: value)
+        }
     }
 }
 
@@ -114,6 +140,22 @@ final class BookCategory {
 }
 
 enum BookCategories {
+    struct Selection {
+        let commonID: UUID?
+        let canRemove: Bool
+
+        init(_ books: [Book]) {
+            let firstID = books.first?.category?.id
+            if let firstID {
+                commonID = books.dropFirst().allSatisfy { $0.category?.id == firstID } ? firstID : nil
+                canRemove = true
+            } else {
+                commonID = nil
+                canRemove = books.dropFirst().contains { $0.category != nil }
+            }
+        }
+    }
+
     static let libraryName = "我的书库"
     static let sortDescriptors = [SortDescriptor(\BookCategory.sortIndex),
                                   SortDescriptor(\BookCategory.createdAt),

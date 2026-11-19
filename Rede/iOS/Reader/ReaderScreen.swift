@@ -212,16 +212,7 @@ struct ReaderScreen: View {
     }
 
     private func perform(_ action: AnnotationAction) {
-        switch action {
-        case .highlightSelection:
-            session.highlightSelection()
-        case .noteSelection:
-            session.highlightSelection { annotation, _ in panel = .note(annotation.id) }
-        case .editNote(let hit):
-            panel = .note(hit.id)
-        case .delete(let id):
-            session.deleteAnnotation(id: id)
-        }
+        session.perform(action) { id, _ in panel = .note(id) }
     }
 }
 

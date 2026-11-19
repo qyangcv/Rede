@@ -111,7 +111,11 @@ struct ReaderWindow: View {
                                 break
                             }
                         }
-                        reader.onAnnotationAction = { perform($0) }
+                        reader.onAnnotationAction = { action in
+                            session.perform(action) { id, rect in
+                                noteTarget = NoteTarget(id: id, rect: rect)
+                            }
+                        }
                     }
                     .onDisappear { turner.detach() }
                     .id(ObjectIdentifier(reader))
@@ -204,18 +208,5 @@ struct ReaderWindow: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func perform(_ action: AnnotationAction) {
-        switch action {
-        case .highlightSelection:
-            session.highlightSelection()
-        case .noteSelection:
-            session.highlightSelection { annotation, rect in noteTarget = NoteTarget(id: annotation.id, rect: rect) }
-        case .editNote(let hit):
-            noteTarget = NoteTarget(id: hit.id, rect: hit.rect.cgRect)
-        case .delete(let id):
-            session.deleteAnnotation(id: id)
-        }
     }
 }

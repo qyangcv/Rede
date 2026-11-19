@@ -54,17 +54,9 @@ struct BookInfoView: View {
     var body: some View {
         VStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                row("书名", book.name)
-                row("作者", book.author)
-                row("出版社", details?.metadata?.publisher)
-                row("出版日期", details?.metadata?.date)
-                row("ISBN", details?.metadata?.isbn)
-                row("EPUB 版本", details?.metadata?.version)
-                row("文件大小", details?.fileSize.map { Int64($0).formatted(.byteCount(style: .file)) })
-                row("字数", book.wordCount?.formatted())
-                row("导入时间", book.date.formatted(date: .abbreviated, time: .shortened))
-                row("最后阅读", book.lastRead?.formatted(date: .abbreviated, time: .shortened))
-                row("阅读时长", details?.readingTime?.readingText)
+                ForEach(BookDetails.fields(for: book, details: details)) { field in
+                    Text(field.label + "：" + field.value)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .textSelection(.enabled)
@@ -78,13 +70,6 @@ struct BookInfoView: View {
         .frame(width: 360)
         .task {
             details = BookDetails(book: book, in: modelContext)
-        }
-    }
-
-    @ViewBuilder
-    private func row(_ label: String, _ value: String?) -> some View {
-        if let value, !value.isEmpty {
-            Text(label + "：" + value)
         }
     }
 }

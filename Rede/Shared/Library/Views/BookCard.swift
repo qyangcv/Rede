@@ -25,14 +25,10 @@ struct BookCard: View {
                 Text(book.author)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                if let progress = book.progress {
-                    Text(progress.formatted(
-                        .percent
-                            .precision(.fractionLength(0...1))
-                            .rounded(rule: .down)
-                    ))
-                    .monospacedDigit()
-                    .fixedSize()
+                if let text = book.progressText {
+                    Text(text)
+                        .monospacedDigit()
+                        .fixedSize()
                 }
             }
             .font(Self.detailFont)

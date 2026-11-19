@@ -3,8 +3,7 @@ import SwiftUI
 struct BookTable<Menu: View>: View {
     let books: [Book]
     let readingTimes: [Book.ID: Duration]
-    @Binding var sort: LibrarySort
-    @Binding var order: SortOrder
+    @Binding var sorting: LibrarySorting
     @Binding var selection: Set<Book.ID>
     let open: (Book) -> Void
     @ViewBuilder let menu: (Set<Book.ID>) -> Menu
@@ -13,11 +12,10 @@ struct BookTable<Menu: View>: View {
 
     private var sortOrder: Binding<[BookComparator]> {
         Binding {
-            [BookComparator(key: sort, order: order, readingTimes: readingTimes)]
+            [BookComparator(key: sorting.key, order: sorting.order, readingTimes: readingTimes)]
         } set: {
             guard let first = $0.first else { return }
-            sort = first.key
-            order = first.order
+            sorting = LibrarySorting(key: first.key, order: first.order)
         }
     }
 

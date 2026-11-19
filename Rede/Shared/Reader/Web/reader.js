@@ -438,8 +438,7 @@ function crossPageMerge(start, end) {
 function gapIsCollapsedWhitespace(start, end) {
   if (start === end) return true;
   const range = doc.createRange();
-  for (const { node, start: offset, length, text } of units(doc)) {
-    if (offset + length <= start) continue;
+  for (const { node, start: offset, length, text } of unitsFrom(doc, start)) {
     if (offset >= end) break;
     if (!text) return false;
 

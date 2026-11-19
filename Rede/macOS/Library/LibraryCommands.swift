@@ -13,8 +13,7 @@ struct LibraryMenuContext {
 
     struct Category {
         let categories: [BookCategory]
-        let currentCategory: UUID?
-        let canRemove: Bool
+        let selection: BookCategories.Selection
         let assign: (BookCategory?) -> Void
         let create: () -> Void
     }
@@ -32,7 +31,7 @@ private struct LibraryCategoryMenu: View {
             if let context, !context.categories.isEmpty {
                 ForEach(context.categories) { category in
                     Toggle(category.name, isOn: Binding(
-                        get: { context.currentCategory == category.id },
+                        get: { context.selection.commonID == category.id },
                         set: { context.assign($0 ? category : nil) }
                     ))
                 }
@@ -40,7 +39,7 @@ private struct LibraryCategoryMenu: View {
             }
 
             Button("移出分类") { context?.assign(nil) }
-                .disabled(context?.canRemove != true)
+                .disabled(context?.selection.canRemove != true)
             Button("新建分类") { context?.create() }
                 .disabled(context == nil)
         }
@@ -118,11 +117,10 @@ struct LibraryDisplayCommands: View {
 
     private var sort: Binding<LibrarySort> {
         Binding {
-            settings.librarySort
+            settings.librarySorting.key
         } set: { key in
-            guard settings.librarySort != key else { return }
-            settings.librarySort = key
-            settings.libraryOrder = key.defaultOrder
+            guard settings.librarySorting.key != key else { return }
+            settings.librarySorting = LibrarySorting(key: key)
         }
     }
 
@@ -147,7 +145,7 @@ struct LibraryDisplayCommands: View {
 
             Divider()
 
-            Picker("排序顺序", selection: $settings.libraryOrder) {
+            Picker("排序顺序", selection: $settings.librarySorting.order) {
                 Text("升序").tag(SortOrder.forward)
                 Text("降序").tag(SortOrder.reverse)
             }

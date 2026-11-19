@@ -23,6 +23,16 @@ enum Appearance: String, CaseIterable, Identifiable, Codable {
        }
 }
 
+struct LibrarySorting: Equatable {
+    let key: LibrarySort
+    var order: SortOrder
+
+    init(key: LibrarySort, order: SortOrder? = nil) {
+        self.key = key
+        self.order = order ?? key.defaultOrder
+    }
+}
+
 @Observable
 final class Settings {
     static let shared = Settings()
@@ -51,9 +61,9 @@ final class Settings {
 
     var libraryLayout: LibraryLayout { didSet { save() } }
 
-    var librarySort: LibrarySort { didSet { save() } }
-
-    var libraryOrder: SortOrder { didSet { save() } }
+    var librarySorting: LibrarySorting {
+        didSet { if librarySorting != oldValue { save() } }
+    }
 
     var iCloudSync: Bool { didSet { save() } }
 
@@ -94,9 +104,7 @@ final class Settings {
         showsStatus = snapshot?.showsStatus ?? true
         #endif
         libraryLayout = snapshot?.libraryLayout ?? .grid
-        let librarySort = snapshot?.librarySort ?? .imported
-        self.librarySort = librarySort
-        libraryOrder = snapshot?.libraryOrder ?? librarySort.defaultOrder
+        librarySorting = LibrarySorting(key: snapshot?.librarySort ?? .imported, order: snapshot?.libraryOrder)
         iCloudSync = snapshot?.iCloudSync ?? Self.defaultICloudSync
     }
 
@@ -108,8 +116,8 @@ final class Settings {
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             var snapshot = Snapshot(readerStyle: readerStyle, appearance: appearance,
                                     pageTransition: pageTransition,
-                                    libraryLayout: libraryLayout, librarySort: librarySort,
-                                    libraryOrder: libraryOrder,
+                                    libraryLayout: libraryLayout, librarySort: librarySorting.key,
+                                    libraryOrder: librarySorting.order,
                                     iCloudSync: iCloudSync)
             #if os(macOS)
             snapshot.readerTitle = readerTitle

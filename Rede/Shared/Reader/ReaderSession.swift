@@ -132,14 +132,27 @@ final class ReaderSession {
         pushAnnotations()
     }
 
-    func highlightSelection(then created: ((Annotation, CGRect) -> Void)? = nil) {
+    func perform(_ action: AnnotationAction, editNote: @escaping (String, CGRect) -> Void) {
+        switch action {
+        case .highlightSelection:
+            highlightSelection()
+        case .noteSelection:
+            highlightSelection(then: editNote)
+        case .editNote(let hit):
+            editNote(hit.id, hit.rect.cgRect)
+        case .delete(let id):
+            deleteAnnotation(id: id)
+        }
+    }
+
+    private func highlightSelection(then created: ((String, CGRect) -> Void)? = nil) {
         guard let reader, let annotationStore else { return }
         Task {
             guard let selection = await reader.takeSelection(), self.reader === reader else { return }
             let tocID = reader.tocItem(chapter: selection.chapter, offset: selection.start, anchors: selection.anchors)?.id
             let annotation = annotationStore.addHighlight(selection, tocID: tocID)
             pushAnnotations()
-            created?(annotation, selection.rect.cgRect)
+            created?(annotation.id, selection.rect.cgRect)
         }
     }
 
