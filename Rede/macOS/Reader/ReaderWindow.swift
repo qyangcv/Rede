@@ -14,7 +14,7 @@ struct ReaderWindow: View {
     var body: some View {
         ZStack {
             if let reader = session.reader, let turner = session.turner {
-                ReaderView(reader: reader, pages: turner.pages, page: nil)
+                ReaderView(reader: reader, pages: turner.pages)
                     .background {
                         settings.readerStyle.background.swatch(for: colorScheme)
                             .ignoresSafeArea()

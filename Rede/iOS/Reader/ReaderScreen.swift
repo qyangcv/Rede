@@ -24,7 +24,7 @@ struct ReaderScreen: View {
 
     var body: some View {
         if let reader = session.reader, let turner = session.turner {
-            ReaderView(reader: reader, pages: turner.pages, page: nil)
+            ReaderView(reader: reader, pages: turner.pages)
                 .gesture(PullDown(webView: reader.webView,
                                   shouldBegin: { panel == nil && !reader.selecting },
                                   onChange: { pulling($0, reader: reader) },
