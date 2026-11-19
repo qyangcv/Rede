@@ -64,7 +64,7 @@ final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "rede"
     private static let host = "app"
     private static let allowed: Set<String> = [
-        "reader.html", "reader.js", "reader.css", "leaf.svg",
+        "reader.html", "offsets.js", "reader.js", "reader.css", "leaf.svg",
         "ReadiumCSS-before.css", "ReadiumCSS-default.css", "ReadiumCSS-after.css",
     ]
 

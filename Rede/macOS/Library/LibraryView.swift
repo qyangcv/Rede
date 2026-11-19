@@ -16,7 +16,6 @@ struct LibraryView: View {
     @State private var booksToDelete: [Book] = []
     @State private var selection: Set<Book.ID> = []
     @State private var anchor: Book.ID?
-    @FocusState private var focused: Bool
     @State private var bookToEdit: Book?
     @State private var exportFile: EpubFile?
     @State private var bookToShowInfo: Book?
@@ -101,7 +100,11 @@ struct LibraryView: View {
         Group {
             switch settings.libraryLayout {
             case .grid:
-                grid
+                BookGrid(books: sortedBooks, selection: $selection, anchor: $anchor, open: open) { book in
+                    let targets = selection.contains(book.id) ? selectedBooks : [book]
+                    LibraryBookContextMenu(selectionCount: targets.count, context: menuContext(for: targets))
+                }
+                .onDeleteCommand { booksToDelete = selectedBooks }
             case .list:
                 BookTable(books: sortedBooks, readingTimes: spans.readingTimes,
                           sort: $settings.librarySort, order: $settings.libraryOrder,
@@ -210,41 +213,6 @@ struct LibraryView: View {
         }
     }
 
-    private var grid: some View {
-        GeometryReader { proxy in
-            let grid = BookGrid.layout(width: proxy.size.width, cardWidth: 150, minSpacing: 24)
-            ScrollView {
-                LazyVGrid(columns: grid.columns, spacing: 28) {
-                    ForEach(sortedBooks) { book in
-                        BookCard(book: book, isSelected: selection.contains(book.id))
-                            .onTapGesture(count: 2) { open(book) }
-                            .simultaneousGesture(TapGesture().onEnded { click(book) })
-                            .contextMenu {
-                                let targets = selection.contains(book.id) ? selectedBooks : [book]
-                                LibraryBookContextMenu(selectionCount: targets.count,
-                                                       context: menuContext(for: targets))
-                            }
-                    }
-                }
-                .padding(.horizontal, grid.spacing)
-                .padding(.vertical, 28)
-                .frame(minHeight: proxy.size.height, alignment: .top)
-                .background {
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture { selection = [] }
-                }
-            }
-            .focusable()
-            .focusEffectDisabled()
-            .focused($focused)
-            .onCommand(#selector(NSResponder.selectAll(_:))) { selection = Set(visibleBooks.map(\.id)) }
-            .onExitCommand { selection = [] }
-            .onDeleteCommand { booksToDelete = selectedBooks }
-            .onAppear { focused = true }
-        }
-    }
-
     private func save() {
         do {
             try modelContext.save()
@@ -270,23 +238,6 @@ struct LibraryView: View {
 
     private var selectedBooks: [Book] {
         visibleBooks.filter { selection.contains($0.id) }
-    }
-
-    private func click(_ book: Book) {
-        focused = true
-        let flags = NSEvent.modifierFlags
-        if flags.contains(.command) {
-            if selection.remove(book.id) == nil { selection.insert(book.id) }
-            anchor = book.id
-        } else if flags.contains(.shift), let anchor {
-            let books = sortedBooks
-            guard let a = books.firstIndex(where: { $0.id == anchor }),
-                  let b = books.firstIndex(where: { $0.id == book.id }) else { return }
-            selection = Set(books[min(a, b)...max(a, b)].map(\.id))
-        } else {
-            selection = [book.id]
-            anchor = book.id
-        }
     }
 
     private func menuContext(for targets: [Book]) -> LibraryMenuContext {

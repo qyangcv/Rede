@@ -31,7 +31,7 @@ const state = {
   spread: 0,
   spreadCount: 1,
   navId: 0,
-  offset: 0,   // 当前页首个单位在本章坐标中的偏移量（阅读锚点），见 units()
+  offset: 0,   // 当前页首个单位在本章坐标中的偏移量（阅读锚点），见 offsets.js
   total: 0,    // 本章总单位数
   tocAnchors: [],
   anchors: {},
@@ -74,8 +74,8 @@ const reader = {
     const selection = pageSelection();
     if (!selection || selection.isCollapsed) return null;
     const range = selection.getRangeAt(0);
-    const start = offsetAt(range.startContainer, range.startOffset);
-    const end = offsetAt(range.endContainer, range.endOffset);
+    const start = offsetAt(doc, range.startContainer, range.startOffset);
+    const end = offsetAt(doc, range.endContainer, range.endOffset);
     const lastRect = Array.from(range.getClientRects()).findLast((rect) =>
       hasArea(rect) && spreadOfRect(rect) === state.spread);
     selection.removeAllRanges();
@@ -83,7 +83,7 @@ const reader = {
     // 原生侧把笔记编辑框指向选区末行
     const rect = shellRect(lastRect);
     return {
-      chapter: state.chapterId, start, end, text: excerpt(start, end - start), rect, anchors: state.anchors,
+      chapter: state.chapterId, start, end, text: excerpt(doc, start, end - start), rect, anchors: state.anchors,
       merge: crossPageMerge(start, end),
     };
   },
@@ -140,8 +140,8 @@ async function goto(chapter, at) {
     state.chapterId = chapter;
     await prepare(doc);
     if (token !== state.navId) return false;
-    state.total = contentLength();
-    state.anchors = anchorOffsets(state.tocAnchors[chapter] ?? []);
+    state.total = contentLength(doc);
+    state.anchors = anchorOffsets(doc, state.tocAnchors[chapter] ?? []);
     paintHighlights();
   }
 
@@ -334,85 +334,8 @@ function locate(at) {
     return spread >= 0 ? spread : Math.round((at.ratio || 0) * (state.spreadCount - 1));
   }
 
-  const rect = findAnchor(at)?.getClientRects()[0];
+  const rect = findAnchor(doc, at)?.getClientRects()[0];
   return rect ? spreadOfRect(rect) : 0;
-}
-
-function findAnchor(anchor) {
-  const id = CSS.escape(anchor);
-  return doc.querySelector(`#${id}, a[name="${id}"]`);
-}
-
-// ---------- 阅读坐标 ----------
-
-// 阅读位置、目录锚点、书签和高亮共用一套坐标：把章节 body 摊平成单位流，
-// 文本节点按 UTF-16 长度计，媒体元素各计 1 且不深入其子节点。
-// 媒体被限制在一栏以内（见 mediaLimits）且不许跨栏（ReadiumCSS-before.css 的 img, svg|svg, video），
-// 每个媒体都完整落在某一页，整页插图因此也能被定位。
-// 这是存储数据依赖的契约：标注存下后改动 MEDIA 会让已有偏移整体错位。
-// Swift 侧 EpubBook.textStats 按本定义近似计数，仅用于百分比和字数。
-const MEDIA = new Set(["img", "svg", "video"]);
-
-function* units() {
-  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) => node.nodeType === Node.TEXT_NODE || MEDIA.has(node.localName)
-      ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP,
-  });
-  let start = 0;
-  while (walker.nextNode()) {
-    const node = walker.currentNode;
-    const text = node.nodeType === Node.TEXT_NODE;
-    const length = text ? node.length : 1;
-    yield { node, start, length, text };
-    start += length;
-    if (!text) {
-      // 跳过媒体内部（svg 的 <text>、video 的后备内容）：把游标移到其最后一个后代，下一步即离开子树
-      let last = node;
-      while (last.lastChild) last = last.lastChild;
-      walker.currentNode = last;
-    }
-  }
-}
-
-// 本章总单位数
-function contentLength() {
-  let total = 0;
-  for (const unit of units()) total += unit.length;
-  return total;
-}
-
-// 节点起点在坐标中的位置，即排在它之前的单位数（不含其后代）
-function offsetBefore(target) {
-  let end = 0;
-  for (const { node, start, length } of units()) {
-    if (node === target || target.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING) return start;
-    end = start + length;
-  }
-  return end;
-}
-
-// DOM 边界点 → 坐标：排在边界点之前的单位数，边界点落在文本单位内时加上字符位置。
-// 落在媒体内部（如 svg 的 <text>）的边界点归到该媒体之后
-function offsetAt(container, index) {
-  const point = doc.createRange();
-  point.setStart(container, index);
-  let end = 0;
-  for (const { node, start, length } of units()) {
-    if (node === container) return start + index;
-    if (point.comparePoint(node, 0) > 0) return start;
-    end = start + length;
-  }
-  return end;
-}
-
-function anchorOffsets(ids) {
-  const offsets = {};
-  for (const id of ids) {
-    const el = findAnchor(id);
-    if (!el || el === doc.body || !doc.body.contains(el)) continue;
-    offsets[id] = offsetBefore(el);
-  }
-  return offsets;
 }
 
 // 重叠加深：同一 Highlight 内的 Range 重叠时只画一层，所以按重叠深度分层注册，
@@ -427,7 +350,7 @@ const NOTE_LAYER = "rede-note";
 function paintHighlights() {
   const spans = state.annotations.filter((a) => a.kind === "highlight" && a.chapter === state.chapterId);
   const layers = depthLayers(spans);
-  const ranges = rangesOf([...spans, ...layers.flat()]);
+  const ranges = rangesOf(doc, [...spans, ...layers.flat()]);
   highlights = spans.map((s, i) => ({ id: s.id, start: s.start, end: s.end, range: ranges[i] }));
   let next = spans.length;
   layers.forEach((intervals, k) => {
@@ -506,7 +429,7 @@ function crossPageMerge(start, end) {
 
     const mergedStart = Math.min(start, mark.start);
     const mergedEnd = Math.max(end, mark.end);
-    return { id: mark.id, start: mark.start, end: mark.end, text: excerpt(mergedStart, mergedEnd - mergedStart) };
+    return { id: mark.id, start: mark.start, end: mark.end, text: excerpt(doc, mergedStart, mergedEnd - mergedStart) };
   }
   return null;
 }
@@ -515,7 +438,7 @@ function crossPageMerge(start, end) {
 function gapIsCollapsedWhitespace(start, end) {
   if (start === end) return true;
   const range = doc.createRange();
-  for (const { node, start: offset, length, text } of units()) {
+  for (const { node, start: offset, length, text } of units(doc)) {
     if (offset + length <= start) continue;
     if (offset >= end) break;
     if (!text) return false;
@@ -534,35 +457,6 @@ function hasArea(rect) {
   return rect.width > 0 && rect.height > 0;
 }
 
-// 坐标区间 [start, end) → DOM Range
-function rangesOf(spans) {
-  const points = boundaries(spans.flatMap((s) => [s.start, s.end]));
-  return spans.map((s) => {
-    const range = doc.createRange();
-    range.setStart(...points.get(s.start));
-    range.setEnd(...points.get(s.end));
-    return range;
-  });
-}
-
-// 一次遍历把一组偏移转成 DOM 边界点：落在文本单位内取字符位置，落在媒体单位上取其前方，越过章末取 body 末尾。
-// 恰好等于某单位起点的偏移落在该单位之前，区间终点因此不含该单位
-function boundaries(offsets) {
-  const sorted = [...new Set(offsets)].sort((a, b) => a - b);
-  const points = new Map();
-  let i = 0;
-  for (const { node, start, length, text } of units()) {
-    for (; i < sorted.length && sorted[i] < start + length; i++) {
-      points.set(sorted[i], text
-        ? [node, sorted[i] - start]
-        : [node.parentNode, [...node.parentNode.childNodes].indexOf(node)]);
-    }
-    if (i === sorted.length) break;
-  }
-  for (; i < sorted.length; i++) points.set(sorted[i], [doc.body, doc.body.childNodes.length]);
-  return points;
-}
-
 // 矩形 → 页码（矩形是章节视口坐标，加上横向滚动量得到文档坐标）
 function spreadOfRect(rect) {
   const offset = rect.left + frame.contentWindow.scrollX;
@@ -574,7 +468,7 @@ function spreadOfRect(rect) {
 function spreadAt(offset) {
   if (offset < 0) return -1;
   const range = doc.createRange();
-  for (const { node, start, length, text } of units()) {
+  for (const { node, start, length, text } of units(doc)) {
     if (start + length <= offset) continue;
     if (!text) {
       const rect = node.getClientRects()[0];
@@ -628,7 +522,7 @@ function progress() {
     pageCount: state.spreadCount,
     anchors: state.anchors,
     start: state.range?.start ?? null,
-    excerpt: state.range ? excerpt(state.range.start, EXCERPT_LENGTH) : "",
+    excerpt: state.range ? excerpt(doc, state.range.start, EXCERPT_LENGTH) : "",
     bookmarks: pageBookmarks(),
   };
 }
@@ -643,18 +537,6 @@ function pageBookmarks() {
     .filter((b) => b.kind === "bookmark" && b.chapter === state.chapterId
       && b.start >= range.start && b.start < range.end)
     .map((b) => b.id);
-}
-
-// 从 start 起 length 个单位内的文字，空白折叠；媒体不产出文字
-function excerpt(start, length) {
-  const end = start + length;
-  let text = "";
-  for (const unit of units()) {
-    if (unit.start >= end) break;
-    if (!unit.text || unit.start + unit.length <= start) continue;
-    text += unit.node.data.slice(Math.max(start - unit.start, 0), end - unit.start);
-  }
-  return text.replace(/\s+/g, " ").trim();
 }
 
 // 上报进度给 Swift
@@ -710,7 +592,7 @@ function pageSelection() {
     return selection;
   }
 
-  const bounds = selectionBounds ??= rangesOf([state.range])[0];
+  const bounds = selectionBounds ??= rangesOf(doc, [state.range])[0];
   const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
   const anchorSide = bounds.comparePoint(anchorNode, anchorOffset);
   const focusSide = bounds.comparePoint(focusNode, focusOffset);
