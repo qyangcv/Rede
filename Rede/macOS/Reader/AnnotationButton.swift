@@ -24,6 +24,7 @@ struct AnnotationPanel: View {
             AnnotationList(kind: kind,
                            sections: AnnotationSections(toc: toc).sections(for: kind == .bookmark ? bookmarks : highlights),
                            progress: progress, onSelect: onSelect, onDelete: onDelete)
+                .id(kind)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
