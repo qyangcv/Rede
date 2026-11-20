@@ -41,8 +41,7 @@ final class ReaderSession {
 
     func open(_ book: Book, context: ModelContext) throws {
         if self.book?.id == book.id, reader != nil { return }
-        store?.flush()
-        clock?.stop()
+        flush()
 
         let epub = try book.epub()
         book.lastRead = .now
@@ -83,8 +82,7 @@ final class ReaderSession {
     }
 
     func close() {
-        store?.flush()
-        clock?.stop()
+        flush()
         clock = nil
         foreground = false
         store = nil

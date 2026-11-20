@@ -53,7 +53,8 @@ struct ReaderWindow: View {
                     }
                     .toolbar {
                         ToolbarItem(placement: .navigation) {
-                            TOCButton(isPresented: $tocPresented)
+                            Button("目录", systemImage: "list.bullet") { tocPresented.toggle() }
+                                .help("目录")
                         }
                         .sharedBackgroundVisibility(.hidden)
 

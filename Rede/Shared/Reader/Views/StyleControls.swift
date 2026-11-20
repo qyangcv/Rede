@@ -51,20 +51,6 @@ struct SpacingPicker: View {
     }
 }
 
-struct TransitionPicker: View {
-    @Binding var selection: PageTransition
-
-    var body: some View {
-        Picker("翻页", selection: $selection) {
-            ForEach(PageTransition.allCases) { item in
-                Text(item.name).tag(item)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-    }
-}
-
 struct ColorSwatches: View {
     @Binding var selection: BackgroundColor
 

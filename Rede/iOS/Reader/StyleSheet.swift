@@ -82,11 +82,15 @@ struct StyleSheet: View {
                 }
             }
 
-            if PageTransition.allCases.count > 1 {
-                GridRow {
-                    label("翻页")
-                    TransitionPicker(selection: $transition)
+            GridRow {
+                label("翻页")
+                Picker("翻页", selection: $transition) {
+                    ForEach(PageTransition.allCases) { item in
+                        Text(item.name).tag(item)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
             }
 
             GridRow {
