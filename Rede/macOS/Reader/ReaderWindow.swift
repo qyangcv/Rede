@@ -21,7 +21,7 @@ struct ReaderWindow: View {
 }
 
 private struct ReaderWindowContent: View {
-    private enum Drawer { case toc, search }
+    private enum Drawer { case toc, search, annotations, style }
 
     let reader: Reader
     let turner: any PageTurner
@@ -31,9 +31,7 @@ private struct ReaderWindowContent: View {
     @State private var noteTarget: NoteTarget?
     @State private var drawer: Drawer?
     @State private var search = ReaderSearch()
-    @State private var annotationsPresented = false
     @State private var annotationKind = Annotation.Kind.bookmark
-    @State private var stylePresented = false
 
     var body: some View {
         ReaderView(reader: reader, pages: turner.pages)
@@ -75,14 +73,12 @@ private struct ReaderWindowContent: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigation) {
-                    Button("目录", systemImage: "list.bullet", action: toggleTOC)
-                        .help("目录")
+                    drawerButton(.toc, title: "目录", systemImage: "list.bullet")
                 }
                 .sharedBackgroundVisibility(.hidden)
 
                 ToolbarItem(placement: .navigation) {
-                    Button("在本书中查找", systemImage: "magnifyingglass", action: showSearch)
-                        .help("在本书中查找（⌘F）")
+                    drawerButton(.search, title: "在本书中查找", systemImage: "magnifyingglass", help: "在本书中查找（⌘F）")
                 }
                 .sharedBackgroundVisibility(.hidden)
 
@@ -107,16 +103,13 @@ private struct ReaderWindowContent: View {
                 .sharedBackgroundVisibility(.hidden)
 
                 ToolbarItem(placement: .primaryAction) {
-                    AnnotationButton(isPresented: $annotationsPresented, kind: $annotationKind, toc: reader.toc,
-                                     bookmarks: session.bookmarks, highlights: session.highlights,
-                                     progress: session.progress(of:), onSelect: session.go(to:),
-                                     onDelete: { session.deleteAnnotation(id: $0.id) })
+                    drawerButton(.annotations, title: "标注", systemImage: "highlighter")
                 }
                 .sharedBackgroundVisibility(.hidden)
 
                 ToolbarItem(placement: .primaryAction) {
-                    StyleButton(isPresented: $stylePresented, style: $settings.readerStyle,
-                                appearance: $settings.appearance, onDismiss: reader.focus)
+                    drawerButton(.style, title: "样式", systemImage: "textformat")
+                        .environment(\.locale, Locale(identifier: "en"))
                 }
                 .sharedBackgroundVisibility(.hidden)
             }
@@ -147,7 +140,7 @@ private struct ReaderWindowContent: View {
                 }
             }
             .ignoresSafeArea()
-            .overlay(alignment: .leading) {
+            .overlay {
                 navigationDrawer
                     .animation(.snappy(duration: 0.22), value: drawer)
             }
@@ -179,7 +172,7 @@ private struct ReaderWindowContent: View {
             canBookmark: session.canBookmark,
             isBookmarked: session.isBookmarked,
             turn: turn,
-            toggleTOC: toggleTOC,
+            toggleTOC: { toggleDrawer(.toc) },
             showSearch: showSearch,
             hasSearchHits: !search.hits.isEmpty,
             stepSearch: { step in
@@ -187,13 +180,13 @@ private struct ReaderWindowContent: View {
             },
             toggleBookmark: toggleBookmark,
             showAnnotations: showAnnotations,
-            showStyle: { stylePresented = true }
+            showStyle: { drawer = .style }
         )
     }
 
     private func showAnnotations(_ kind: Annotation.Kind) {
         annotationKind = kind
-        annotationsPresented = true
+        drawer = .annotations
     }
 
     private func turn(_ direction: PageDirection) {
@@ -213,8 +206,27 @@ private struct ReaderWindowContent: View {
         }
     }
 
-    private func toggleTOC() {
-        if drawer == .toc { closeDrawer() } else { drawer = .toc }
+    private func drawerButton(_ target: Drawer, title: LocalizedStringKey, systemImage: String,
+                              help: LocalizedStringKey? = nil) -> some View {
+        let isPresented = Binding(
+            get: { drawer == target },
+            set: { presented in
+                if !presented {
+                    closeDrawer()
+                } else if target == .search {
+                    showSearch()
+                } else {
+                    drawer = target
+                }
+            }
+        )
+        return Toggle(title, systemImage: systemImage, isOn: isPresented)
+            .toggleStyle(.button)
+            .help(help ?? title)
+    }
+
+    private func toggleDrawer(_ target: Drawer) {
+        if drawer == target { closeDrawer() } else { drawer = target }
     }
 
     private func showSearch() {
@@ -239,7 +251,7 @@ private struct ReaderWindowContent: View {
     }
 
     private var navigationDrawer: some View {
-        ZStack(alignment: .leading) {
+        ZStack {
             if drawer != nil {
                 Color.clear
                     .contentShape(.rect)
@@ -248,6 +260,8 @@ private struct ReaderWindowContent: View {
             }
 
             if let drawer {
+                let isTrailing = drawer == .annotations || drawer == .style
+                let width: CGFloat = 300
                 Group {
                     switch drawer {
                     case .toc:
@@ -258,18 +272,30 @@ private struct ReaderWindowContent: View {
                     case .search:
                         ReaderSearchView(search: search, reader: reader, onChoose: chooseHit, onClose: closeDrawer)
                             .transaction { $0.animation = nil }
+                    case .annotations:
+                        AnnotationPanel(toc: reader.toc, bookmarks: session.bookmarks, highlights: session.highlights,
+                                        kind: $annotationKind, progress: session.progress(of:)) { annotation in
+                            closeDrawer()
+                            session.go(to: annotation)
+                        } onDelete: { annotation in
+                            session.deleteAnnotation(id: annotation.id)
+                        }
+                    case .style:
+                        StylePanel(style: $settings.readerStyle, appearance: $settings.appearance)
                     }
                 }
-                .frame(width: 300)
+                .frame(width: width)
                 .frame(maxHeight: .infinity)
                 .background {
                     Rectangle()
                         .fill(.regularMaterial)
                         .ignoresSafeArea(edges: .top)
-                        .shadow(color: .black.opacity(0.18), radius: 18, x: 6)
+                        .shadow(color: .black.opacity(0.18), radius: 18, x: isTrailing ? -6 : 6)
                 }
                 .geometryGroup()
-                .transition(.move(edge: .leading))
+                .frame(maxWidth: .infinity, alignment: isTrailing ? .trailing : .leading)
+                .transition(.offset(x: isTrailing ? width : -width))
+                .id(isTrailing)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

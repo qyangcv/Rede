@@ -1,33 +1,6 @@
 import SwiftUI
 
-struct AnnotationButton: View {
-    @Binding var isPresented: Bool
-    @Binding var kind: Annotation.Kind
-    let toc: [TOCItem]
-    let bookmarks: [Annotation]
-    let highlights: [Annotation]
-    let progress: (Annotation) -> Double?
-    let onSelect: (Annotation) -> Void
-    let onDelete: (Annotation) -> Void
-
-    var body: some View {
-        Button("标注", systemImage: "highlighter") {
-            isPresented.toggle()
-        }
-        .help("标注")
-        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            AnnotationPopover(toc: toc, bookmarks: bookmarks, highlights: highlights, kind: $kind,
-                              progress: progress) { annotation in
-                isPresented = false
-                onSelect(annotation)
-            } onDelete: { annotation in
-                onDelete(annotation)
-            }
-        }
-    }
-}
-
-private struct AnnotationPopover: View {
+struct AnnotationPanel: View {
     let toc: [TOCItem]
     let bookmarks: [Annotation]
     let highlights: [Annotation]
@@ -51,7 +24,7 @@ private struct AnnotationPopover: View {
             AnnotationList(kind: kind,
                            sections: AnnotationSections(toc: toc).sections(for: kind == .bookmark ? bookmarks : highlights),
                            progress: progress, onSelect: onSelect, onDelete: onDelete)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 300)
     }
 }

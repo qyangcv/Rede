@@ -1,121 +1,82 @@
 import SwiftUI
 
-struct StyleButton: View {
-    @Binding var isPresented: Bool
-    @Binding var style: ReaderStyle
-    @Binding var appearance: Appearance
-    var onDismiss: () -> Void = {}
-
-    var body: some View {
-        Button {
-            isPresented.toggle()
-        } label: {
-            Label("样式", systemImage: "textformat")
-                .environment(\.locale, Locale(identifier: "en"))
-        }
-        .help("样式")
-        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
-            StylePanel(style: $style, appearance: $appearance)
-                .frame(minWidth: 210)
-        }
-        .onChange(of: isPresented) { _, shown in
-            if !shown { onDismiss() }
-        }
-    }
-}
-
 struct StylePanel: View {
     @Binding var style: ReaderStyle
     @Binding var appearance: Appearance
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 14) {
-                GridRow {
-                    label("字号")
-                    FontScaleStepper(scale: $style.fontScale)
-                }
-
-                GridRow {
-                    label("字体")
-                    Menu(style.font.name) {
-                        Picker("字体", selection: $style.font) {
-                            FontOptions()
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    section("文字") {
+                        LabeledContent("字体") {
+                            Picker("字体", selection: $style.font) { FontOptions() }
+                                .pickerStyle(.menu)
+                                .labelsHidden()
                         }
-                        .pickerStyle(.inline)
-                        .labelsHidden()
-                    }
-                    .fixedSize()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                if let weight = style.fontWeight, style.font.weights.count > 1 {
-                    GridRow {
-                        label("字重")
-                        HStack(spacing: 9) {
-                            FontWeightSlider(weights: style.font.weights,
-                                             weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
-                            Text("\(weight)").monospacedDigit()
+                        LabeledContent("字号") {
+                            HStack(spacing: 10) {
+                                FontScaleButtons(scale: $style.fontScale, showsScale: true)
+                            }
+                            .labelStyle(.iconOnly)
+                        }
+                        if let weight = style.fontWeight, style.font.weights.count > 1 {
+                            LabeledContent("字重") {
+                                FontWeightSlider(weights: style.font.weights,
+                                                 weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
+                                Text("\(weight)").monospacedDigit()
+                            }
                         }
                     }
-                }
 
-                Divider()
+                    Divider()
 
-                GridRow {
-                    label("行距")
-                    SpacingPicker(title: "行距", style: .menu, selection: $style.lineSpacing)
-                }
-
-                GridRow {
-                    label("段距")
-                    SpacingPicker(title: "段距", style: .menu, selection: $style.paraSpacing)
-                }
-
-                Divider()
-
-                GridRow {
-                    label("外观")
-                    Picker("外观", selection: $appearance) {
-                        AppearanceOptions()
+                    section("间距") {
+                        spacingControl("行距", selection: $style.lineSpacing)
+                        spacingControl("段距", selection: $style.paraSpacing)
                     }
-                    .pickerStyle(.menu)
-                    .fixedSize()
-                    .labelsHidden()
-                }
 
-                GridRow {
-                    label("颜色")
-                    ColorSwatches(selection: $style.background)
+                    Divider()
+
+                    section("外观") {
+                        LabeledContent("模式") {
+                            Picker("外观模式", selection: $appearance) { AppearanceOptions() }
+                                .pickerStyle(.segmented)
+                                .labelsHidden()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        LabeledContent("背景") {
+                            ColorSwatches(selection: $style.background)
+                        }
+                    }
                 }
+                .padding(20)
             }
 
             Divider()
 
-            HStack {
-                Spacer()
-                Button("恢复默认") {
-                    style = .default
-                }
+            Button("恢复默认") { style = .default }
                 .disabled(style == .default)
-            }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
         }
-        .padding(16)
     }
 
-    private func label(_ text: String) -> some View {
-        Text(text).foregroundStyle(.secondary)
-    }
-}
-
-private struct FontScaleStepper: View {
-    @Binding var scale: Int
-
-    var body: some View {
-        HStack(spacing: 9) {
-            FontScaleButtons(scale: $scale, showsScale: true)
+    private func spacingControl(_ title: String, selection: Binding<Spacing>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+            SpacingPicker(title: title, selection: selection)
         }
-        .labelStyle(.iconOnly)
+    }
+
+    private func section(_ title: LocalizedStringKey, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
+            content()
+        }
     }
 }
 
@@ -183,4 +144,5 @@ struct AppearanceOptions: View {
     @Previewable @State var style = ReaderStyle.default
     @Previewable @State var appearance = Appearance.system
     StylePanel(style: $style, appearance: $appearance)
+        .frame(width: 300, height: 500)
 }

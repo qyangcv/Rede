@@ -7,8 +7,6 @@ struct AnnotationList: View {
     let onSelect: (Annotation) -> Void
     let onDelete: (Annotation) -> Void
 
-    @State private var contentHeight: CGFloat = 0
-
     var body: some View {
         if sections.isEmpty {
             switch kind {
@@ -19,7 +17,7 @@ struct AnnotationList: View {
             }
         } else {
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(sections) { section in
                         if let title = section.title {
                             Text(title)
@@ -44,9 +42,7 @@ struct AnnotationList: View {
                     }
                 }
                 .padding(.vertical, 6)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
             }
-            .frame(height: min(contentHeight, 460))
         }
     }
 }
