@@ -109,6 +109,15 @@ const reader = {
     return goto(position.chapter, position);
   },
 
+  showSearchHit(chapter, start, end) {
+    return goto(chapter, { offset: start }, { start, end });
+  },
+
+  clearSearchHit() {
+    activeSearchHit = null;
+    doc?.defaultView?.CSS.highlights.get(SEARCH_LAYER)?.clear();
+  },
+
   setStyle(vars) {
     Object.assign(state.style, vars);
     reflow();
@@ -117,6 +126,7 @@ const reader = {
 
 // 翻一页，到章首章尾时载入相邻章节；返回是否落位
 async function turn(delta) {
+  reader.clearSearchHit();
   const spread = state.spread + delta;
   if (spread >= 0 && spread < state.spreadCount) {
     settle(spread);
@@ -126,12 +136,14 @@ async function turn(delta) {
 }
 
 // 导航，at 为数字（页码）、字符串（锚点）或位置对象；返回是否落位（被后续导航打断时为 false）
-async function goto(chapter, at) {
+async function goto(chapter, at, searchHit = null) {
   const path = state.spinePaths[chapter];
   if (path === undefined) return false;
+  reader.clearSearchHit();
+  activeSearchHit = searchHit;
   const token = ++state.navId;
 
-  if (chapter !== state.chapterId) {
+  if (chapter !== state.chapterId || frame.classList.contains("loading")) {
     frame.classList.add("loading");
     const loaded = await load(new URL(path.split("/").map(encodeURIComponent).join("/"), ROOT));
     if (token !== state.navId) return false;
@@ -147,6 +159,10 @@ async function goto(chapter, at) {
 
   measure();
   // 从保存的位置恢复时沿用原锚点，不重新测量，避免多次恢复逐页回退
+  if (activeSearchHit) {
+    const [range] = rangesOf(doc, [activeSearchHit]);
+    doc.defaultView.CSS.highlights.get(SEARCH_LAYER).add(range);
+  }
   settle(locate(at), isPosition(at) ? at.offset : null);
   frame.classList.remove("loading");
   return true;
@@ -179,6 +195,7 @@ async function prepare(doc) {
   marks.textContent = `${HIGHLIGHT_LAYERS.map((name) => `::highlight(${name})`).join(", ")}
     { background-color: var(--reader-highlight); }
     ::highlight(${NOTE_LAYER}) { text-decoration: underline dashed 1.5px var(--reader-note); }
+    ::highlight(${SEARCH_LAYER}) { background-color: #ffd457; color: #241b00; }
     @layer rede {
       body {
         text-align: justify;
@@ -190,7 +207,7 @@ async function prepare(doc) {
     }`;
   head.prepend(fonts, before);
   head.append(...after, marks);
-  for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER]) {
+  for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER, SEARCH_LAYER]) {
     doc.defaultView.CSS.highlights.set(name, new doc.defaultView.Highlight());
   }
 
@@ -343,6 +360,8 @@ function locate(at) {
 const HIGHLIGHT_LAYERS = ["rede-highlight-1", "rede-highlight-2"];
 // 带笔记的高亮额外加入此层，画虚线下划线
 const NOTE_LAYER = "rede-note";
+const SEARCH_LAYER = "rede-search";
+let activeSearchHit = null;
 
 // 本章高亮整体替换。Highlight 对象在 prepare 里按章注册一次，这里只清空再加入：
 // WebKit 在 clear/add 时重绘被移除和新加入的 Range，而整体替换注册表条目只重绘新对象，删掉的高亮会残留到下次重绘。
@@ -364,7 +383,7 @@ function paintHighlights() {
 }
 
 function refreshHighlights(chapter) {
-  for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER]) {
+  for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER, SEARCH_LAYER]) {
     const highlight = chapter.defaultView.CSS.highlights.get(name);
     const ranges = [...highlight];
     highlight.clear();

@@ -218,9 +218,13 @@ final class Reader: NSObject,  WKNavigationDelegate {
         let language = book.model.metadata.language
         let style = style
         let annotations = annotations
-        let tocAnchors = book.model.spine.map { item in
-            toc.compactMap { $0.entry.path == item.path ? $0.entry.fragment : nil }
+        var anchorsByPath: [String: [String]] = [:]
+        for item in toc {
+            if let fragment = item.entry.fragment {
+                anchorsByPath[item.entry.path, default: []].append(fragment)
+            }
         }
+        let tocAnchors = paths.map { anchorsByPath[$0] ?? [] }
         Task {
             await bridge.open(paths: paths, language: language, style: style, start: position,
                               tocAnchors: tocAnchors, annotations: annotations)
@@ -267,6 +271,17 @@ final class Reader: NSObject,  WKNavigationDelegate {
             await bridge.restore(position)
             focus()
         }
+    }
+
+    func showSearchHit(chapter: Int, start: Int, end: Int) {
+        navigated = true
+        Task { await bridge.showSearchHit(chapter: chapter, start: start, end: end) }
+        focus()
+    }
+
+    func clearSearchHit() {
+        guard ready else { return }
+        Task { await bridge.clearSearchHit() }
     }
 
     @discardableResult

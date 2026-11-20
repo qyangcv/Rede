@@ -49,6 +49,15 @@ extension JSBridge {
     func restore(_ position: ReadingPosition) async {
         await call("return reader.restore(position)", ["position": position.jsObject])
     }
+    func showSearchHit(chapter: Int, start: Int, end: Int) async {
+        await call("return reader.showSearchHit(chapter, start, end)",
+                   ["chapter": chapter, "start": start, "end": end])
+    }
+
+    func clearSearchHit() async {
+        await call("reader.clearSearchHit()")
+    }
+
     func peek(from position: ReadingPosition, step: Int) async -> ProgressReport? {
         await call("return reader.peek(position, step)", ["position": position.jsObject, "step": step])
             .flatMap { ProgressReport(jsValue: $0) }
