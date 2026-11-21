@@ -32,11 +32,11 @@ final class PageRenderer {
         window.indices.contains(center) ? window[center] : nil
     }
 
-    init(main: Reader, book: EpubBook, start: ReadingPosition?, followsMain: Bool = false) {
+    init(main: Reader, followsMain: Bool = false) {
         self.main = main
         self.followsMain = followsMain
         readers = Dictionary(uniqueKeysWithValues: PageDirection.allCases.map {
-            ($0, Reader(book: book, start: start))
+            ($0, Reader(book: main.book, start: main.position))
         })
         for (direction, reader) in readers {
             reader.setAnnotations(main.annotations)

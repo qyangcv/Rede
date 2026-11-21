@@ -25,7 +25,7 @@ final class SwipePageTurner: PageTurner {
 
     init(reader: Reader) {
         self.reader = reader
-        renderer = PageRenderer(main: reader, book: reader.book, start: reader.position, followsMain: true)
+        renderer = PageRenderer(main: reader, followsMain: true)
         renderer.onInvalidate = { [weak self] in
             guard let self, self.navigation == nil else { return }
             self.slide = nil

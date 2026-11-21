@@ -14,7 +14,7 @@ final class PageCurl: NSObject, PageTurner, UIPageViewControllerDataSource, UIPa
 
     init(reader: Reader) {
         self.reader = reader
-        renderer = PageRenderer(main: reader, book: reader.book, start: reader.position)
+        renderer = PageRenderer(main: reader)
         super.init()
         renderer.onCurrent = { [weak self] page in self?.receive(page) }
         reader.onSelectionChange = { [weak self] active in
