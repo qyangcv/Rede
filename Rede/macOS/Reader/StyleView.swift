@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct StylePanel: View {
+    @Environment(\.colorSchemeContrast) private var contrast
     @Binding var style: ReaderStyle
     @Binding var appearance: Appearance
 
@@ -9,19 +10,26 @@ struct StylePanel: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     section("文字") {
-                        LabeledContent("字体") {
-                            Picker("字体", selection: $style.font) { FontOptions() }
-                                .pickerStyle(.menu)
-                                .labelsHidden()
-                        }
-                        LabeledContent("字号") {
-                            HStack(spacing: 10) {
-                                FontScaleButtons(scale: $style.fontScale, showsScale: true)
+                        HStack(spacing: 0) {
+                            field("字体") {
+                                Menu {
+                                    Picker("字体", selection: $style.font) { FontOptions() }
+                                        .pickerStyle(.inline)
+                                        .labelsHidden()
+                                } label: {
+                                    Text(style.font.name)
+                                }
+                                .menuStyle(.button)
+                                .fixedSize()
                             }
-                            .labelStyle(.iconOnly)
+                            Spacer(minLength: 12)
+                            stepperField("字号", display: "\(style.fontScale)%", value: $style.fontScale,
+                                         range: ReaderStyle.fontScaleRange, step: ReaderStyle.fontScaleStep,
+                                         widthSample: "\(ReaderStyle.fontScaleRange.upperBound)%")
+                                .fixedSize()
                         }
                         if let weight = style.fontWeight, style.font.weights.count > 1 {
-                            LabeledContent("字重") {
+                            field("字重") {
                                 FontWeightSlider(weights: style.font.weights,
                                                  weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
                                 Text("\(weight)").monospacedDigit()
@@ -32,20 +40,22 @@ struct StylePanel: View {
                     Divider()
 
                     section("间距") {
-                        spacingControl("行距", selection: $style.lineSpacing)
-                        spacingControl("段距", selection: $style.paraSpacing)
+                        HStack(spacing: 16) {
+                            spacingControl("行距", selection: $style.lineSpacing)
+                            spacingControl("段距", selection: $style.paraSpacing)
+                        }
                     }
 
                     Divider()
 
                     section("外观") {
-                        LabeledContent("模式") {
+                        field("模式") {
                             Picker("外观模式", selection: $appearance) { AppearanceOptions() }
                                 .pickerStyle(.segmented)
                                 .labelsHidden()
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        LabeledContent("背景") {
+                        field("背景") {
                             ColorSwatches(selection: $style.background)
                         }
                     }
@@ -55,7 +65,7 @@ struct StylePanel: View {
 
             Divider()
 
-            Button("恢复默认") { style = .default }
+            Button("重置") { style = .default }
                 .disabled(style == .default)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .padding(.horizontal, 20)
@@ -63,11 +73,39 @@ struct StylePanel: View {
         }
     }
 
-    private func spacingControl(_ title: String, selection: Binding<Spacing>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-            SpacingPicker(title: title, selection: selection)
+    private func field(_ title: LocalizedStringKey, @ViewBuilder content: () -> some View) -> some View {
+        LabeledContent(content: content) {
+            Text(title).foregroundStyle(.secondary)
         }
+    }
+
+    private func stepperField(_ title: LocalizedStringKey, display: String, value: Binding<Int>,
+                              range: ClosedRange<Int>, step: Int = 1, widthSample: String,
+                              alignment: Alignment = .trailing) -> some View {
+        field(title) {
+            HStack(spacing: 8) {
+                ZStack(alignment: alignment) {
+                    Text(widthSample).hidden()
+                    Text(display)
+                }
+                .monospacedDigit()
+                Stepper(title, value: value, in: range, step: step)
+                    .labelsHidden()
+                    .controlSize(.small)
+                    .opacity(contrast == .increased ? 1 : 0.7)
+                    .accessibilityValue(Text(display))
+            }
+        }
+    }
+
+    private func spacingControl(_ title: LocalizedStringKey, selection: Binding<Spacing>) -> some View {
+        let levels = Spacing.allCases
+        let index = Binding(get: { levels.firstIndex(of: selection.wrappedValue)! },
+                            set: { selection.wrappedValue = levels[$0] })
+        return stepperField(title, display: selection.wrappedValue.name, value: index,
+                            range: 0...(levels.count - 1), widthSample: Spacing.relaxed.name, alignment: .center)
+            .fixedSize()
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func section(_ title: LocalizedStringKey, @ViewBuilder content: () -> some View) -> some View {
@@ -82,21 +120,14 @@ struct StylePanel: View {
 
 struct FontScaleButtons: View {
     @Binding var scale: Int
-    var showsScale = false
     var assignsKeyboardShortcuts = false
 
     private let range = ReaderStyle.fontScaleRange
     private let step = ReaderStyle.fontScaleStep
 
     var body: some View {
-        if showsScale {
-            decrease
-            Text("\(scale)%").monospacedDigit()
-            increase
-        } else {
-            increase
-            decrease
-        }
+        increase
+        decrease
     }
 
     private var increase: some View {
