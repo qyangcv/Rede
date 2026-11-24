@@ -50,10 +50,14 @@ struct StylePanel: View {
 
                     section("外观") {
                         field("模式") {
-                            Picker("外观模式", selection: $appearance) { AppearanceOptions() }
-                                .pickerStyle(.segmented)
-                                .labelsHidden()
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Picker("外观模式", selection: $appearance) {
+                                ForEach(Appearance.allCases) { item in
+                                    Label(item.name, systemImage: item.icon).tag(item)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         field("背景") {
                             ColorSwatches(selection: $style.background)
@@ -118,35 +122,6 @@ struct StylePanel: View {
     }
 }
 
-struct FontScaleButtons: View {
-    @Binding var scale: Int
-    var assignsKeyboardShortcuts = false
-
-    private let range = ReaderStyle.fontScaleRange
-    private let step = ReaderStyle.fontScaleStep
-
-    var body: some View {
-        increase
-        decrease
-    }
-
-    private var increase: some View {
-        Button("放大字体", systemImage: "textformat.size.larger") {
-            scale = min(scale + step, range.upperBound)
-        }
-        .keyboardShortcut(assignsKeyboardShortcuts ? KeyboardShortcut("+") : nil)
-        .disabled(scale >= range.upperBound)
-    }
-
-    private var decrease: some View {
-        Button("缩小字体", systemImage: "textformat.size.smaller") {
-            scale = max(scale - step, range.lowerBound)
-        }
-        .keyboardShortcut(assignsKeyboardShortcuts ? KeyboardShortcut("-") : nil)
-        .disabled(scale <= range.lowerBound)
-    }
-}
-
 struct FontOptions: View {
     var body: some View {
         let fonts = ReaderFont.allCases.filter(\.isAvailable)
@@ -158,15 +133,6 @@ struct FontOptions: View {
             Section("三方字体") {
                 ForEach(thirdParty) { Text($0.name).tag($0) }
             }
-        }
-    }
-}
-
-struct AppearanceOptions: View {
-    var body: some View {
-        ForEach(Appearance.allCases) { item in
-            Label(item.name, systemImage: item.icon)
-                .tag(item)
         }
     }
 }

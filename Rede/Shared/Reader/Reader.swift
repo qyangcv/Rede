@@ -53,19 +53,10 @@ final class EpubSchemeHandler: NSObject, WKURLSchemeHandler {
 
 final class AppResourceSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "rede"
-    private static let host = "app"
     private static let allowed: Set<String> = [
-        "reader.html", "offsets.js", "reader.js", "reader.css", "leaf.svg",
+        "reader.html", "offsets.js", "reader.js", "reader.css",
         "ReadiumCSS-before.css", "ReadiumCSS-default.css", "ReadiumCSS-after.css",
     ]
-
-    static func url(for name: String) -> URL? {
-        var components = URLComponents()
-        components.scheme = scheme
-        components.host = host
-        components.path = "/" + name
-        return components.url
-    }
 
     static func data(named name: String) throws -> Data {
         if name == "fonts.css" { return Data(ReaderFont.fontFaceCSS.utf8) }

@@ -17,7 +17,7 @@ struct StyleSheet: View {
                         Text("亮度")
                     }
                     .labelsHidden()
-                    SliderAccessory(placeholder: "较细", alignment: .center) { Image(systemName: "sun.max") }
+                    sliderAccessory { Image(systemName: "sun.max") }
                 }
             }
 
@@ -50,19 +50,19 @@ struct StyleSheet: View {
                     HStack(spacing: 9) {
                         FontWeightSlider(weights: style.font.weights,
                                          weight: Binding(get: { weight }, set: { style.fontWeight = $0 }))
-                        SliderAccessory(placeholder: "较细", alignment: .center) { Text(weightName(weight)).font(.footnote) }
+                        sliderAccessory { Text(weightName(weight)).font(.footnote) }
                     }
                 }
             }
 
             GridRow {
                 label("行距")
-                SpacingPicker(title: "行距", selection: $style.lineSpacing)
+                spacingPicker("行距", selection: $style.lineSpacing)
             }
 
             GridRow {
                 label("段距")
-                SpacingPicker(title: "段距", selection: $style.paraSpacing)
+                spacingPicker("段距", selection: $style.paraSpacing)
             }
 
             GridRow {
@@ -76,10 +76,8 @@ struct StyleSheet: View {
 
             GridRow {
                 label("颜色")
-                HStack(spacing: 16) {
-                    ColorSwatches(selection: $style.background)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                ColorSwatches(selection: $style.background)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             GridRow {
@@ -113,6 +111,22 @@ struct StyleSheet: View {
 
     private func label(_ text: String) -> some View {
         Text(text).foregroundStyle(.secondary)
+    }
+
+    private func spacingPicker(_ title: String, selection: Binding<Spacing>) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(Spacing.allCases) { level in
+                Text(level.name).tag(level)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+    }
+
+    private func sliderAccessory(@ViewBuilder content: () -> some View) -> some View {
+        Text("较细")
+            .hidden()
+            .overlay { content() }
     }
 
     private func weightName(_ weight: Int) -> String {

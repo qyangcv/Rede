@@ -4,19 +4,7 @@ struct ReaderStyleCommands: View {
     @FocusedValue(\.readerMenuContext) private var context
     @Bindable private var settings = Settings.shared
 
-    private var colorScheme: ColorScheme {
-        switch settings.appearance {
-        case .light: return .light
-        case .dark: return .dark
-        case .system:
-            if let context { return context.colorScheme }
-            let appearance = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua])
-            return appearance == .darkAqua ? .dark : .light
-        }
-    }
-
     var body: some View {
-        let backgroundScheme = colorScheme
         Button("打开样式面板") { context?.showStyle() }
             .disabled(context == nil)
 
@@ -35,7 +23,7 @@ struct ReaderStyleCommands: View {
         Menu("背景色") {
             Picker("背景色", selection: $settings.readerStyle.background) {
                 ForEach(BackgroundColor.allCases) { color in
-                    Text(color.name(for: backgroundScheme)).tag(color)
+                    Text(color.name).tag(color)
                 }
             }
             .pickerStyle(.inline)
@@ -79,11 +67,18 @@ struct ReaderStyleCommands: View {
         }
         .disabled(context == nil || weights.count < 2)
 
-        FontScaleButtons(
-            scale: $settings.readerStyle.fontScale,
-            assignsKeyboardShortcuts: true
-        )
-            .disabled(context == nil)
+        Button("放大字体", systemImage: "textformat.size.larger") {
+            settings.readerStyle.fontScale = min(settings.readerStyle.fontScale + ReaderStyle.fontScaleStep,
+                                                 ReaderStyle.fontScaleRange.upperBound)
+        }
+        .keyboardShortcut("+")
+        .disabled(context == nil || settings.readerStyle.fontScale >= ReaderStyle.fontScaleRange.upperBound)
+        Button("缩小字体", systemImage: "textformat.size.smaller") {
+            settings.readerStyle.fontScale = max(settings.readerStyle.fontScale - ReaderStyle.fontScaleStep,
+                                                 ReaderStyle.fontScaleRange.lowerBound)
+        }
+        .keyboardShortcut("-")
+        .disabled(context == nil || settings.readerStyle.fontScale <= ReaderStyle.fontScaleRange.lowerBound)
         Button("默认大小") { settings.readerStyle.fontScale = ReaderStyle.default.fontScale }
             .disabled(context == nil || settings.readerStyle.fontScale == ReaderStyle.default.fontScale)
 

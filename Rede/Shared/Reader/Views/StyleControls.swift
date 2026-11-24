@@ -19,38 +19,6 @@ struct FontWeightSlider: View {
     }
 }
 
-struct SpacingPicker: View {
-    enum Style {
-        case segmented, menu
-    }
-
-    let title: String
-    var style: Style = .segmented
-    @Binding var selection: Spacing
-
-    var body: some View {
-        switch style {
-        case .segmented:
-            picker
-                .pickerStyle(.segmented)
-                .labelsHidden()
-        case .menu:
-            picker
-                .pickerStyle(.menu)
-                .labelsHidden()
-                .fixedSize()
-        }
-    }
-
-    private var picker: some View {
-        Picker(title, selection: $selection) {
-            ForEach(Spacing.allCases) { level in
-                Text(level.name).tag(level)
-            }
-        }
-    }
-}
-
 struct ColorSwatches: View {
     @Binding var selection: BackgroundColor
 
@@ -59,7 +27,7 @@ struct ColorSwatches: View {
     var body: some View {
         HStack(spacing: 6) {
             ForEach(BackgroundColor.allCases) { item in
-                BackgroundSwatch(color: item.swatch(for: colorScheme), name: item.name(for: colorScheme),
+                BackgroundSwatch(color: item.swatch(for: colorScheme), name: item.name,
                                  isSelected: item == selection) {
                     selection = item
                 }

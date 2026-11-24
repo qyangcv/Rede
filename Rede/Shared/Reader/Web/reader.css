@@ -1,8 +1,4 @@
 /* 外壳页：只负责背景和章节 iframe 的位置，正文排版全部交给 ReadiumCSS */
-:root {
-  --leaf-size: 320px;
-}
-
 html, body {
   height: 100%;
   margin: 0;
@@ -13,10 +9,6 @@ html, body {
 
 html {
   background-color: var(--reader-bg);
-  background-image: var(--reader-pattern, none);
-  background-repeat: no-repeat;
-  background-position: right top;
-  background-size: var(--leaf-size) auto;
 }
 
 /* 正文区域先避开安全区，再留出上下页边距；

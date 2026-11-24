@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ReaderMenuContext {
-    let colorScheme: ColorScheme
     let canTurnBack: Bool
     let canTurnForward: Bool
     let hasTOC: Bool

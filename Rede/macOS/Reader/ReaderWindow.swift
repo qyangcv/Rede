@@ -164,7 +164,6 @@ private struct ReaderWindowContent: View {
         }
 
         return ReaderMenuContext(
-            colorScheme: colorScheme,
             canTurnBack: canTurnBack,
             canTurnForward: canTurnForward,
             hasTOC: !reader.toc.isEmpty,

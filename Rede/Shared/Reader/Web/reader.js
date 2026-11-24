@@ -289,7 +289,7 @@ function mediaLimits() {
 }
 
 // 把用户设置和版面变量写到外壳页和章节文档的 :root；
-// 章节只认 --USER__* / --RS__* / --rede-media-* / --reader-highlight / --reader-note，外壳页只认 --reader-bg / --reader-pattern，互不干扰
+// 章节只认 --USER__* / --RS__* / --rede-media-* / --reader-highlight / --reader-note，外壳页只认 --reader-bg，互不干扰
 function applyStyle() {
   state.columns = columnCount();
   const vars = {

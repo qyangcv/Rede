@@ -34,7 +34,7 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
 
     var id: Self { self }
 
-    func name(for _: ColorScheme) -> String {
+    var name: String {
         switch self {
         case .neutral: "霜"
         case .warm: "笺"
@@ -81,22 +81,6 @@ enum HighlightColor {
     }
 }
 
-enum BackgroundPattern: String, Codable {
-    case none, bamboo
-
-    var file: String? {
-        switch self {
-        case .none: nil
-        case .bamboo: "leaf.svg"
-        }
-    }
-
-    var css: String {
-        guard let file, let url = AppResourceSchemeHandler.url(for: file) else { return "none" }
-        return "url(\"\(url.absoluteString)\")"
-    }
-}
-
 private extension Color {
     init(hex: String) {
         let value = UInt32(hex.dropFirst(), radix: 16) ?? 0
@@ -113,13 +97,12 @@ struct ReaderStyle: Equatable {
     var lineSpacing: Spacing
     var paraSpacing: Spacing
     var background: BackgroundColor
-    var pattern: BackgroundPattern
 
     static let fontScaleRange = 80...300
     static let fontScaleStep = 5
     static let `default` = ReaderStyle(fontScale: 100, font: .original, fontWeights: [:],
                                       lineSpacing: .standard, paraSpacing: .standard,
-                                      background: .neutral, pattern: .none)
+                                      background: .neutral)
 
     var fontWeight: Int? {
         get { font.defaultWeight.map { fontWeights[font] ?? $0 } }
@@ -140,7 +123,6 @@ struct ReaderStyle: Equatable {
             "--USER__linkColor": forced ? LinkColor.dark : "",
             "--USER__visitedColor": forced ? LinkColor.dark : "",
             "--reader-bg": background.color(for: scheme),
-            "--reader-pattern": pattern.css,
             "--reader-highlight": HighlightColor.color(for: scheme),
             "--reader-note": HighlightColor.note(for: scheme),
         ]
@@ -149,7 +131,7 @@ struct ReaderStyle: Equatable {
 
 extension ReaderStyle: Codable {
     private enum CodingKeys: String, CodingKey {
-        case fontScale, font, fontWeights, lineSpacing, paraSpacing, background, pattern
+        case fontScale, font, fontWeights, lineSpacing, paraSpacing, background
     }
 
     init(from decoder: Decoder) throws {
@@ -161,7 +143,6 @@ extension ReaderStyle: Codable {
         lineSpacing = try container.decodeIfPresent(Spacing.self, forKey: .lineSpacing) ?? fallback.lineSpacing
         paraSpacing = try container.decodeIfPresent(Spacing.self, forKey: .paraSpacing) ?? fallback.paraSpacing
         background = try container.decodeIfPresent(BackgroundColor.self, forKey: .background) ?? fallback.background
-        pattern = try container.decodeIfPresent(BackgroundPattern.self, forKey: .pattern) ?? fallback.pattern
     }
 
 }
