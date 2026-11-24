@@ -30,18 +30,16 @@ enum Spacing: String, CaseIterable, Identifiable, Codable {
 }
 
 enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
-    case neutral, warm, sage
+    case neutral, warm, sage, gray
 
     var id: Self { self }
 
-    func name(for scheme: ColorScheme) -> String {
-        switch (self, scheme) {
-        case (.neutral, .dark): "松烟"
-        case (.neutral, _): "霜白"
-        case (.warm, .dark): "茶墨"
-        case (.warm, _): "米笺"
-        case (.sage, .dark): "苔墨"
-        case (.sage, _): "青烟"
+    func name(for _: ColorScheme) -> String {
+        switch self {
+        case .neutral: "霜"
+        case .warm: "笺"
+        case .sage: "青"
+        case .gray: "砚"
         }
     }
 
@@ -53,6 +51,8 @@ enum BackgroundColor: String, CaseIterable, Identifiable, Codable {
         case (.warm, _): "#F5F0E6"
         case (.sage, .dark): "#1C2117"
         case (.sage, _): "#DFE5D9"
+        case (.gray, .dark): "#303030"
+        case (.gray, _): "#DEDEDE"
         }
     }
 
