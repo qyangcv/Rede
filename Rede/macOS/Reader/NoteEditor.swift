@@ -7,14 +7,19 @@ struct NoteTarget: Identifiable {
 
 struct NoteEditor: View {
     let quote: String
+    let hasNote: Bool
     let onSave: (String) -> Void
+    let onDelete: () -> Void
 
     @State private var text: String
+    @State private var deleted = false
     @FocusState private var focused: Bool
 
-    init(quote: String, note: String, onSave: @escaping (String) -> Void) {
+    init(quote: String, note: String, onSave: @escaping (String) -> Void, onDelete: @escaping () -> Void) {
         self.quote = quote
+        self.hasNote = !note.isEmpty
         self.onSave = onSave
+        self.onDelete = onDelete
         _text = State(initialValue: note)
     }
 
@@ -33,10 +38,24 @@ struct NoteEditor: View {
                 .focused($focused)
                 .scrollContentBackground(.hidden)
                 .frame(height: 140)
+            Divider()
+            HStack {
+                Spacer()
+                Button(role: .destructive) {
+                    deleted = true
+                    onDelete()
+                } label: {
+                    Label(hasNote ? "移除高亮与笔记" : "移除高亮", systemImage: "trash")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+            }
         }
         .padding(14)
         .frame(width: 320)
         .onAppear { focused = true }
-        .onDisappear { onSave(text) }
+        .onDisappear {
+            if !deleted { onSave(text) }
+        }
     }
 }

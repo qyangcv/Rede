@@ -4,6 +4,7 @@ import WebKit
 final class ReaderWebView: WKWebView {
     var onKeyDown: ((NSEvent) -> Bool)?
     var onContextMenu: ((NSMenu) -> Void)?
+    var onCopy: (() -> Bool)?
     weak var swipeTurner: SwipePageTurner?
 
     private var trackingSwipe = false
@@ -47,6 +48,15 @@ final class ReaderWebView: WKWebView {
         super.keyDown(with: event)
     }
 
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+           event.charactersIgnoringModifiers?.lowercased() == "c",
+           onCopy?() == true {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
     override func scrollWheel(with event: NSEvent) {
         if trackingSwipe { return }
         guard event.phase == .began, event.hasPreciseScrollingDeltas,
@@ -82,6 +92,7 @@ struct ReaderWebViewContainer: NSViewRepresentable {
             reader?.handleKeyDown(event) ?? false
         }
         reader.webView.onContextMenu = { [weak reader] menu in reader?.extendMenu(menu) }
+        reader.webView.onCopy = { [weak reader] in reader?.copyActiveHighlight() ?? false }
         return reader.webView
     }
 
@@ -112,12 +123,16 @@ extension Reader {
 
     fileprivate func extendMenu(_ menu: NSMenu) {
         guard let onAnnotationAction else { return }
-        let items: [NSMenuItem]
+        var items: [NSMenuItem]
         if let hit = contextHighlight {
             items = [
                 ActionMenuItem(title: hasNote(hit.id) ? "查看笔记" : "添加笔记") { onAnnotationAction(.editNote(hit)) },
                 ActionMenuItem(title: hasNote(hit.id) ? "移除高亮与笔记" : "移除高亮") { onAnnotationAction(.delete(id: hit.id)) },
             ]
+            if menu.items.isEmpty, let onCopyHighlight {
+                items.append(.separator())
+                items.append(ActionMenuItem(title: "拷贝") { onCopyHighlight(hit.id) })
+            }
         } else if selecting {
             items = [
                 ActionMenuItem(title: "高亮") { onAnnotationAction(.highlightSelection) },
@@ -132,9 +147,19 @@ extension Reader {
         }
     }
 
+    fileprivate func copyActiveHighlight() -> Bool {
+        guard !selecting, let id = activeHighlightID, let onCopyHighlight else { return false }
+        onCopyHighlight(id)
+        return true
+    }
+
     fileprivate func handleKeyDown(_ event: NSEvent) -> Bool {
-        guard event.modifierFlags.isDisjoint(with: [.command, .option, .control]),
-              let key = event.specialKey else { return false }
+        guard event.modifierFlags.isDisjoint(with: [.command, .option, .control]) else { return false }
+        if event.keyCode == 53, activeHighlightID != nil {
+            clearActiveHighlight()
+            return true
+        }
+        guard let key = event.specialKey else { return false }
         switch key {
         case .leftArrow: onGesture?(.turn(.prev))
         case .rightArrow: onGesture?(.turn(.next))

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ReaderWindow: View {
@@ -118,25 +119,41 @@ private struct ReaderWindowContent: View {
                 if let annotation = session.annotation(id: target.id) {
                     NoteEditor(quote: annotation.text, note: annotation.note) {
                         session.setNote($0, of: annotation)
+                    } onDelete: {
+                        noteTarget = nil
+                        session.deleteAnnotation(id: annotation.id)
                     }
                 }
             }
             .onChange(of: noteTarget == nil) { _, closed in
-                if closed { reader.focus() }
+                if closed {
+                    reader.clearActiveHighlight()
+                    reader.focus()
+                }
             }
             .onAppear {
                 reader.onGesture = { gesture in
                     switch gesture {
                     case .turn(let direction):
                         turn(direction)
-                    case .tap, .highlight:
+                    case .highlight(let hit):
+                        noteTarget = NoteTarget(id: hit.id, rect: hit.rect.cgRect)
+                    case .tap:
                         break
                     }
+                }
+                reader.onSelectionChange = { selecting in
+                    if selecting { noteTarget = nil }
                 }
                 reader.onAnnotationAction = { action in
                     session.perform(action) { id, rect in
                         noteTarget = NoteTarget(id: id, rect: rect)
                     }
+                }
+                reader.onCopyHighlight = { id in
+                    guard let text = session.annotation(id: id)?.text else { return }
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
                 }
             }
             .ignoresSafeArea()
@@ -149,7 +166,9 @@ private struct ReaderWindowContent: View {
             .onDisappear {
                 search.cancel()
                 reader.onGesture = nil
+                reader.onSelectionChange = nil
                 reader.onAnnotationAction = nil
+                reader.onCopyHighlight = nil
                 turner.detach()
             }
             .focusedSceneValue(\.readerMenuContext, menuContext)

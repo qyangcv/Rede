@@ -39,6 +39,9 @@ extension JSBridge {
     func setAnnotations(_ marks: [AnnotationMark]) async {
         await call("reader.setAnnotations(list)", ["list": marks.map(\.jsObject)])
     }
+    func clearActiveHighlight() async {
+        await call("reader.clearActiveHighlight()")
+    }
     func turn(_ step: Int) async {
         await call("return reader.turn(step)", ["step": step])
     }

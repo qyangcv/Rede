@@ -43,6 +43,10 @@ let doc = null;  // 当前章节文档
 let pad = null;  // 当前章节的补白列，见 measure()
 let selectionBounds = null;  // 当前屏的 DOM Range，有选区时才计算
 let highlights = [];  // 本章已绘制的高亮 [{id, start, end, range}]，供点击命中检测
+let hadSelectionOnMouseDown = false;  // 按下鼠标前是否已有选区，用于区分取消选区和直接点击/右键高亮
+let activeHighlightId = null;  // 当前激活（左键/双击/右键）的高亮 id，由独立的 CSS Highlight 层绘制
+let highlightTapTimer = null;  // 桌面端单击高亮延迟上报，避免双击时先弹出面板再撤回
+let lastPointerType = "";
 
 // Swift 调用接口
 
@@ -67,6 +71,10 @@ const reader = {
     if (!doc || frame.classList.contains("loading")) return;
     paintHighlights();
     report();
+  },
+
+  clearActiveHighlight() {
+    setActiveHighlight(null);
   },
 
   // 取出章节里的选区并清除：返回 {chapter, start, end, text}；没有选区或选区不含任何单位时返回 null
@@ -194,8 +202,10 @@ async function prepare(doc) {
   const marks = doc.createElementNS(XHTML_NS, "style");
   marks.textContent = `${HIGHLIGHT_LAYERS.map((name) => `::highlight(${name})`).join(", ")}
     { background-color: var(--reader-highlight); }
+    ::highlight(${ACTIVE_HIGHLIGHT_LAYER}) { background-color: var(--reader-highlight-active); }
     ::highlight(${NOTE_LAYER}) { text-decoration: underline dashed 1.5px var(--reader-note); }
     ::highlight(${SEARCH_LAYER}) { background-color: #ffd457; color: #241b00; }
+    :root.over-highlight { cursor: default; }
     @layer rede {
       body {
         text-align: justify;
@@ -207,7 +217,7 @@ async function prepare(doc) {
     }`;
   head.prepend(fonts, before);
   head.append(...after, marks);
-  for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER, SEARCH_LAYER]) {
+  for (const name of [...HIGHLIGHT_LAYERS, ACTIVE_HIGHLIGHT_LAYER, NOTE_LAYER, SEARCH_LAYER]) {
     doc.defaultView.CSS.highlights.set(name, new doc.defaultView.Highlight());
   }
 
@@ -332,8 +342,14 @@ function settle(page, offset = null) {
   const previousSpread = state.spread;
   scrollToSpread(page);
   updatePageRange();
-  if (state.spread !== previousSpread) doc.getSelection().removeAllRanges();
-  else pageSelection();
+  if (state.spread !== previousSpread) {
+    cancelHighlightTap();
+    clearHoverHighlight();
+    setActiveHighlight(null);
+    doc.getSelection().removeAllRanges();
+  } else {
+    pageSelection();
+  }
   state.offset = offset ?? state.range?.start ?? -1;
   report();
 }
@@ -358,6 +374,7 @@ function locate(at) {
 // 重叠加深：同一 Highlight 内的 Range 重叠时只画一层，所以按重叠深度分层注册，
 // 第 k 层覆盖至少 k+1 条高亮重叠的区域，各层同一半透明色叠加，越深越浓；超过层数的深度不再加深
 const HIGHLIGHT_LAYERS = ["rede-highlight-1", "rede-highlight-2"];
+const ACTIVE_HIGHLIGHT_LAYER = "rede-highlight-active";
 // 带笔记的高亮额外加入此层，画虚线下划线
 const NOTE_LAYER = "rede-note";
 const SEARCH_LAYER = "rede-search";
@@ -380,10 +397,33 @@ function paintHighlights() {
   const notes = doc.defaultView.CSS.highlights.get(NOTE_LAYER);
   notes.clear();
   spans.forEach((s, i) => { if (s.note) notes.add(ranges[i]); });
+  paintActiveHighlight();
+  if (highlights.length === 0) clearHoverHighlight();
+}
+
+function paintActiveHighlight() {
+  const layer = doc?.defaultView?.CSS.highlights.get(ACTIVE_HIGHLIGHT_LAYER);
+  if (!layer) return;
+  layer.clear();
+  if (!activeHighlightId) return;
+  const hit = highlights.find((h) => h.id === activeHighlightId);
+  if (hit) {
+    layer.add(hit.range);
+  } else {
+    activeHighlightId = null;
+    window.webkit?.messageHandlers?.gesture?.postMessage({ type: "activeHighlight", id: null });
+  }
+}
+
+function setActiveHighlight(id) {
+  if (activeHighlightId === id) return;
+  activeHighlightId = id;
+  paintActiveHighlight();
+  window.webkit?.messageHandlers?.gesture?.postMessage({ type: "activeHighlight", id: activeHighlightId });
 }
 
 function refreshHighlights(chapter) {
-  for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER, SEARCH_LAYER]) {
+  for (const name of [...HIGHLIGHT_LAYERS, ACTIVE_HIGHLIGHT_LAYER, NOTE_LAYER, SEARCH_LAYER]) {
     const highlight = chapter.defaultView.CSS.highlights.get(name);
     const ranges = [...highlight];
     highlight.clear();
@@ -416,13 +456,67 @@ function depthLayers(spans) {
   return layers.map((intervals) => intervals.filter((s) => s.start < s.end));
 }
 
+const HIGHLIGHT_HIT_SLOP = 1.5;
+
+function columnOfRect(rect) {
+  if (state.columns < 2) return 0;
+  return rect.left + rect.width / 2 < frame.contentWindow.innerWidth / 2 ? 0 : 1;
+}
+
+// 只收集文本节点子区间的矩形，避免跨段 Range 混入块级容器矩形
+function textRects(range) {
+  if (range.startContainer === range.endContainer && range.startContainer.nodeType === Node.TEXT_NODE) {
+    return [...range.getClientRects()];
+  }
+  const rects = [];
+  const sub = doc.createRange();
+  const root = range.commonAncestorContainer;
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node = root.nodeType === Node.TEXT_NODE ? root : walker.nextNode();
+  while (node) {
+    if (range.intersectsNode(node)) {
+      const start = node === range.startContainer ? range.startOffset : 0;
+      const end = node === range.endContainer ? range.endOffset : node.length;
+      if (start < end) {
+        sub.setStart(node, start);
+        sub.setEnd(node, end);
+        rects.push(...sub.getClientRects());
+      }
+    }
+    node = walker.nextNode();
+  }
+  return rects;
+}
+
+// 合并同一栏、同一行的碎片矩形，消除跨节点/两端对齐/亚像素导致的命中缝隙
+function lineRects(range) {
+  const merged = [];
+  for (const r of textRects(range)) {
+    if (!hasArea(r)) continue;
+    const col = columnOfRect(r);
+    const line = merged.find((m) => m.col === col && Math.min(m.bottom, r.bottom) > Math.max(m.top, r.top));
+    if (line) {
+      line.left = Math.min(line.left, r.left);
+      line.right = Math.max(line.right, r.right);
+      line.top = Math.min(line.top, r.top);
+      line.bottom = Math.max(line.bottom, r.bottom);
+    } else {
+      merged.push({ col, left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+    }
+  }
+  return merged;
+}
+
 // 章节视口坐标 (x, y) 处的高亮及其被点中的那一行矩形；重叠时取最短的一条（最具体）
 function highlightAt(x, y) {
   let hit = null;
   for (const h of highlights) {
-    const rect = [...h.range.getClientRects()]
-      .find((r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom);
-    if (rect && (!hit || h.end - h.start < hit.end - hit.start)) hit = { ...h, rect };
+    const rect = lineRects(h.range).find((r) =>
+      x >= r.left - HIGHLIGHT_HIT_SLOP && x <= r.right + HIGHLIGHT_HIT_SLOP
+      && y >= r.top - HIGHLIGHT_HIT_SLOP && y <= r.bottom + HIGHLIGHT_HIT_SLOP);
+    if (rect && (!hit || h.end - h.start < hit.end - hit.start)) {
+      hit = { ...h, rect: { left: rect.left, top: rect.top, width: rect.right - rect.left, height: rect.bottom - rect.top } };
+    }
   }
   return hit;
 }
@@ -633,13 +727,67 @@ function pageSelection() {
 function watchGestures(target) {
   target.addEventListener("click", onTap);
   target.addEventListener("contextmenu", onContextMenu);
+  if (target !== document) {
+    target.addEventListener("pointerdown", (event) => { lastPointerType = event.pointerType; });
+    target.addEventListener("mousedown", onMouseDown);
+    target.addEventListener("pointermove", onPointerMove);
+    target.addEventListener("pointerleave", clearHoverHighlight);
+  }
   target.addEventListener("selectionchange", () => {
     if (target !== document && target !== doc) return;
+    if (target === doc) {
+      const selection = pageSelection();
+      if (selection && !selection.isCollapsed) {
+        cancelHighlightTap();
+        setActiveHighlight(null);
+      }
+    }
     reportSelection(target);
     if (target !== document) refreshHighlights(target);
   });
   // 换章后旧文档里的选区随之消失，不会再触发 selectionchange
+  if (target !== document) {
+    cancelHighlightTap();
+    setActiveHighlight(null);
+  }
   reportSelection(target);
+}
+
+const HIGHLIGHT_TAP_DELAY_MS = 240;
+
+function cancelHighlightTap() {
+  if (highlightTapTimer !== null) {
+    clearTimeout(highlightTapTimer);
+    highlightTapTimer = null;
+  }
+}
+
+function clearHoverHighlight() {
+  doc?.documentElement?.classList.remove("over-highlight");
+}
+
+function onPointerMove(event) {
+  if (event.pointerType === "touch") return;
+  const over = highlights.length > 0 && event.buttons === 0
+    && !event.target.closest("a[href]")
+    && Boolean(highlightAt(event.clientX, event.clientY));
+  doc.documentElement.classList.toggle("over-highlight", over);
+}
+
+function onMouseDown(event) {
+  cancelHighlightTap();
+  hadSelectionOnMouseDown = !doc.getSelection().isCollapsed;
+  if (event.button !== 0) return;
+  if (event.detail === 2 && !event.target.closest("a[href]")) {
+    const hit = highlightAt(event.clientX, event.clientY);
+    if (hit) {
+      event.preventDefault();
+      doc.getSelection().removeAllRanges();
+      setActiveHighlight(hit.id);
+      return;
+    }
+  }
+  if (activeHighlightId) setActiveHighlight(null);
 }
 
 // 有选区时拖动是在调整选区，原生侧据此不把下滑当作关闭
@@ -653,9 +801,18 @@ function reportSelection(target) {
 
 // 原生侧在右键菜单打开时同步补充菜单项，所以在 contextmenu 事件里先上报命中的高亮和选区状态。
 // 事件派发在菜单交给原生侧之前，两条消息走同一 IPC 通道，菜单打开时原生侧已收到本消息；
-// 右键未选中的词时 WebKit 在派发前已选中该词，这里读到的选区状态也比 selectionchange 及时
+// 右键未选中的高亮时清除 WebKit 自动选中的局部词，交由活跃高亮层绘制，原生侧直接拷贝完整高亮文本
 function onContextMenu(event) {
+  cancelHighlightTap();
   const hit = event.view === window ? null : highlightAt(event.clientX, event.clientY);
+  const hadSelection = hadSelectionOnMouseDown;
+  hadSelectionOnMouseDown = false;
+  if (hit && !hadSelection) {
+    doc.getSelection().removeAllRanges();
+    setActiveHighlight(hit.id);
+  } else if (!hit) {
+    setActiveHighlight(null);
+  }
   const selection = event.currentTarget === doc ? pageSelection() : event.view.getSelection();
   window.webkit?.messageHandlers?.gesture?.postMessage({
     type: "context",
@@ -667,14 +824,27 @@ function onContextMenu(event) {
 // 点在链接上交给 onClick 和原生导航；有选区时这次点击是在取消选中，都不上报。
 // 点在高亮上上报高亮及其行矩形（外壳页坐标，即 WebView 坐标），不再当作翻页点击
 function onTap(event) {
-  if (event.target.closest("a[href]") || !event.view.getSelection().isCollapsed) return;
+  const hadSelection = hadSelectionOnMouseDown;
+  hadSelectionOnMouseDown = false;
+  if (event.detail > 1 || hadSelection || event.target.closest("a[href]") || !event.view.getSelection().isCollapsed) return;
   const inChapter = event.view !== window;
   const origin = inChapter ? frame.getBoundingClientRect() : { left: 0, top: 0 };
   const hit = inChapter ? highlightAt(event.clientX, event.clientY) : null;
   if (hit) {
-    window.webkit?.messageHandlers?.gesture?.postMessage({ type: "highlight", id: hit.id, rect: shellRect(hit.rect) });
+    const message = { type: "highlight", id: hit.id, rect: shellRect(hit.rect) };
+    if (lastPointerType === "touch") {
+      window.webkit?.messageHandlers?.gesture?.postMessage(message);
+    } else {
+      cancelHighlightTap();
+      highlightTapTimer = setTimeout(() => {
+        highlightTapTimer = null;
+        setActiveHighlight(hit.id);
+        window.webkit?.messageHandlers?.gesture?.postMessage(message);
+      }, HIGHLIGHT_TAP_DELAY_MS);
+    }
     return;
   }
+  setActiveHighlight(null);
   window.webkit?.messageHandlers?.gesture?.postMessage({
     type: "tap",
     x: (event.clientX + origin.left) / window.innerWidth,
