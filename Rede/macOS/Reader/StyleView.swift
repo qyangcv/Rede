@@ -5,6 +5,7 @@ struct StylePanel: View {
     @Binding var style: ReaderStyle
     @Binding var appearance: Appearance
     @Binding var pageLayout: ReaderPageLayout
+    @Binding var pageMargin: Int
 
     var body: some View {
         VStack(spacing: 0) {
@@ -54,6 +55,13 @@ struct StylePanel: View {
                             .pickerStyle(.segmented)
                             .labelsHidden()
                             .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        field("边距") {
+                            MarginControl(
+                                value: $pageMargin,
+                                range: Settings.readerPageMarginRange,
+                                defaultValue: Settings.defaultReaderPageMargin
+                            )
                         }
                     }
 
@@ -133,6 +141,91 @@ struct StylePanel: View {
     }
 }
 
+private struct MarginControl: View {
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let defaultValue: Int
+
+    @State private var dragOrigin: Int?
+    @State private var hoveringMinus = false
+    @State private var hoveringPlus = false
+
+    private let pointsPerStep: CGFloat = 8
+
+    var body: some View {
+        HStack(spacing: 0) {
+            stepButton(systemImage: "minus", label: "减小边距",
+                       enabled: value > range.lowerBound, hovering: $hoveringMinus) {
+                value = max(value - 1, range.lowerBound)
+            }
+
+            Divider()
+                .frame(height: 12)
+
+            Text("\(value)%")
+                .monospacedDigit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .pointerStyle(.columnResize)
+                .gesture(
+                    DragGesture(minimumDistance: 2)
+                        .onChanged { gesture in
+                            let origin = dragOrigin ?? value
+                            if dragOrigin == nil { dragOrigin = origin }
+                            let delta = Int((gesture.translation.width / pointsPerStep).rounded())
+                            value = min(max(origin + delta, range.lowerBound), range.upperBound)
+                        }
+                        .onEnded { _ in
+                            dragOrigin = nil
+                        }
+                )
+                .onTapGesture(count: 2) {
+                    value = defaultValue
+                }
+                .help("左右拖动调节，双击恢复默认")
+
+            Divider()
+                .frame(height: 12)
+
+            stepButton(systemImage: "plus", label: "增大边距",
+                       enabled: value < range.upperBound, hovering: $hoveringPlus) {
+                value = min(value + 1, range.upperBound)
+            }
+        }
+        .frame(width: 148, height: 24)
+        .background(.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("边距")
+        .accessibilityValue("\(value)%")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: value = min(value + 1, range.upperBound)
+            case .decrement: value = max(value - 1, range.lowerBound)
+            @unknown default: break
+            }
+        }
+    }
+
+    private func stepButton(systemImage: String, label: LocalizedStringKey,
+                            enabled: Bool, hovering: Binding<Bool>,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(enabled ? .primary : .tertiary)
+                .frame(width: 32, height: 24)
+                .background(enabled && hovering.wrappedValue ? Color.primary.opacity(0.08) : .clear)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+        .onHover { hovering.wrappedValue = $0 }
+    }
+}
+
 struct FontOptions: View {
     var body: some View {
         let fonts = ReaderFont.allCases.filter(\.isAvailable)
@@ -152,6 +245,7 @@ struct FontOptions: View {
     @Previewable @State var style = ReaderStyle.default
     @Previewable @State var appearance = Appearance.system
     @Previewable @State var pageLayout = ReaderPageLayout.auto
-    StylePanel(style: $style, appearance: $appearance, pageLayout: $pageLayout)
+    @Previewable @State var pageMargin = Settings.defaultReaderPageMargin
+    StylePanel(style: $style, appearance: $appearance, pageLayout: $pageLayout, pageMargin: $pageMargin)
         .frame(width: 300, height: 500)
 }

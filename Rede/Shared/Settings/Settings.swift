@@ -50,9 +50,16 @@ final class Settings {
     var pageTransition: PageTransition { didSet { save() } }
 
     #if os(macOS)
+    static let readerPageMarginRange = 3...30
+    static let defaultReaderPageMargin = 4
+    static let readerPageMarginMinPx = 24
+
     var readerTitle: ReaderTitle { didSet { save() } }
     var readerWindowMode: ReaderWindowMode { didSet { save() } }
     var readerPageLayout: ReaderPageLayout { didSet { save() } }
+    var readerPageMargin: Int {
+        didSet { if readerPageMargin != oldValue { save() } }
+    }
     #endif
 
     #if os(iOS)
@@ -83,6 +90,7 @@ final class Settings {
         var readerTitle: ReaderTitle?
         var readerWindowMode: ReaderWindowMode?
         var readerPageLayout: ReaderPageLayout?
+        var readerPageMargin: Int?
         #endif
         #if os(iOS)
         var brightness: Double?
@@ -104,6 +112,8 @@ final class Settings {
         readerTitle = snapshot?.readerTitle ?? .chapter
         readerWindowMode = snapshot?.readerWindowMode ?? .single
         readerPageLayout = snapshot?.readerPageLayout ?? .auto
+        let savedMargin = snapshot?.readerPageMargin ?? Self.defaultReaderPageMargin
+        readerPageMargin = min(max(savedMargin, Self.readerPageMarginRange.lowerBound), Self.readerPageMarginRange.upperBound)
         #endif
         #if os(iOS)
         brightness = snapshot?.brightness ?? 1
@@ -129,6 +139,7 @@ final class Settings {
             snapshot.readerTitle = readerTitle
             snapshot.readerWindowMode = readerWindowMode
             snapshot.readerPageLayout = readerPageLayout
+            snapshot.readerPageMargin = readerPageMargin
             #endif
             #if os(iOS)
             snapshot.brightness = brightness

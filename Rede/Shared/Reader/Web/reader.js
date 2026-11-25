@@ -268,7 +268,8 @@ function fontScale() {
 
 function columnGapPx(columns) {
   if (columns < 2) return 0;
-  return Math.max(frame.clientWidth * COLUMN_GAP_RATIO, COLUMN_GAP_MIN_EM * 16 * fontScale());
+  const ideal = Math.max(frame.clientWidth * COLUMN_GAP_RATIO, COLUMN_GAP_MIN_EM * 16 * fontScale());
+  return Math.min(ideal, frame.clientWidth / 3);
 }
 
 function columnCount() {
@@ -295,6 +296,9 @@ function mediaLimits() {
 // 把用户设置和版面变量写到外壳页和章节文档的 :root；
 // 章节只认 --USER__* / --RS__* / --rede-media-* / --reader-highlight / --reader-note，外壳页只认 --reader-bg，互不干扰
 function applyStyle() {
+  for (const [name, value] of Object.entries(state.style)) {
+    document.documentElement.style.setProperty(name, value);
+  }
   state.columns = columnCount();
   const vars = {
     ...LAYOUT_VARS,

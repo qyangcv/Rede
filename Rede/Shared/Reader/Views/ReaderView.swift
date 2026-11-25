@@ -14,6 +14,7 @@ struct ReaderView: View {
         vars.merge(ReaderLayout.cssVariables(safeArea: safeArea)) { $1 }
         #if os(macOS)
         vars["--rede-columns"] = settings.readerPageLayout.cssValue
+        vars["--page-gutter"] = "max(\(Settings.readerPageMarginMinPx)px, \(settings.readerPageMargin)%)"
         #endif
         #if DEBUG && os(macOS)
         PaletteTuner.shared.apply(to: &vars, scheme: colorScheme)

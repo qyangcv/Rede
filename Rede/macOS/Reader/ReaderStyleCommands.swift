@@ -55,6 +55,23 @@ struct ReaderStyleCommands: View {
         }
         .disabled(context == nil)
 
+        Menu("边距") {
+            Button("增大边距") {
+                settings.readerPageMargin = min(settings.readerPageMargin + 1, Settings.readerPageMarginRange.upperBound)
+            }
+            .disabled(settings.readerPageMargin >= Settings.readerPageMarginRange.upperBound)
+            Button("减小边距") {
+                settings.readerPageMargin = max(settings.readerPageMargin - 1, Settings.readerPageMarginRange.lowerBound)
+            }
+            .disabled(settings.readerPageMargin <= Settings.readerPageMarginRange.lowerBound)
+            Divider()
+            Button("默认边距") {
+                settings.readerPageMargin = Settings.defaultReaderPageMargin
+            }
+            .disabled(settings.readerPageMargin == Settings.defaultReaderPageMargin)
+        }
+        .disabled(context == nil)
+
         Divider()
 
         Menu("字体") {

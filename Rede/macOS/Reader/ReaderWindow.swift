@@ -338,7 +338,7 @@ private struct ReaderWindowContent: View {
                         }
                     case .style:
                         StylePanel(style: $settings.readerStyle, appearance: $settings.appearance,
-                                   pageLayout: $settings.readerPageLayout)
+                                   pageLayout: $settings.readerPageLayout, pageMargin: $settings.readerPageMargin)
                     }
                 }
                 .frame(width: width)
