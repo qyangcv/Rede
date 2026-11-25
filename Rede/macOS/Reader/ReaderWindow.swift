@@ -2,13 +2,17 @@ import AppKit
 import SwiftUI
 
 struct ReaderWindow: View {
-    @Environment(ReaderSession.self) private var session
+    let windowID: UUID
+    @Environment(ReaderWindowStore.self) private var readers
     @Environment(\.appearsActive) private var appearsActive
 
     var body: some View {
         ZStack {
-            if let reader = session.reader, let turner = session.turner {
+            if let session = readers.session(for: windowID),
+               let reader = session.reader,
+               let turner = session.turner {
                 ReaderWindowContent(reader: reader, turner: turner)
+                    .environment(session)
                     .id(ObjectIdentifier(reader))
             } else {
                 ContentUnavailableView("No book opened", systemImage: "book")
@@ -16,8 +20,10 @@ struct ReaderWindow: View {
             }
         }
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .onDisappear { session.close() }
-        .onChange(of: appearsActive, initial: true) { _, active in session.setForeground(active) }
+        .onDisappear { readers.close(windowID: windowID) }
+        .onChange(of: appearsActive, initial: true) { _, active in
+            readers.setForeground(active, for: windowID)
+        }
     }
 }
 

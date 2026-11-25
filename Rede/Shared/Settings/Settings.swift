@@ -51,6 +51,7 @@ final class Settings {
 
     #if os(macOS)
     var readerTitle: ReaderTitle { didSet { save() } }
+    var readerWindowMode: ReaderWindowMode { didSet { save() } }
     #endif
 
     #if os(iOS)
@@ -79,6 +80,7 @@ final class Settings {
         var pageTransition: PageTransition?
         #if os(macOS)
         var readerTitle: ReaderTitle?
+        var readerWindowMode: ReaderWindowMode?
         #endif
         #if os(iOS)
         var brightness: Double?
@@ -98,6 +100,7 @@ final class Settings {
         pageTransition = snapshot?.pageTransition ?? .default
         #if os(macOS)
         readerTitle = snapshot?.readerTitle ?? .chapter
+        readerWindowMode = snapshot?.readerWindowMode ?? .single
         #endif
         #if os(iOS)
         brightness = snapshot?.brightness ?? 1
@@ -121,6 +124,7 @@ final class Settings {
                                     iCloudSync: iCloudSync)
             #if os(macOS)
             snapshot.readerTitle = readerTitle
+            snapshot.readerWindowMode = readerWindowMode
             #endif
             #if os(iOS)
             snapshot.brightness = brightness

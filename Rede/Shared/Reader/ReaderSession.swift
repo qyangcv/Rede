@@ -18,6 +18,7 @@ final class ReaderSession {
     private var clock: ReadingClock?
     private var foreground = false
     private(set) var annotations: [Annotation] = []
+    private var observers: [NSObjectProtocol] = []
 
     var bookmarks: [Annotation] { annotations.filter { $0.kind == .bookmark } }
     var highlights: [Annotation] { annotations.filter { $0.kind == .highlight } }
@@ -27,15 +28,21 @@ final class ReaderSession {
     init() {
         let center = NotificationCenter.default
         #if os(iOS)
-        center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+        observers.append(center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.flush() }
-        }
+        })
         #endif
-        center.addObserver(forName: SyncMonitor.didImport, object: nil, queue: .main) { [weak self] _ in
+        observers.append(center.addObserver(forName: SyncMonitor.didImport, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.followRemoteProgress()
                 self?.pushAnnotations()
             }
+        })
+    }
+
+    deinit {
+        for observer in observers {
+            NotificationCenter.default.removeObserver(observer)
         }
     }
 

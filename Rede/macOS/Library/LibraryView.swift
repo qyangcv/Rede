@@ -19,8 +19,9 @@ struct LibraryView: View {
     @State private var bookToEdit: Book?
     @State private var exportFile: EpubFile?
     @State private var bookToShowInfo: Book?
-    @Environment(ReaderSession.self) private var session
+    @Environment(ReaderWindowStore.self) private var readers
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
     @Bindable private var settings = Settings.shared
 
     var body: some View {
@@ -334,7 +335,9 @@ struct LibraryView: View {
 
     private func delete(_ book: Book) {
         selection.remove(book.id)
-        if session.book?.id == book.id { session.close() }
+        if let windowID = readers.close(bookID: book.id) {
+            dismissWindow(id: RedeApp.readerWindowID, value: windowID)
+        }
         do {
             try withAnimation {
                 try BookRemover.remove(book, from: modelContext)
@@ -346,8 +349,11 @@ struct LibraryView: View {
 
     private func open(_ book: Book) {
         do {
-            try session.open(book, context: modelContext)
-            openWindow(id: RedeApp.readerWindowID)
+            let result = try readers.open(book, context: modelContext, mode: settings.readerWindowMode)
+            for id in result.dismiss {
+                dismissWindow(id: RedeApp.readerWindowID, value: id)
+            }
+            openWindow(id: RedeApp.readerWindowID, value: result.open)
         } catch {
             errors.append(error.localizedDescription)
         }
@@ -424,5 +430,5 @@ private struct CategoryEditor: View {
 #Preview("library") {
     LibraryView()
         .modelContainer(.library)
-        .environment(ReaderSession())
+        .environment(ReaderWindowStore())
 }

@@ -1,7 +1,7 @@
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let session = ReaderSession()
+    let readers = ReaderWindowStore()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let menu = NSApp.mainMenu else { return }
@@ -50,7 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let start = Date.now
-        session.flush()
+        readers.flushAll()
         guard CloudSync.isActive else { return .terminateNow }
         for window in sender.windows { window.orderOut(nil) }
         Task {

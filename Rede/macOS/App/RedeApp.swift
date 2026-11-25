@@ -8,7 +8,7 @@ struct RedeApp: App {
     static let readerWindowID = "reader"
 
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
-    private var session: ReaderSession { appDelegate.session }
+    private var readers: ReaderWindowStore { appDelegate.readers }
     private let updaterController: SPUStandardUpdaterController = {
            #if DEBUG
            let startingUpdater = false
@@ -45,7 +45,7 @@ struct RedeApp: App {
         }
         .defaultSize(width: 600, height: 400)
         .modelContainer(.library)
-        .environment(session)
+        .environment(readers)
         .commands {
             CommandGroup(after: .appInfo) {
                 CheckForUpdatesView(updater: updaterController.updater)
@@ -74,9 +74,11 @@ struct RedeApp: App {
             }
         }
 
-        Window("阅读", id: Self.readerWindowID) {
-            ReaderWindow()
-                .background(WindowFramePersistence(name: "Rede.Reader"))
+        WindowGroup("阅读", id: Self.readerWindowID, for: UUID.self) { $windowID in
+            if let windowID {
+                ReaderWindow(windowID: windowID)
+                    .background(WindowFramePersistence(name: "Rede.Reader", cascading: true))
+            }
         }
         .defaultWindowPlacement { _, context in
             let bounds = context.defaultDisplay.bounds
@@ -88,7 +90,7 @@ struct RedeApp: App {
             )
             return WindowPlacement(position, size: size)
         }
-        .environment(session)
+        .environment(readers)
         .windowManagerRole(.principal)
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
