@@ -73,11 +73,7 @@ enum LinkColor {
 
 enum HighlightColor {
     static func color(for scheme: ColorScheme) -> String {
-        scheme == .dark ? "rgba(255, 200, 60, 0.28)" : "rgba(255, 200, 0, 0.35)"
-    }
-
-    static func active(for scheme: ColorScheme) -> String {
-        scheme == .dark ? "rgba(255, 200, 60, 0.24)" : "rgba(255, 180, 0, 0.28)"
+        scheme == .dark ? "rgba(255, 200, 60, 0.28)" : "rgba(255, 204, 0, 0.48)"
     }
 
     static func note(for scheme: ColorScheme) -> String {
@@ -128,7 +124,6 @@ struct ReaderStyle: Equatable {
             "--USER__visitedColor": forced ? LinkColor.dark : "",
             "--reader-bg": background.color(for: scheme),
             "--reader-highlight": HighlightColor.color(for: scheme),
-            "--reader-highlight-active": HighlightColor.active(for: scheme),
             "--reader-note": HighlightColor.note(for: scheme),
         ]
     }

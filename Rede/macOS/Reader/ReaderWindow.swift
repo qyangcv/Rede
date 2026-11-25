@@ -126,10 +126,7 @@ private struct ReaderWindowContent: View {
                 }
             }
             .onChange(of: noteTarget == nil) { _, closed in
-                if closed {
-                    reader.clearActiveHighlight()
-                    reader.focus()
-                }
+                if closed { reader.focus() }
             }
             .onAppear {
                 reader.onGesture = { gesture in

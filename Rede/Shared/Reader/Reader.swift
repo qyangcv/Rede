@@ -142,7 +142,6 @@ final class Reader: NSObject,  WKNavigationDelegate {
     var onAnnotationAction: ((AnnotationAction) -> Void)?
     var onCopyHighlight: ((String) -> Void)?
     fileprivate(set) var contextHighlight: HighlightHit?
-    fileprivate(set) var activeHighlightID: String?
     var onSelectionChange: ((Bool) -> Void)?
     fileprivate(set) var selecting = false {
         didSet { if selecting != oldValue { onSelectionChange?(selecting) } }
@@ -347,12 +346,6 @@ final class Reader: NSObject,  WKNavigationDelegate {
         guard ready else { return }
         Task { await bridge.setAnnotations(marks) }
     }
-
-    func clearActiveHighlight() {
-        activeHighlightID = nil
-        guard ready else { return }
-        Task { await bridge.clearActiveHighlight() }
-    }
 }
 
 private final class MessageRelay: NSObject, WKScriptMessageHandler {
@@ -384,8 +377,6 @@ private final class MessageRelay: NSObject, WKScriptMessageHandler {
             reader.contextHighlight = body["highlight"].flatMap { HighlightHit(jsValue: $0) }
         case "selection":
             reader.selecting = body["active"] as? Bool ?? false
-        case "activeHighlight":
-            reader.activeHighlightID = body["id"] as? String
         default:
             break
         }
