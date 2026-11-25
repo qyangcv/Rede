@@ -71,6 +71,30 @@ private struct ReaderWindowContent: View {
                         .allowsHitTesting(false)
                 }
             }
+            .overlay(alignment: .bottomLeading) {
+                if session.history.canGoBack || session.history.canGoForward {
+                    HStack(spacing: 4) {
+                        HistoryButton(
+                            title: "后退",
+                            systemImage: "arrow.uturn.backward",
+                            enabled: session.history.canGoBack,
+                            help: historyHelp("后退", entry: session.history.lastBack, shortcut: "⌘["),
+                            action: session.goBack
+                        )
+                        HistoryButton(
+                            title: "前进",
+                            systemImage: "arrow.uturn.forward",
+                            enabled: session.history.canGoForward,
+                            help: historyHelp("前进", entry: session.history.lastForward, shortcut: "⌘]"),
+                            action: session.goForward
+                        )
+                    }
+                    .padding(.leading, CGFloat(ReaderLayout.gutter))
+                    .padding(.bottom, ReaderLayout.pageNumberBottom - 4)
+                    .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.18), value: session.history.canGoBack || session.history.canGoForward)
             .overlay(alignment: .top) {
                 Color.clear
                     .frame(height: 28)
@@ -188,11 +212,15 @@ private struct ReaderWindowContent: View {
         return ReaderMenuContext(
             canTurnBack: canTurnBack,
             canTurnForward: canTurnForward,
+            canGoBack: session.history.canGoBack,
+            canGoForward: session.history.canGoForward,
             hasTOC: !reader.toc.isEmpty,
             tocPresented: drawer == .toc,
             canBookmark: session.canBookmark,
             isBookmarked: session.isBookmarked,
             turn: turn,
+            goBack: session.goBack,
+            goForward: session.goForward,
             toggleTOC: { toggleDrawer(.toc) },
             showSearch: showSearch,
             hasSearchHits: !search.hits.isEmpty,
@@ -268,7 +296,14 @@ private struct ReaderWindowContent: View {
         let hit = search.hits[row]
         let start = index.start(of: hit)
         drawer = nil
-        reader.showSearchHit(chapter: hit.chapter, start: start, end: start + search.length)
+        session.jump(toSearchHit: hit.chapter, start: start, end: start + search.length)
+    }
+
+    private func historyHelp(_ action: String, entry: JumpEntry?, shortcut: String) -> String {
+        if let title = entry?.chapterTitle, !title.isEmpty {
+            return "\(action)至「\(title)」（\(shortcut)）"
+        }
+        return "\(action)（\(shortcut)）"
     }
 
     private var navigationDrawer: some View {
@@ -288,7 +323,7 @@ private struct ReaderWindowContent: View {
                     case .toc:
                         TOCList(items: reader.toc, current: session.chapter?.id) { entry in
                             closeDrawer()
-                            reader.go(to: entry)
+                            session.jump(to: entry)
                         }
                     case .search:
                         ReaderSearchView(search: search, reader: reader, onChoose: chooseHit, onClose: closeDrawer)
@@ -297,7 +332,7 @@ private struct ReaderWindowContent: View {
                         AnnotationPanel(toc: reader.toc, bookmarks: session.bookmarks, highlights: session.highlights,
                                         kind: $annotationKind, progress: session.progress(of:)) { annotation in
                             closeDrawer()
-                            session.go(to: annotation)
+                            session.jump(to: annotation)
                         } onDelete: { annotation in
                             session.deleteAnnotation(id: annotation.id)
                         }
@@ -321,5 +356,32 @@ private struct ReaderWindowContent: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct HistoryButton: View {
+    let title: String
+    let systemImage: String
+    let enabled: Bool
+    let help: String
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(enabled ? (hovering ? .primary : .secondary) : .quaternary)
+                .frame(width: 24, height: 24)
+                .background(enabled && hovering ? Color.primary.opacity(0.08) : .clear,
+                            in: RoundedRectangle(cornerRadius: 6))
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help(help)
+        .accessibilityLabel(title)
+        .onHover { hovering = $0 }
     }
 }

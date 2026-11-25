@@ -102,7 +102,7 @@ const reader = {
   },
 
   jump(chapter, anchor) {
-    goto(chapter, anchor || 0);
+    return goto(chapter, anchor || 0);
   },
 
   // 跳到保存的阅读位置：跟随其他设备同步来的进度，或仿真翻页翻完后同步到卷页层停下的那一页
@@ -638,7 +638,7 @@ function reflow() {
   report();
 }
 
-// 拦截章节内的链接，站内链接转成章节跳转；站外链接放行，交给原生导航策略
+// 拦截章节内的链接，站内链接上报 Swift 做跳转；站外链接放行，交给原生导航策略
 function onClick(event) {
   const link = event.target.closest("a[href]");
   if (!link) return;
@@ -656,7 +656,9 @@ function onClick(event) {
 
   event.preventDefault();
   const chapter = state.spinePaths.indexOf(path);
-  if (chapter >= 0) reader.jump(chapter, anchor);
+  if (chapter >= 0) {
+    window.webkit?.messageHandlers?.gesture?.postMessage({ type: "link", chapter, anchor });
+  }
 }
 
 // ---------- 手势 ----------

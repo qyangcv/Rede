@@ -13,11 +13,16 @@ struct ReaderScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     @Bindable private var settings = Settings.shared
     @State private var chromeVisible = false
+    @State private var showsJumpBar = false
     @State private var panel: Panel?
     @State private var annotationKind = Annotation.Kind.bookmark
     @State private var styleHeight: CGFloat?
     @State private var dismissal = Dismissal()
     @Environment(\.scenePhase) private var scenePhase
+
+    private var jumpBarVisible: Bool {
+        (chromeVisible || showsJumpBar) && (session.history.canGoBack || session.history.canGoForward)
+    }
 
     var body: some View {
         if let reader = session.reader, let turner = session.turner {
@@ -25,7 +30,7 @@ struct ReaderScreen: View {
                 .gesture(dismissal.gesture(for: reader.webView, shouldBegin: { panel == nil && !reader.selecting },
                                            onClose: session.close))
                 .overlay {
-                    PageDecor(chapter: chromeVisible ? nil : session.chapter, page: session.page)
+                    PageDecor(chapter: (chromeVisible || jumpBarVisible) ? nil : session.chapter, page: session.page)
                 }
                 .overlay {
                     turner.layer
@@ -42,8 +47,16 @@ struct ReaderScreen: View {
                         chrome.transition(.opacity)
                     }
                 }
+                .overlay(alignment: .topLeading) {
+                    if jumpBarVisible {
+                        historyControls
+                            .padding(.horizontal, 20)
+                            .transition(.opacity)
+                    }
+                }
                 .overlay { dimmer }
                 .animation(.easeInOut(duration: 0.2), value: chromeVisible)
+                .animation(.easeInOut(duration: 0.2), value: jumpBarVisible)
                 .background {
                     settings.readerStyle.background.swatch(for: colorScheme)
                         .ignoresSafeArea()
@@ -61,10 +74,16 @@ struct ReaderScreen: View {
                     reader.onAnnotationAction = { perform($0) }
                     reader.onTurn = {
                         chromeVisible = false
+                        showsJumpBar = false
                         panel = nil
                     }
                 }
                 .onDisappear { UIDevice.current.isBatteryMonitoringEnabled = false }
+                .onChange(of: session.jumpCount) {
+                    if !chromeVisible, session.history.canGoBack {
+                        showsJumpBar = true
+                    }
+                }
                 .onChange(of: settings.pageTransition) { _, new in session.setTransition(new) }
                 .onChange(of: scenePhase, initial: true) { _, phase in session.setForeground(phase == .active) }
                 .id(ObjectIdentifier(reader))
@@ -88,6 +107,29 @@ struct ReaderScreen: View {
             bottomBar
         }
         .padding(.horizontal, 20)
+    }
+
+    private var historyControls: some View {
+        HStack(spacing: 4) {
+            historyButton("后退", systemImage: "arrow.uturn.backward",
+                          enabled: session.history.canGoBack, action: session.goBack)
+            historyButton("前进", systemImage: "arrow.uturn.forward",
+                          enabled: session.history.canGoForward, action: session.goForward)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func historyButton(_ title: String, systemImage: String,
+                               enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.iconOnly)
+                .fontWeight(.semibold)
+                .foregroundStyle(enabled ? .secondary : .quaternary)
+                .frame(width: 36, height: CGFloat(ReaderLayout.marginTop))
+                .contentShape(.rect)
+        }
+        .disabled(!enabled)
     }
 
     private var bottomBar: some View {
@@ -132,7 +174,7 @@ struct ReaderScreen: View {
                 PanelHeader(title: "目录") { EmptyView() }
                 TOCList(items: reader.toc, current: session.chapter?.id) { entry in
                     panel = nil
-                    reader.go(to: entry)
+                    session.jump(to: entry)
                 }
             }
             .padding(.horizontal, 8)
@@ -164,7 +206,7 @@ struct ReaderScreen: View {
                                sections: AnnotationSections(toc: reader.toc).sections(for: annotations),
                                progress: session.progress(of:)) { annotation in
                     panel = nil
-                    session.go(to: annotation)
+                    session.jump(to: annotation)
                 } onDelete: { annotation in
                     session.deleteAnnotation(id: annotation.id)
                 }
@@ -191,11 +233,11 @@ struct ReaderScreen: View {
     private func handle(_ gesture: ReaderGesture) {
         switch gesture {
         case .tap(let x):
-            if chromeVisible { chromeVisible = false }
+            if chromeVisible { chromeVisible = false; showsJumpBar = false }
             else if x < Self.edge { session.turner?.turn(.prev) }
             else if x > 1 - Self.edge { session.turner?.turn(.next) }
-            else if panel != nil { panel = nil; chromeVisible = true }
-            else { chromeVisible = true }
+            else if panel != nil { panel = nil; chromeVisible = true; showsJumpBar = false }
+            else { chromeVisible = true; showsJumpBar = false }
         case .turn(let direction):
             session.turner?.turn(direction)
         case .highlight(let hit):

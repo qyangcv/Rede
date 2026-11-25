@@ -12,6 +12,8 @@ final class ReaderSession {
     private(set) var book: Book?
     private(set) var page: PageInfo?
     private(set) var chapter: TOCItem?
+    let history = JumpHistory()
+    private(set) var jumpCount = 0
     private var store: ProgressStore?
     private var shownPosition: ReadingPosition?
     private var annotationStore: AnnotationStore?
@@ -69,6 +71,9 @@ final class ReaderSession {
                 self?.chapter = chapter
             }
         }
+        reader.onLink = { [weak self] chapter, anchor in
+            self?.jump(chapter: chapter, anchor: anchor)
+        }
 
         self.store = store
         self.annotationStore = annotationStore
@@ -79,6 +84,7 @@ final class ReaderSession {
         self.page = nil
         self.chapter = nil
         self.shownPosition = book.position
+        history.clear()
         pushAnnotations()
         clock.setForeground(foreground)
     }
@@ -101,6 +107,7 @@ final class ReaderSession {
         page = nil
         chapter = nil
         shownPosition = nil
+        history.clear()
     }
 
     func setTransition(_ transition: PageTransition) {
@@ -176,7 +183,71 @@ final class ReaderSession {
     }
 
     func go(to annotation: Annotation) {
-        reader?.go(to: ReadingPosition(chapter: annotation.chapter, offset: annotation.start, total: 0, ratio: 0))
+        jump(to: annotation)
+    }
+
+    func jump(to entry: EpubTocEntry) {
+        guard let reader else { return }
+        recordJump()
+        reader.go(to: entry)
+    }
+
+    func jump(to annotation: Annotation) {
+        guard let reader else { return }
+        if reader.position?.chapter != annotation.chapter || reader.position?.offset != annotation.start {
+            recordJump()
+        }
+        reader.go(to: ReadingPosition(chapter: annotation.chapter, offset: annotation.start, total: 0, ratio: 0))
+    }
+
+    func jump(chapter: Int, anchor: String?) {
+        guard let reader else { return }
+        recordJump()
+        reader.jump(chapter: chapter, anchor: anchor)
+    }
+
+    func jump(toSearchHit chapter: Int, start: Int, end: Int) {
+        guard let reader else { return }
+        if reader.position?.chapter != chapter || reader.position?.offset != start {
+            recordJump()
+        }
+        reader.showSearchHit(chapter: chapter, start: start, end: end)
+    }
+
+    func goBack() {
+        guard let reader, let target = history.goBack(from: currentJumpEntry()) else { return }
+        reader.go(to: target.position)
+    }
+
+    func goForward() {
+        guard let reader, let target = history.goForward(from: currentJumpEntry()) else { return }
+        reader.go(to: target.position)
+    }
+
+    func goBack(to id: JumpEntry.ID) {
+        guard let reader, let target = history.goBack(to: id, from: currentJumpEntry()) else { return }
+        reader.go(to: target.position)
+    }
+
+    func goForward(to id: JumpEntry.ID) {
+        guard let reader, let target = history.goForward(to: id, from: currentJumpEntry()) else { return }
+        reader.go(to: target.position)
+    }
+
+    private func currentJumpEntry() -> JumpEntry? {
+        guard let position = reader?.position else { return nil }
+        return JumpEntry(
+            position: position,
+            chapterTitle: chapter?.entry.title,
+            page: page?.page,
+            pageCount: page?.pageCount
+        )
+    }
+
+    private func recordJump() {
+        guard let entry = currentJumpEntry() else { return }
+        history.record(entry)
+        jumpCount += 1
     }
 
     func progress(of annotation: Annotation) -> Double? {

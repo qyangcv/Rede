@@ -42,9 +42,8 @@ extension JSBridge {
     func turn(_ step: Int) async {
         await call("return reader.turn(step)", ["step": step])
     }
-    func jump(chapter: Int, anchor: String?) async
-    {
-        await call("reader.jump(chapter, anchor)", ["chapter": chapter, "anchor": anchor ?? ""])
+    func jump(chapter: Int, anchor: String?) async {
+        await call("return reader.jump(chapter, anchor)", ["chapter": chapter, "anchor": anchor ?? ""])
     }
     func restore(_ position: ReadingPosition) async {
         await call("return reader.restore(position)", ["position": position.jsObject])

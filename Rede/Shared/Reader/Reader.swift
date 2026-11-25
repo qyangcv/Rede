@@ -137,6 +137,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
     private var anchors: [String: Int] = [:]
 
     var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
+    var onLink: ((Int, String?) -> Void)?
     var onGesture: ((ReaderGesture) -> Void)?
     var onTurn: (() -> Void)?
     var onAnnotationAction: ((AnnotationAction) -> Void)?
@@ -250,9 +251,13 @@ final class Reader: NSObject,  WKNavigationDelegate {
 
     func go(to entry: EpubTocEntry) {
         guard let index = spineIndex[entry.path] else { return }
+        jump(chapter: index, anchor: entry.fragment)
+    }
+
+    func jump(chapter: Int, anchor: String?) {
         navigated = true
         Task {
-            await bridge.jump(chapter: index, anchor: entry.fragment)
+            await bridge.jump(chapter: chapter, anchor: anchor)
             focus()
         }
     }
@@ -377,6 +382,11 @@ private final class MessageRelay: NSObject, WKScriptMessageHandler {
             reader.contextHighlight = body["highlight"].flatMap { HighlightHit(jsValue: $0) }
         case "selection":
             reader.selecting = body["active"] as? Bool ?? false
+        case "link":
+            if let chapter = body["chapter"] as? Int {
+                let anchor = (body["anchor"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                reader.onLink?(chapter, anchor)
+            }
         default:
             break
         }

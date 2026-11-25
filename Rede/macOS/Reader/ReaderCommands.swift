@@ -3,11 +3,15 @@ import SwiftUI
 struct ReaderMenuContext {
     let canTurnBack: Bool
     let canTurnForward: Bool
+    let canGoBack: Bool
+    let canGoForward: Bool
     let hasTOC: Bool
     let tocPresented: Bool
     let canBookmark: Bool
     let isBookmarked: Bool
     let turn: (PageDirection) -> Void
+    let goBack: () -> Void
+    let goForward: () -> Void
     let toggleTOC: () -> Void
     let showSearch: () -> Void
     let hasSearchHits: Bool
@@ -29,6 +33,12 @@ struct ReaderMenuCommands: View {
             .disabled(context?.canTurnBack != true)
         Button("下一页") { context?.turn(.next) }
             .disabled(context?.canTurnForward != true)
+        Button("后退") { context?.goBack() }
+            .keyboardShortcut("[", modifiers: .command)
+            .disabled(context?.canGoBack != true)
+        Button("前进") { context?.goForward() }
+            .keyboardShortcut("]", modifiers: .command)
+            .disabled(context?.canGoForward != true)
 
         Divider()
 
