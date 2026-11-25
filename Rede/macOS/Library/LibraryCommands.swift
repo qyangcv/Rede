@@ -55,7 +55,7 @@ struct LibraryBookContextMenu: View {
         if selectionCount > 1 {
             LibraryCategoryMenu(context: context.category)
             Button("导出 \(selectionCount) 本", systemImage: "square.and.arrow.up") { context.export?() }
-            Button("从书库删除 \(selectionCount) 本", systemImage: "trash", role: .destructive) {
+            Button("删除 \(selectionCount) 本", systemImage: "trash", role: .destructive) {
                 context.delete?()
             }
         } else if let open = context.open {
