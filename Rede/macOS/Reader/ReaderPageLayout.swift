@@ -6,8 +6,8 @@ enum ReaderPageLayout: String, CaseIterable, Identifiable, Codable {
     var name: String {
         switch self {
         case .auto: "自动"
-        case .single: "单页"
-        case .double: "双页"
+        case .single: "单栏"
+        case .double: "双栏"
         }
     }
 
