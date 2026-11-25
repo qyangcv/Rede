@@ -5,6 +5,7 @@ struct ReaderWindow: View {
     let windowID: UUID
     @Environment(ReaderWindowStore.self) private var readers
     @Environment(\.appearsActive) private var appearsActive
+    @State private var isFullScreen = false
 
     var body: some View {
         ZStack {
@@ -19,7 +20,8 @@ struct ReaderWindow: View {
                     .navigationTitle("阅读")
             }
         }
-        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        .toolbarBackgroundVisibility(isFullScreen ? .automatic : .hidden, for: .windowToolbar)
+        .background(FullScreenToolbarBehavior(isFullScreen: $isFullScreen))
         .onDisappear { readers.close(windowID: windowID) }
         .onChange(of: appearsActive, initial: true) { _, active in
             readers.setForeground(active, for: windowID)
@@ -356,6 +358,122 @@ private struct ReaderWindowContent: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct FullScreenToolbarBehavior: NSViewRepresentable {
+    @Binding var isFullScreen: Bool
+
+    func makeNSView(context: Context) -> ObserverView {
+        ObserverView { fullScreen in
+            if isFullScreen != fullScreen {
+                isFullScreen = fullScreen
+            }
+        }
+    }
+
+    func updateNSView(_ nsView: ObserverView, context: Context) {}
+
+    final class ObserverView: NSView {
+        private let onFullScreenChange: (Bool) -> Void
+        private weak var observedWindow: NSWindow?
+        private var delegateProxy: FullScreenDelegateProxy?
+
+        init(onFullScreenChange: @escaping (Bool) -> Void) {
+            self.onFullScreenChange = onFullScreenChange
+            super.init(frame: .zero)
+        }
+
+        required init?(coder: NSCoder) { nil }
+
+        deinit {
+            detach()
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard window !== observedWindow else { return }
+            detach()
+            guard let window else { return }
+            observedWindow = window
+            installDelegate(on: window)
+            DispatchQueue.main.async { [weak self, weak window] in
+                guard let self, let window, self.observedWindow === window else { return }
+                self.installDelegate(on: window)
+            }
+            let notifications = NotificationCenter.default
+            notifications.addObserver(self, selector: #selector(handleWillEnterFullScreen),
+                                      name: NSWindow.willEnterFullScreenNotification, object: window)
+            notifications.addObserver(self, selector: #selector(handleWillExitFullScreen),
+                                      name: NSWindow.willExitFullScreenNotification, object: window)
+            notifications.addObserver(self, selector: #selector(handleDidExitFullScreen),
+                                      name: NSWindow.didExitFullScreenNotification, object: window)
+            let fullScreen = window.styleMask.contains(.fullScreen)
+            DispatchQueue.main.async { [weak self] in
+                self?.onFullScreenChange(fullScreen)
+            }
+        }
+
+        private func installDelegate(on window: NSWindow) {
+            if let existing = delegateProxy, window.delegate === existing { return }
+            let proxy = FullScreenDelegateProxy(target: window.delegate)
+            delegateProxy = proxy
+            window.delegate = proxy
+        }
+
+        private func detach() {
+            NotificationCenter.default.removeObserver(self)
+            if let window = observedWindow, let proxy = delegateProxy, window.delegate === proxy {
+                window.delegate = proxy.target
+            }
+            delegateProxy = nil
+            observedWindow = nil
+        }
+
+        @objc private func handleWillEnterFullScreen(_ notification: Notification) {
+            onFullScreenChange(true)
+        }
+
+        @objc private func handleWillExitFullScreen(_ notification: Notification) {
+            onFullScreenChange(false)
+        }
+
+        @objc private func handleDidExitFullScreen(_ notification: Notification) {
+            onFullScreenChange(false)
+        }
+    }
+
+    final class FullScreenDelegateProxy: NSObject, NSWindowDelegate {
+        weak var target: (any NSWindowDelegate)?
+
+        init(target: (any NSWindowDelegate)?) {
+            self.target = target
+            super.init()
+        }
+
+        override func responds(to aSelector: Selector!) -> Bool {
+            if aSelector == #selector(NSWindowDelegate.window(_:willUseFullScreenPresentationOptions:)) {
+                return true
+            }
+            return target?.responds(to: aSelector) ?? super.responds(to: aSelector)
+        }
+
+        override func forwardingTarget(for aSelector: Selector!) -> Any? {
+            if aSelector == #selector(NSWindowDelegate.window(_:willUseFullScreenPresentationOptions:)) {
+                return self
+            }
+            if let target, target.responds(to: aSelector) {
+                return target
+            }
+            return super.forwardingTarget(for: aSelector)
+        }
+
+        func window(_ window: NSWindow,
+                    willUseFullScreenPresentationOptions proposedOptions: NSApplication.PresentationOptions = [])
+            -> NSApplication.PresentationOptions {
+            let base = target?.window?(window, willUseFullScreenPresentationOptions: proposedOptions) ?? proposedOptions
+            return base.union([.fullScreen, .autoHideMenuBar, .autoHideToolbar])
+        }
     }
 }
 
