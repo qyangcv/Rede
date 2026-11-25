@@ -272,6 +272,8 @@ function columnGapPx(columns) {
 }
 
 function columnCount() {
+  const preferred = state.style["--rede-columns"];
+  if (preferred === "1" || preferred === "2") return Number(preferred);
   const columnEm = (frame.clientWidth - columnGapPx(2)) / 2 / (16 * fontScale());
   return columnEm >= MIN_COLUMN_EM ? 2 : 1;
 }

@@ -4,6 +4,7 @@ struct StylePanel: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @Binding var style: ReaderStyle
     @Binding var appearance: Appearance
+    @Binding var pageLayout: ReaderPageLayout
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,10 +40,20 @@ struct StylePanel: View {
 
                     Divider()
 
-                    section("间距") {
+                    section("排版") {
                         HStack(spacing: 16) {
                             spacingControl("行距", selection: $style.lineSpacing)
                             spacingControl("段距", selection: $style.paraSpacing)
+                        }
+                        field("布局") {
+                            Picker("布局", selection: $pageLayout) {
+                                ForEach(ReaderPageLayout.allCases) { item in
+                                    Text(item.name).tag(item)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
 
@@ -140,6 +151,7 @@ struct FontOptions: View {
 #Preview("stylePanel") {
     @Previewable @State var style = ReaderStyle.default
     @Previewable @State var appearance = Appearance.system
-    StylePanel(style: $style, appearance: $appearance)
+    @Previewable @State var pageLayout = ReaderPageLayout.auto
+    StylePanel(style: $style, appearance: $appearance, pageLayout: $pageLayout)
         .frame(width: 300, height: 500)
 }

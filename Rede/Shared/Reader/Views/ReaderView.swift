@@ -12,6 +12,9 @@ struct ReaderView: View {
     private var cssVariables: [String: String] {
         var vars = settings.readerStyle.cssVariables(for: colorScheme)
         vars.merge(ReaderLayout.cssVariables(safeArea: safeArea)) { $1 }
+        #if os(macOS)
+        vars["--rede-columns"] = settings.readerPageLayout.cssValue
+        #endif
         #if DEBUG && os(macOS)
         PaletteTuner.shared.apply(to: &vars, scheme: colorScheme)
         #endif

@@ -52,6 +52,7 @@ final class Settings {
     #if os(macOS)
     var readerTitle: ReaderTitle { didSet { save() } }
     var readerWindowMode: ReaderWindowMode { didSet { save() } }
+    var readerPageLayout: ReaderPageLayout { didSet { save() } }
     #endif
 
     #if os(iOS)
@@ -81,6 +82,7 @@ final class Settings {
         #if os(macOS)
         var readerTitle: ReaderTitle?
         var readerWindowMode: ReaderWindowMode?
+        var readerPageLayout: ReaderPageLayout?
         #endif
         #if os(iOS)
         var brightness: Double?
@@ -101,6 +103,7 @@ final class Settings {
         #if os(macOS)
         readerTitle = snapshot?.readerTitle ?? .chapter
         readerWindowMode = snapshot?.readerWindowMode ?? .single
+        readerPageLayout = snapshot?.readerPageLayout ?? .auto
         #endif
         #if os(iOS)
         brightness = snapshot?.brightness ?? 1
@@ -125,6 +128,7 @@ final class Settings {
             #if os(macOS)
             snapshot.readerTitle = readerTitle
             snapshot.readerWindowMode = readerWindowMode
+            snapshot.readerPageLayout = readerPageLayout
             #endif
             #if os(iOS)
             snapshot.brightness = brightness

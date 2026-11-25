@@ -302,7 +302,8 @@ private struct ReaderWindowContent: View {
                             session.deleteAnnotation(id: annotation.id)
                         }
                     case .style:
-                        StylePanel(style: $settings.readerStyle, appearance: $settings.appearance)
+                        StylePanel(style: $settings.readerStyle, appearance: $settings.appearance,
+                                   pageLayout: $settings.readerPageLayout)
                     }
                 }
                 .frame(width: width)

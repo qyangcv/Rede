@@ -44,6 +44,17 @@ struct ReaderStyleCommands: View {
         }
         .disabled(context == nil)
 
+        Menu("布局") {
+            Picker("布局", selection: $settings.readerPageLayout) {
+                ForEach(ReaderPageLayout.allCases) { layout in
+                    Text(layout.name).tag(layout)
+                }
+            }
+            .pickerStyle(.inline)
+            .labelsHidden()
+        }
+        .disabled(context == nil)
+
         Divider()
 
         Menu("字体") {
