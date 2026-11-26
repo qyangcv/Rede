@@ -73,6 +73,7 @@ private struct ReaderWindowContent: View {
                         spine: reader.book.model.spine,
                         toc: reader.toc,
                         bookmarks: session.bookmarks,
+                        loadEpubData: { try? session.book?.epubData() },
                         activeChapterTitle: { offset in
                             reader.tocItem(at: offset)?.entry.title
                         },
