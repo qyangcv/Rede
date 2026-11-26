@@ -65,12 +65,21 @@ private struct ReaderWindowContent: View {
             }
             .overlay(alignment: .bottom) {
                 if let page = session.page {
-                    Text("\(page.page + 1) / \(page.pageCount)")
-                        .font(.callout)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, ReaderLayout.pageNumberBottom)
-                        .allowsHitTesting(false)
+                    ReaderProgressBar(
+                        page: page,
+                        position: session.position,
+                        progressRevision: session.progressRevision,
+                        chapterLengths: session.book?.chapterLengths ?? [],
+                        spine: reader.book.model.spine,
+                        toc: reader.toc,
+                        bookmarks: session.bookmarks,
+                        activeChapterTitle: { offset in
+                            reader.tocItem(at: offset)?.entry.title
+                        },
+                        onJump: { target in
+                            session.jump(to: target)
+                        }
+                    )
                 }
             }
             .overlay(alignment: .bottomLeading) {

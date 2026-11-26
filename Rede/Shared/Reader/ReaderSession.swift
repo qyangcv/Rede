@@ -10,8 +10,10 @@ final class ReaderSession {
     private(set) var reader: Reader?
     private(set) var turner: (any PageTurner)?
     private(set) var book: Book?
+    private(set) var position: ReadingPosition?
     private(set) var page: PageInfo?
     private(set) var chapter: TOCItem?
+    private(set) var progressRevision = 0
     let history = JumpHistory()
     private(set) var jumpCount = 0
     private var store: ProgressStore?
@@ -67,8 +69,10 @@ final class ReaderSession {
                     clock.record(position)
                 }
                 self?.turner?.pages?.prepare(position, page: page, chapter: chapter)
+                self?.position = position
                 self?.page = page
                 self?.chapter = chapter
+                self?.progressRevision += 1
             }
         }
         reader.onLink = { [weak self] chapter, anchor in
@@ -81,8 +85,10 @@ final class ReaderSession {
         self.reader = reader
         self.turner = turner
         self.book = book
+        self.position = book.position
         self.page = nil
         self.chapter = nil
+        self.progressRevision = 0
         self.shownPosition = book.position
         history.clear()
         pushAnnotations()
@@ -104,8 +110,10 @@ final class ReaderSession {
         reader = nil
         turner = nil
         book = nil
+        position = nil
         page = nil
         chapter = nil
+        progressRevision = 0
         shownPosition = nil
         history.clear()
     }
@@ -190,6 +198,14 @@ final class ReaderSession {
         guard let reader else { return }
         recordJump()
         reader.go(to: entry)
+    }
+
+    func jump(to position: ReadingPosition) {
+        guard let reader else { return }
+        if reader.position?.chapter != position.chapter || reader.position?.offset != position.offset {
+            recordJump()
+        }
+        reader.go(to: position)
     }
 
     func jump(to annotation: Annotation) {
