@@ -50,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let start = Date.now
+        readers.saveOpenBooks()
         readers.flushAll()
         guard CloudSync.isActive else { return .terminateNow }
         for window in sender.windows { window.orderOut(nil) }

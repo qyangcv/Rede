@@ -56,6 +56,7 @@ final class Settings {
 
     var readerTitle: ReaderTitle { didSet { save() } }
     var readerWindowMode: ReaderWindowMode { didSet { save() } }
+    var restoreReaderWindows: Bool { didSet { save() } }
     var readerPageLayout: ReaderPageLayout { didSet { save() } }
     var readerPageMargin: Int {
         didSet { if readerPageMargin != oldValue { save() } }
@@ -89,6 +90,7 @@ final class Settings {
         #if os(macOS)
         var readerTitle: ReaderTitle?
         var readerWindowMode: ReaderWindowMode?
+        var restoreReaderWindows: Bool?
         var readerPageLayout: ReaderPageLayout?
         var readerPageMargin: Int?
         #endif
@@ -111,6 +113,7 @@ final class Settings {
         #if os(macOS)
         readerTitle = snapshot?.readerTitle ?? .chapter
         readerWindowMode = snapshot?.readerWindowMode ?? .single
+        restoreReaderWindows = snapshot?.restoreReaderWindows ?? true
         readerPageLayout = snapshot?.readerPageLayout ?? .auto
         let savedMargin = snapshot?.readerPageMargin ?? Self.defaultReaderPageMargin
         readerPageMargin = min(max(savedMargin, Self.readerPageMarginRange.lowerBound), Self.readerPageMarginRange.upperBound)
@@ -138,6 +141,7 @@ final class Settings {
             #if os(macOS)
             snapshot.readerTitle = readerTitle
             snapshot.readerWindowMode = readerWindowMode
+            snapshot.restoreReaderWindows = restoreReaderWindows
             snapshot.readerPageLayout = readerPageLayout
             snapshot.readerPageMargin = readerPageMargin
             #endif

@@ -44,6 +44,9 @@ struct LibraryView: View {
                 categorySelection = .library
             }
         }
+        .task {
+            restoreOpenBooks()
+        }
         .sheet(item: $categoryToEdit) { edit in
             CategoryEditor(category: edit.category) { name in
                 if let category = edit.category {
@@ -356,6 +359,18 @@ struct LibraryView: View {
             openWindow(id: RedeApp.readerWindowID, value: result.open)
         } catch {
             errors.append(error.localizedDescription)
+        }
+    }
+
+    private func restoreOpenBooks() {
+        let ids = readers.takeRestorableBookIDs(mode: settings.readerWindowMode)
+        guard !ids.isEmpty, let fetched = try? modelContext.books(ids) else { return }
+        let byID = Dictionary(fetched.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for id in ids {
+            guard let book = byID[id],
+                  let result = try? readers.open(book, context: modelContext, mode: settings.readerWindowMode)
+            else { continue }
+            openWindow(id: RedeApp.readerWindowID, value: result.open)
         }
     }
 

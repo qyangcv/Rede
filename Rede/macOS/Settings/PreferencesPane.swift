@@ -12,6 +12,7 @@ struct PreferencesPane: View {
                 Picker("标题", selection: $settings.readerTitle) {
                     ForEach(ReaderTitle.allCases) { Text($0.name).tag($0) }
                 }
+                Toggle("启动时恢复上次未关闭的书籍", isOn: $settings.restoreReaderWindows)
             }
         }
         .formStyle(.grouped)
