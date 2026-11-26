@@ -38,7 +38,7 @@ private struct LibraryCategoryMenu: View {
                 Divider()
             }
 
-            Button("移出分类") { context?.assign(nil) }
+            Button("从分类中移除") { context?.assign(nil) }
                 .disabled(context?.selection.canRemove != true)
             Button("新建分类") { context?.create() }
                 .disabled(context == nil)

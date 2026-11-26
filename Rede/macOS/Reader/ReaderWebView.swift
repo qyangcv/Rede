@@ -115,8 +115,8 @@ extension Reader {
         var items: [NSMenuItem]
         if let hit = contextHighlight {
             items = [
-                ActionMenuItem(title: hasNote(hit.id) ? "查看笔记" : "添加笔记") { onAnnotationAction(.editNote(hit)) },
                 ActionMenuItem(title: hasNote(hit.id) ? "移除高亮与笔记" : "移除高亮") { onAnnotationAction(.delete(id: hit.id)) },
+                ActionMenuItem(title: hasNote(hit.id) ? "查看笔记" : "添加笔记") { onAnnotationAction(.editNote(hit)) },
             ]
             if menu.items.isEmpty, let onCopyHighlight {
                 items.append(.separator())

@@ -63,7 +63,7 @@ struct LibraryCategories: View {
                         }
                     }
                     if selection.canRemove {
-                        Button("移出分类", systemImage: "folder.badge.minus") { assign(to: nil) }
+                        Button("从分类中移除", systemImage: "folder.badge.minus") { assign(to: nil) }
                     }
                     Section {
                         newCategoryButton

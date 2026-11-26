@@ -7,7 +7,22 @@ struct ChapterTick: Equatable {
     let title: String?
 }
 
+struct BookmarkTick: Identifiable, Equatable {
+    let id: String
+    let chapter: Int
+    let offset: Int
+    let progress: Double
+    let text: String
+    let title: String?
+    let section: String?
+}
+
 struct BookProgressIndex: Equatable {
+    struct TitleEntry: Equatable {
+        let title: String
+        let section: String?
+    }
+
     static let empty = BookProgressIndex(chapterLengths: [], spinePaths: [], toc: [])
 
     let chapterLengths: [Int]
@@ -15,6 +30,7 @@ struct BookProgressIndex: Equatable {
     let total: Int
     let chapterTitles: [String?]
     let chapterSectionTitles: [String?]
+    let tocTitlesByID: [String: TitleEntry]
     let ticksByDepth: [[ChapterTick]]
 
     var isEmpty: Bool { total == 0 }
@@ -41,13 +57,17 @@ struct BookProgressIndex: Equatable {
         var titles = Array<String?>(repeating: nil, count: spinePaths.count)
         var sectionTitles = Array<String?>(repeating: nil, count: spinePaths.count)
         var titleDepths = Array(repeating: -1, count: spinePaths.count)
+        var byID: [String: TitleEntry] = [:]
         for item in toc {
-            guard let spine = spineIndex[item.entry.path], item.depth > titleDepths[spine] else { continue }
             let nonEmpty = item.path.map(\.title).filter { !$0.isEmpty }
             if let leaf = nonEmpty.last {
-                titles[spine] = leaf
-                sectionTitles[spine] = nonEmpty.count > 1 ? nonEmpty.dropLast().joined(separator: " › ") : nil
-                titleDepths[spine] = item.depth
+                let section = nonEmpty.count > 1 ? nonEmpty.dropLast().joined(separator: " › ") : nil
+                byID[item.id] = TitleEntry(title: leaf, section: section)
+                if let spine = spineIndex[item.entry.path], item.depth > titleDepths[spine] {
+                    titles[spine] = leaf
+                    sectionTitles[spine] = section
+                    titleDepths[spine] = item.depth
+                }
             }
         }
         var inheritedTitle: String?
@@ -63,6 +83,7 @@ struct BookProgressIndex: Equatable {
         }
         self.chapterTitles = titles
         self.chapterSectionTitles = sectionTitles
+        self.tocTitlesByID = byID
 
         if running > 0, !toc.isEmpty {
             let maxDepth = toc.map(\.depth).max() ?? 0
@@ -188,14 +209,22 @@ struct BookProgressIndex: Equatable {
         return []
     }
 
-    func bookmarkPositions(for bookmarks: [Annotation]) -> [Double] {
+    func bookmarkTicks(for bookmarks: [Annotation]) -> [BookmarkTick] {
         guard total > 0, !bookmarks.isEmpty else { return [] }
-        let sorted = bookmarks.compactMap { progress(chapter: $0.chapter, offset: $0.start) }.sorted()
-        var result: [Double] = []
-        result.reserveCapacity(sorted.count)
-        for value in sorted {
-            if let last = result.last, value - last < 0.006 { continue }
-            result.append(value)
+        let items = bookmarks.compactMap { bookmark -> BookmarkTick? in
+            guard let p = progress(chapter: bookmark.chapter, offset: bookmark.start) else { return nil }
+            let resolved = bookmark.tocID.flatMap { tocTitlesByID[$0] }
+            let title = resolved?.title ?? chapterTitle(for: bookmark.chapter)
+            let section = resolved?.section ?? sectionTitle(for: bookmark.chapter)
+            return BookmarkTick(id: bookmark.id, chapter: bookmark.chapter, offset: bookmark.start,
+                                progress: p, text: bookmark.text, title: title, section: section)
+        }
+        .sorted { $0.progress < $1.progress }
+        var result: [BookmarkTick] = []
+        result.reserveCapacity(items.count)
+        for item in items {
+            if let last = result.last, item.progress - last.progress < 0.006 { continue }
+            result.append(item)
         }
         return result
     }
@@ -226,11 +255,12 @@ struct ReaderProgressBar: View {
     @Bindable private var settings = Settings.shared
 
     @State private var index: BookProgressIndex = .empty
-    @State private var bookmarkMarks: [Double] = []
+    @State private var bookmarkMarks: [BookmarkTick] = []
     @State private var previewStore: ChapterPreviewStore?
     @State private var hovering = false
     @State private var hoverProgress: Double?
     @State private var snappedTick: ChapterTick?
+    @State private var snappedBookmark: BookmarkTick?
     @State private var dragProgress: Double?
     @State private var didDrag = false
     @State private var pendingProgress: Double?
@@ -247,6 +277,7 @@ struct ReaderProgressBar: View {
     private let cardWidth: CGFloat = 264
     private let previewLineLimit = 6
     private let snapThreshold: CGFloat = 5
+    private let bookmarkSnapThreshold: CGFloat = 6
 
     private var liveProgress: Double {
         guard let position, !index.isEmpty else { return 0 }
@@ -269,11 +300,22 @@ struct ReaderProgressBar: View {
         bookmarks.map(\.id)
     }
 
+    private var visibleBookmarks: [BookmarkTick] {
+        settings.showProgressBarBookmarks ? bookmarkMarks : []
+    }
+
     private var activePreviewProgress: Double? {
-        dragProgress ?? (snappedTick?.progress ?? hoverProgress)
+        dragProgress ?? snappedBookmark?.progress ?? snappedTick?.progress ?? hoverProgress
     }
 
     private var activePreviewTarget: ReadingPosition? {
+        if let snappedBookmark {
+            let length = index.chapterLengths.indices.contains(snappedBookmark.chapter)
+                ? max(index.chapterLengths[snappedBookmark.chapter], 0) : 0
+            let ratio = length > 0 ? min(max(Double(snappedBookmark.offset) / Double(length), 0), 1) : 0
+            return ReadingPosition(chapter: snappedBookmark.chapter, offset: snappedBookmark.offset,
+                                   total: length, ratio: ratio)
+        }
         if let snappedTick {
             return index.chapterStart(for: snappedTick.chapter)
         }
@@ -282,8 +324,12 @@ struct ReaderProgressBar: View {
         return index.chapterStart(for: resolved.chapter)
     }
 
-    private var activePreviewChapter: Int? {
-        activePreviewTarget?.chapter
+    private var activePreviewKey: ChapterPreviewKey? {
+        if let snappedBookmark {
+            return ChapterPreviewKey(chapter: snappedBookmark.chapter, offset: snappedBookmark.offset)
+        }
+        guard let chapter = activePreviewTarget?.chapter else { return nil }
+        return ChapterPreviewKey(chapter: chapter, offset: nil)
     }
 
     var body: some View {
@@ -329,6 +375,7 @@ struct ReaderProgressBar: View {
                 if !isOver && dragProgress == nil {
                     hoverProgress = nil
                     snappedTick = nil
+                    snappedBookmark = nil
                 }
             }
             .allowsHitTesting(canScrub)
@@ -341,27 +388,38 @@ struct ReaderProgressBar: View {
                 hovering = false
                 hoverProgress = nil
                 snappedTick = nil
+                snappedBookmark = nil
             }
+        }
+        .onChange(of: settings.showProgressBarBookmarks) { _, shown in
+            if !shown { snappedBookmark = nil }
         }
         .onChange(of: chapterLengths, initial: true) { _, lengths in
             let rebuilt = BookProgressIndex(chapterLengths: lengths, spinePaths: spine.map(\.path), toc: toc)
             index = rebuilt
-            bookmarkMarks = rebuilt.bookmarkPositions(for: bookmarks)
+            bookmarkMarks = rebuilt.bookmarkTicks(for: bookmarks)
         }
         .onChange(of: bookmarkIDs) {
-            bookmarkMarks = index.bookmarkPositions(for: bookmarks)
+            bookmarkMarks = index.bookmarkTicks(for: bookmarks)
+            if let current = snappedBookmark, !bookmarkMarks.contains(where: { $0.id == current.id }) {
+                snappedBookmark = nil
+            }
         }
         .onChange(of: progressRevision) {
             pendingProgress = nil
         }
-        .onChange(of: activePreviewChapter) { _, chapter in
-            guard let chapter else { return }
+        .onChange(of: activePreviewKey) { _, key in
+            guard let key else { return }
             if previewStore == nil {
                 previewStore = ChapterPreviewStore(epubData: loadEpubData(), spinePaths: spine.map(\.path),
                                                    maxLines: previewLineLimit)
             }
-            let title = index.chapterTitle(for: chapter)
-            previewStore?.load(chapter: chapter, title: title)
+            if let offset = key.offset {
+                previewStore?.load(chapter: key.chapter, offset: offset, fallbackText: snappedBookmark?.text ?? "")
+            } else {
+                let title = index.chapterTitle(for: key.chapter)
+                previewStore?.load(chapter: key.chapter, title: title)
+            }
         }
         .onDisappear {
             removeEscMonitor()
@@ -404,7 +462,9 @@ struct ReaderProgressBar: View {
             let thumbX = radius + trackWidth * clamped
             let currentThumb = dragProgress != nil ? activeThumbDiameter : thumbDiameter
             let ticks = index.visibleTicks(for: trackWidth)
-            let effectiveHover = dragProgress == nil ? (snappedTick?.progress ?? hoverProgress) : nil
+            let bookmarksOnTrack = visibleBookmarks
+            let effectiveHover = dragProgress == nil ? (snappedBookmark?.progress ?? snappedTick?.progress ?? hoverProgress) : nil
+            let showHoverMarker = effectiveHover != nil && snappedBookmark == nil
 
             ZStack(alignment: .leading) {
                 Canvas { context, size in
@@ -456,7 +516,7 @@ struct ReaderProgressBar: View {
                         }
                     }
 
-                    if let hoverX {
+                    if showHoverMarker, let hoverX {
                         let marker = Path(
                             roundedRect: CGRect(x: hoverX - 1, y: midY - 4.5, width: 2, height: 9),
                             cornerRadius: 1
@@ -465,11 +525,13 @@ struct ReaderProgressBar: View {
                     }
                 }
 
-                ForEach(Array(bookmarkMarks.enumerated()), id: \.offset) { _, mark in
+                ForEach(bookmarksOnTrack) { mark in
+                    let isSnapped = snappedBookmark?.id == mark.id
                     Capsule()
-                        .fill(.secondary.opacity(0.55))
-                        .frame(width: 2, height: 6)
-                        .position(x: radius + trackWidth * mark, y: geo.size.height / 2)
+                        .fill(Color.red.opacity(isSnapped ? 1 : 0.8))
+                        .frame(width: isSnapped ? 3 : 2.5, height: isSnapped ? 10 : 7)
+                        .position(x: radius + trackWidth * mark.progress, y: geo.size.height / 2)
+                        .animation(.easeOut(duration: 0.12), value: isSnapped)
                 }
 
                 Circle()
@@ -487,10 +549,17 @@ struct ReaderProgressBar: View {
                 case .active(let location):
                     guard dragProgress == nil else { return }
                     let raw = fraction(for: location.x, radius: radius, trackWidth: trackWidth)
-                    if let tick = nearestTick(to: location.x, ticks: ticks, radius: radius, trackWidth: trackWidth) {
+                    if let bookmark = nearestBookmark(to: location.x, bookmarks: bookmarksOnTrack,
+                                                      radius: radius, trackWidth: trackWidth) {
+                        snappedBookmark = bookmark
+                        snappedTick = nil
+                        hoverProgress = bookmark.progress
+                    } else if let tick = nearestTick(to: location.x, ticks: ticks, radius: radius, trackWidth: trackWidth) {
+                        snappedBookmark = nil
                         snappedTick = tick
                         hoverProgress = tick.progress
                     } else {
+                        snappedBookmark = nil
                         snappedTick = nil
                         hoverProgress = raw
                     }
@@ -498,6 +567,7 @@ struct ReaderProgressBar: View {
                     if dragProgress == nil {
                         hoverProgress = nil
                         snappedTick = nil
+                        snappedBookmark = nil
                     }
                 }
             }
@@ -509,7 +579,7 @@ struct ReaderProgressBar: View {
                     let maxX = geo.size.width + sideMargin - 12 - cardWidth / 2
                     let cardX = min(max(anchorX, minX), maxX)
 
-                    previewCard(for: target, progress: previewProgress)
+                    previewCard(for: target, progress: previewProgress, bookmark: snappedBookmark)
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { cardHeight = $0 }
                         .position(x: cardX, y: -(cardHeight / 2) - 8)
                 }
@@ -524,10 +594,17 @@ struct ReaderProgressBar: View {
                         }
                         if didDrag {
                             let raw = fraction(for: value.location.x, radius: radius, trackWidth: trackWidth)
-                            if let tick = nearestTick(to: value.location.x, ticks: ticks, radius: radius, trackWidth: trackWidth) {
+                            if let bookmark = nearestBookmark(to: value.location.x, bookmarks: bookmarksOnTrack,
+                                                              radius: radius, trackWidth: trackWidth) {
+                                snappedBookmark = bookmark
+                                snappedTick = nil
+                                dragProgress = bookmark.progress
+                            } else if let tick = nearestTick(to: value.location.x, ticks: ticks, radius: radius, trackWidth: trackWidth) {
+                                snappedBookmark = nil
                                 snappedTick = tick
                                 dragProgress = tick.progress
                             } else {
+                                snappedBookmark = nil
                                 snappedTick = nil
                                 dragProgress = raw
                             }
@@ -540,19 +617,26 @@ struct ReaderProgressBar: View {
                             didDrag = false
                             dragProgress = nil
                             snappedTick = nil
+                            snappedBookmark = nil
                             return
                         }
                         if didDrag {
+                            let finalBookmark = snappedBookmark
                             let finalTick = snappedTick
                             let finalProgress = fraction(for: value.location.x, radius: radius, trackWidth: trackWidth)
                             didDrag = false
                             dragProgress = nil
                             snappedTick = nil
-                            if let finalTick {
+                            snappedBookmark = nil
+                            if let finalBookmark {
+                                commitBookmark(finalBookmark)
+                            } else if let finalTick {
                                 commitChapterStart(finalTick.chapter)
                             } else {
                                 commitChapter(at: finalProgress)
                             }
+                        } else if let snappedBookmark {
+                            commitBookmark(snappedBookmark)
                         } else if let snappedTick {
                             commitChapterStart(snappedTick.chapter)
                         } else {
@@ -565,11 +649,13 @@ struct ReaderProgressBar: View {
         .frame(height: 24)
     }
 
-    private func previewCard(for target: ReadingPosition, progress: Double) -> some View {
-        let title = previewTitle(for: target)
-        let section = index.sectionTitle(for: target.chapter)
-        let content = previewStore?.cached(chapter: target.chapter)
-        let chapterProgress = index.progress(chapter: target.chapter, offset: 0) ?? progress
+    private func previewCard(for target: ReadingPosition, progress: Double, bookmark: BookmarkTick?) -> some View {
+        let title = bookmark?.title ?? previewTitle(for: target)
+        let section = bookmark != nil ? bookmark?.section : index.sectionTitle(for: target.chapter)
+        let key = bookmark.map { ChapterPreviewKey(chapter: $0.chapter, offset: $0.offset) }
+            ?? ChapterPreviewKey(chapter: target.chapter, offset: nil)
+        let content = previewStore?.cached(key: key)
+        let headerProgress = bookmark?.progress ?? index.progress(chapter: target.chapter, offset: 0) ?? progress
         let paperColor = settings.readerStyle.background.swatch(for: colorScheme)
 
         return VStack(alignment: .leading, spacing: 0) {
@@ -582,16 +668,27 @@ struct ReaderProgressBar: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
-                    if let title, !title.isEmpty {
-                        Text(title)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                    HStack(spacing: 4) {
+                        if bookmark != nil {
+                            Image(systemName: "bookmark.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.red)
+                        }
+                        if let title, !title.isEmpty {
+                            Text(title)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        } else if bookmark != nil {
+                            Text("书签")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.primary)
+                        }
                     }
                 }
                 Spacer(minLength: 4)
-                Text(BookProgressFormat.text(for: chapterProgress))
+                Text(BookProgressFormat.text(for: headerProgress))
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -667,6 +764,21 @@ struct ReaderProgressBar: View {
         return index.chapterTitle(for: target.chapter)
     }
 
+    private func nearestBookmark(to x: CGFloat, bookmarks: [BookmarkTick],
+                                 radius: CGFloat, trackWidth: CGFloat) -> BookmarkTick? {
+        var best: BookmarkTick?
+        var bestDistance = bookmarkSnapThreshold
+        for mark in bookmarks {
+            let markX = radius + trackWidth * mark.progress
+            let distance = abs(x - markX)
+            if distance <= bestDistance {
+                bestDistance = distance
+                best = mark
+            }
+        }
+        return best
+    }
+
     private func nearestTick(to x: CGFloat, ticks: [ChapterTick],
                              radius: CGFloat, trackWidth: CGFloat) -> ChapterTick? {
         var best: ChapterTick?
@@ -684,6 +796,18 @@ struct ReaderProgressBar: View {
 
     private func fraction(for x: CGFloat, radius: CGFloat, trackWidth: CGFloat) -> Double {
         min(max(Double((x - radius) / trackWidth), 0), 1)
+    }
+
+    private func commitBookmark(_ mark: BookmarkTick) {
+        guard index.chapterLengths.indices.contains(mark.chapter) else { return }
+        let length = max(index.chapterLengths[mark.chapter], 0)
+        let ratio = length > 0 ? min(max(Double(mark.offset) / Double(length), 0), 1) : 0
+        let target = ReadingPosition(chapter: mark.chapter, offset: mark.offset, total: length, ratio: ratio)
+        if target.chapter == position?.chapter && target.offset == position?.offset {
+            return
+        }
+        pendingProgress = mark.progress
+        onJump(target)
     }
 
     private func commitChapter(at progress: Double) {
@@ -707,6 +831,8 @@ struct ReaderProgressBar: View {
                 dragCancelled = true
                 didDrag = false
                 dragProgress = nil
+                snappedTick = nil
+                snappedBookmark = nil
                 removeEscMonitor()
                 return nil
             }

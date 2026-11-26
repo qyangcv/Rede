@@ -3,7 +3,12 @@ import Kanna
 import Observation
 import ZIPFoundation
 
-enum ChapterPreviewContent: Equatable, Sendable {
+nonisolated struct ChapterPreviewKey: Hashable, Sendable {
+    let chapter: Int
+    let offset: Int?
+}
+
+nonisolated enum ChapterPreviewContent: Equatable, Sendable {
     case text([String])
     case illustration
     case empty
@@ -12,8 +17,8 @@ enum ChapterPreviewContent: Equatable, Sendable {
 @MainActor
 @Observable
 final class ChapterPreviewStore {
-    private var cache: [Int: ChapterPreviewContent] = [:]
-    private var activeChapter: Int?
+    private var cache: [ChapterPreviewKey: ChapterPreviewContent] = [:]
+    private var activeKey: ChapterPreviewKey?
     private var activeTask: Task<Void, Never>?
     private let extractor: ChapterPreviewExtractor?
 
@@ -25,35 +30,50 @@ final class ChapterPreviewStore {
         }
     }
 
-    func cached(chapter: Int) -> ChapterPreviewContent? {
-        cache[chapter]
+    func cached(key: ChapterPreviewKey) -> ChapterPreviewContent? {
+        cache[key]
     }
 
     func load(chapter: Int, title: String?) {
-        if cache[chapter] != nil {
-            cancelAll()
-            return
+        let key = ChapterPreviewKey(chapter: chapter, offset: nil)
+        startLoad(key: key) { extractor in
+            await extractor.extractChapter(chapter: chapter, title: title)
         }
-        guard activeChapter != chapter, let extractor else { return }
-        activeTask?.cancel()
-        activeChapter = chapter
-        activeTask = Task { [weak self] in
-            let content = await extractor.extract(chapter: chapter, title: title)
-            guard let self, !Task.isCancelled else { return }
-            if let content {
-                self.cache[chapter] = content
-            }
-            if self.activeChapter == chapter {
-                self.activeChapter = nil
-                self.activeTask = nil
-            }
+    }
+
+    func load(chapter: Int, offset: Int, fallbackText: String) {
+        let key = ChapterPreviewKey(chapter: chapter, offset: offset)
+        startLoad(key: key) { extractor in
+            await extractor.extractOffset(chapter: chapter, offset: offset, fallbackText: fallbackText)
         }
     }
 
     func cancelAll() {
         activeTask?.cancel()
         activeTask = nil
-        activeChapter = nil
+        activeKey = nil
+    }
+
+    private func startLoad(key: ChapterPreviewKey,
+                           operation: @escaping @Sendable (ChapterPreviewExtractor) async -> ChapterPreviewContent?) {
+        if cache[key] != nil {
+            cancelAll()
+            return
+        }
+        guard activeKey != key, let extractor else { return }
+        activeTask?.cancel()
+        activeKey = key
+        activeTask = Task { [weak self] in
+            let content = await operation(extractor)
+            guard let self, !Task.isCancelled else { return }
+            if let content {
+                self.cache[key] = content
+            }
+            if self.activeKey == key {
+                self.activeKey = nil
+                self.activeTask = nil
+            }
+        }
     }
 }
 
@@ -64,8 +84,8 @@ private actor ChapterPreviewExtractor {
     private var archive: Archive?
     private var entries: [String: Entry] = [:]
     private var loadedArchive = false
-    private var cache: [Int: ChapterPreviewContent] = [:]
-    private var cacheOrder: [Int] = []
+    private var cache: [ChapterPreviewKey: ChapterPreviewContent] = [:]
+    private var cacheOrder: [ChapterPreviewKey] = []
     private let maxCached = 128
 
     init(data: Data, spinePaths: [String], maxLines: Int) {
@@ -74,26 +94,44 @@ private actor ChapterPreviewExtractor {
         self.maxLines = max(maxLines, 1)
     }
 
-    func extract(chapter: Int, title: String?) -> ChapterPreviewContent? {
-        if let cached = cache[chapter] {
-            return cached
+    func extractChapter(chapter: Int, title: String?) -> ChapterPreviewContent? {
+        let key = ChapterPreviewKey(chapter: chapter, offset: nil)
+        if let cached = cache[key] { return cached }
+        guard let bytes = readChapterData(chapter) else { return Task.isCancelled ? nil : .empty }
+        if Task.isCancelled { return nil }
+        let result = Self.parseChapterStart(from: bytes, chapterTitle: title, maxLines: maxLines)
+        store(result, for: key)
+        return result
+    }
+
+    func extractOffset(chapter: Int, offset: Int, fallbackText: String) -> ChapterPreviewContent? {
+        let key = ChapterPreviewKey(chapter: chapter, offset: offset)
+        if let cached = cache[key] { return cached }
+        guard let bytes = readChapterData(chapter) else {
+            if Task.isCancelled { return nil }
+            return fallbackText.isEmpty ? .empty : .text([fallbackText])
         }
         if Task.isCancelled { return nil }
-        guard spinePaths.indices.contains(chapter) else { return .empty }
+        let result = Self.parseFromOffset(from: bytes, offset: max(offset, 0),
+                                          fallbackText: fallbackText, maxLines: maxLines)
+        store(result, for: key)
+        return result
+    }
+
+    private func readChapterData(_ chapter: Int) -> Data? {
+        if Task.isCancelled { return nil }
+        guard spinePaths.indices.contains(chapter) else { return nil }
         prepareArchive()
         if Task.isCancelled { return nil }
         let path = spinePaths[chapter]
-        guard let archive, let entry = entries[path] else { return .empty }
+        guard let archive, let entry = entries[path] else { return nil }
         var bytes = Data()
         do {
             _ = try archive.extract(entry) { bytes.append($0) }
         } catch {
-            return .empty
+            return nil
         }
-        if Task.isCancelled { return nil }
-        let result = Self.parsePreview(from: bytes, chapterTitle: title, maxLines: maxLines)
-        store(result, for: chapter)
-        return result
+        return bytes
     }
 
     private func prepareArchive() {
@@ -113,9 +151,9 @@ private actor ChapterPreviewExtractor {
         self.entries = map
     }
 
-    private func store(_ content: ChapterPreviewContent, for chapter: Int) {
-        cache[chapter] = content
-        cacheOrder.append(chapter)
+    private func store(_ content: ChapterPreviewContent, for key: ChapterPreviewKey) {
+        cache[key] = content
+        cacheOrder.append(key)
         if cacheOrder.count > maxCached {
             let evicted = cacheOrder.removeFirst()
             cache.removeValue(forKey: evicted)
@@ -134,12 +172,24 @@ private actor ChapterPreviewExtractor {
         "img", "svg", "video",
     ].map { "local-name()='\($0)'" }.joined(separator: " or ")
 
-    private static func parsePreview(from data: Data, chapterTitle: String?, maxLines: Int) -> ChapterPreviewContent {
+    private static let mediaTags: Set<String> = ["img", "svg", "video"]
+    private static let skippedTags: Set<String> = ["script", "style"]
+    private static let breakTags: Set<String> = ["br", "hr"]
+    private static let blockTags: Set<String> = [
+        "p", "div", "blockquote", "li", "dd", "dt", "pre",
+        "h1", "h2", "h3", "h4", "h5", "h6",
+        "section", "article", "tr", "figcaption",
+    ]
+
+    private static func parseDocument(from data: Data) -> (any Searchable)? {
         let utf16 = data.starts(with: [0xff, 0xfe]) || data.starts(with: [0xfe, 0xff])
         let encoding: String.Encoding = utf16 ? .utf16 : .utf8
-        let doc: (any Searchable)? = (try? XML(xml: data, encoding: encoding))
+        return (try? XML(xml: data, encoding: encoding))
             ?? (try? HTML(html: data, encoding: encoding))
-        guard let doc else { return .empty }
+    }
+
+    private static func parseChapterStart(from data: Data, chapterTitle: String?, maxLines: Int) -> ChapterPreviewContent {
+        guard let doc = parseDocument(from: data) else { return .empty }
 
         let body = "//*[local-name()='body']"
         let blockXPath = "\(body)//*[(\(blockNames)) and not(.//*[\(blockNames)]) and not(ancestor-or-self::*[\(excludedAncestors)])]"
@@ -190,6 +240,95 @@ private actor ChapterPreviewExtractor {
         }
 
         let mediaCount = doc.xpath("\(body)//*[\(mediaNames)]").count
+        return mediaCount > 0 ? .illustration : .empty
+    }
+
+    private static func parseFromOffset(from data: Data, offset: Int,
+                                        fallbackText: String, maxLines: Int) -> ChapterPreviewContent {
+        guard let doc = parseDocument(from: data),
+              let body = doc.at_xpath("//*[local-name()='body']") else {
+            return fallbackText.isEmpty ? .empty : .text([fallbackText])
+        }
+
+        let maxParagraphs = max(maxLines, 1)
+        let maxChars = max(maxParagraphs * 40, 120)
+        var cursor = 0
+        var paragraphs: [String] = []
+        var current = ""
+        var totalChars = 0
+        var sawMediaAtOffset = false
+        var done = false
+
+        func flush() {
+            let cleaned = normalizeText(current)
+            current = ""
+            guard !cleaned.isEmpty else { return }
+            paragraphs.append(cleaned)
+            totalChars += cleaned.count
+            if paragraphs.count >= maxParagraphs || totalChars >= maxChars {
+                done = true
+            }
+        }
+
+        func walk(_ node: Kanna.XMLElement) {
+            for child in node.xpath("./node()") {
+                if done { return }
+                let tag = (child.tagName ?? "").lowercased()
+                if mediaTags.contains(tag) {
+                    if cursor >= offset, paragraphs.isEmpty, current.isEmpty {
+                        sawMediaAtOffset = true
+                    }
+                    cursor += 1
+                    continue
+                }
+                if skippedTags.contains(tag) {
+                    cursor += child.text?.utf16.count ?? 0
+                    continue
+                }
+                if breakTags.contains(tag) {
+                    if cursor >= offset { flush() }
+                    continue
+                }
+                if tag == "text" || tag == "cdata-section" {
+                    let raw = child.text ?? ""
+                    let units = Array(raw.utf16)
+                    let length = units.count
+                    if cursor + length <= offset {
+                        cursor += length
+                        continue
+                    }
+                    let sliceStart = max(offset - cursor, 0)
+                    cursor += length
+                    let piece = sliceStart == 0 ? raw : String(decoding: units[sliceStart...], as: UTF16.self)
+                    current += piece
+                    if totalChars + current.count >= maxChars + 40 {
+                        flush()
+                    }
+                    continue
+                }
+                if blockTags.contains(tag) {
+                    if cursor >= offset { flush() }
+                    walk(child)
+                    if cursor >= offset { flush() }
+                } else {
+                    walk(child)
+                }
+            }
+        }
+
+        walk(body)
+        if !done { flush() }
+
+        if !paragraphs.isEmpty {
+            return .text(paragraphs)
+        }
+        if sawMediaAtOffset {
+            return .illustration
+        }
+        if !fallbackText.isEmpty {
+            return .text([fallbackText])
+        }
+        let mediaCount = doc.xpath("//*[local-name()='body']//*[\(mediaNames)]").count
         return mediaCount > 0 ? .illustration : .empty
     }
 
