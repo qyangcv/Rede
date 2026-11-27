@@ -271,7 +271,6 @@ private struct SidebarOutline: NSViewRepresentable {
 
             let icon = NSImageView()
             icon.imageScaling = .scaleProportionallyDown
-            icon.contentTintColor = NSColor(srgbRed: 154.0 / 255, green: 109.0 / 255, blue: 46.0 / 255, alpha: 1)
             icon.translatesAutoresizingMaskIntoConstraints = false
             cell.addSubview(icon)
             cell.imageView = icon
