@@ -59,15 +59,18 @@ struct ReaderStyleCommands: View {
             Button("增大边距") {
                 settings.readerPageMargin = min(settings.readerPageMargin + 1, Settings.readerPageMarginRange.upperBound)
             }
+            .keyboardShortcut("+", modifiers: [.command, .option])
             .disabled(settings.readerPageMargin >= Settings.readerPageMarginRange.upperBound)
             Button("减小边距") {
                 settings.readerPageMargin = max(settings.readerPageMargin - 1, Settings.readerPageMarginRange.lowerBound)
             }
+            .keyboardShortcut("-", modifiers: [.command, .option])
             .disabled(settings.readerPageMargin <= Settings.readerPageMarginRange.lowerBound)
             Divider()
             Button("默认边距") {
                 settings.readerPageMargin = Settings.defaultReaderPageMargin
             }
+            .keyboardShortcut("0", modifiers: [.command, .option])
             .disabled(settings.readerPageMargin == Settings.defaultReaderPageMargin)
         }
         .disabled(context == nil)
@@ -108,6 +111,7 @@ struct ReaderStyleCommands: View {
         .keyboardShortcut("-")
         .disabled(context == nil || settings.readerStyle.fontScale <= ReaderStyle.fontScaleRange.lowerBound)
         Button("默认大小") { settings.readerStyle.fontScale = ReaderStyle.default.fontScale }
+            .keyboardShortcut("0")
             .disabled(context == nil || settings.readerStyle.fontScale == ReaderStyle.default.fontScale)
 
         Divider()
