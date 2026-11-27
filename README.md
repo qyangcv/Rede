@@ -40,7 +40,13 @@
 1. 在 App Store 安装 [TestFlight](https://apps.apple.com/app/testflight/id899247664)
 2. 在 iOS 上打开 [TestFlight 链接](https://testflight.apple.com/join/UvDG6ykV)，安装 Rede 测试版
 
-## 技术栈
+## 已知限制
+
+- 文件：仅支持 EPUB 格式，不支持 DRM/FXL EPUB、漫画或画册
+- 阅读；仅支持中文，不支持竖排，不支持上下滚动翻页
+- 同步：仅支持 iCloud 同步，不支持 WebDAV、OPDS 和 Calibre
+
+## 项目依赖
 
 - [ReadiumCSS](https://github.com/readium/css)
 - [ZIPFoundation](https://github.com/weichsel/ZIPFoundation)
