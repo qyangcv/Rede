@@ -97,6 +97,20 @@ struct LibraryView: View {
                 }
             }
         )
+        .toolbar(removing: .sidebarToggle)
+        .toolbar {
+            ToolbarSpacer(.flexible)
+            ToolbarItem {
+                let title = columnVisibility == .detailOnly ? "显示侧边栏" : "隐藏侧边栏"
+                Button(title, systemImage: "sidebar.left") {
+                    withAnimation {
+                        columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+                    }
+                }
+                .help(title)
+            }
+            .sharedBackgroundVisibility(.hidden)
+        }
         .navigationSplitViewColumnWidth(min: 150, ideal: 180, max: 260)
     }
 
@@ -139,12 +153,7 @@ struct LibraryView: View {
             return importEPUBs(urls, category: selectedCategory)
         }
         .navigationTitle(selectedCategory?.name ?? BookCategories.libraryName)
-        .overlay(alignment: .top) { SyncBanner() }
         .toolbar {
-            if SyncMonitor.shared.hasProblem {
-                ToolbarItem { SyncAlertButton() }
-            }
-
             ToolbarItem {
                 SettingsLink {
                     Label("设置", systemImage: "gearshape")
@@ -154,19 +163,26 @@ struct LibraryView: View {
             .sharedBackgroundVisibility(.hidden)
 
             ToolbarItem {
-                Picker("书库布局", selection: $settings.libraryLayout) {
-                    ForEach(LibraryLayout.allCases) { item in
-                        Label(item.name, systemImage: item.icon).tag(item)
+                Menu {
+                    Picker(LibraryDisplayCommands.layoutMenuTitle, selection: $settings.libraryLayout) {
+                        ForEach(LibraryLayout.allCases) { item in
+                            Label(item.name, systemImage: item.icon).tag(item)
+                        }
                     }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label(LibraryDisplayCommands.layoutMenuTitle, systemImage: settings.libraryLayout.icon)
                 }
-                .pickerStyle(.segmented)
-                .help("书库布局")
+                .menuIndicator(.hidden)
+                .help(LibraryDisplayCommands.layoutMenuTitle)
             }
+            .sharedBackgroundVisibility(.hidden)
 
             ToolbarItemGroup {
                 AppearanceButton(appearance: $settings.appearance)
                 Button("导入 EPUB", systemImage: "plus", action: beginImport)
             }
+            .sharedBackgroundVisibility(.hidden)
         }
         .fileImporter(
             isPresented: $isImporting,

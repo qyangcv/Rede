@@ -56,6 +56,10 @@ Rede 的云同步功能不会收集您的任何信息，包括：
 - 阅读：仅支持中文，不支持竖排，不支持上下滚动翻页
 - 同步：仅支持 iCloud 同步，不支持 WebDAV、OPDS 和 Calibre
 
+## 开发计划
+
+- [ ] 支持更多流式格式：azw3, mobi, fb2, txt 等
+
 ## 项目依赖
 
 - [ReadiumCSS](https://github.com/readium/css)

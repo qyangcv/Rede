@@ -23,16 +23,85 @@ struct LibrarySidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             SidebarOutline(sidebar: self)
-            Button(action: createCategory) {
-                Label("新建分类", systemImage: "plus")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 28, height: 28)
-                    .contentShape(.rect)
+            HStack {
+                Button(action: createCategory) {
+                    Label("新建分类", systemImage: "plus")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 28, height: 28)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.borderless)
+                .help("新建分类")
+
+                Spacer()
+
+                SidebarSyncStatus()
             }
-            .buttonStyle(.borderless)
-            .help("新建分类")
-            .padding(.leading, 8)
+            .padding(.horizontal, 8)
             .padding(.bottom, 6)
+        }
+    }
+}
+
+private struct SidebarSyncStatus: View {
+    private enum Phase {
+        case syncing, done
+
+        var title: String { self == .syncing ? "正在从 iCloud 同步" : "已同步" }
+        var symbol: String { self == .syncing ? "arrow.trianglehead.2.clockwise.rotate.90.icloud" : "checkmark.icloud" }
+    }
+
+    @State private var phase: Phase?
+    @State private var isPresented = false
+
+    private var monitor: SyncMonitor { .shared }
+
+    var body: some View {
+        ZStack {
+            if monitor.hasProblem {
+                Button { isPresented.toggle() } label: {
+                    Label("iCloud 同步出错", systemImage: "exclamationmark.icloud")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 28, height: 28)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.borderless)
+                .help("iCloud 同步出错")
+                .popover(isPresented: $isPresented, arrowEdge: .top) {
+                    Text(monitor.summary)
+                        .frame(maxWidth: 260, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding()
+                }
+            } else if let phase {
+                Image(systemName: phase.symbol)
+                    .imageScale(.large)
+                    .symbolEffect(.rotate.byLayer, isActive: phase == .syncing)
+                    .id(phase)
+                    .transition(.symbolEffect(.drawOn))
+                    .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                    .frame(width: 28, height: 28)
+                    .help(phase.title)
+                    .accessibilityLabel(phase.title)
+            }
+        }
+        .frame(width: 28, height: 28)
+        .animation(.default, value: phase)
+        .animation(.default, value: monitor.hasProblem)
+        .onChange(of: monitor.hasProblem) { _, hasProblem in
+            if !hasProblem { isPresented = false }
+        }
+        .task(id: monitor.isImporting) {
+            if monitor.isImporting { phase = .syncing; return }
+            guard phase == .syncing else { return }
+            guard !monitor.hasProblem else { phase = nil; return }
+            do {
+                try await Task.sleep(for: .seconds(1))
+                guard !monitor.hasProblem else { phase = nil; return }
+                phase = .done
+                try await Task.sleep(for: .seconds(2))
+                phase = nil
+            } catch {}
         }
     }
 }

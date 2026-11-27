@@ -113,8 +113,8 @@ final class SyncMonitor {
         switch innermost.code {
         case .quotaExceeded: return "iCloud 空间已满"
         case .notAuthenticated: return "未登录 iCloud"
-        case .networkUnavailable, .networkFailure: return "网络不可用，恢复后会自动重试"
-        case .serverRejectedRequest, .invalidArguments: return "iCloud 拒绝了这次同步，通常是云端结构未部署（需部署 CloudKit schema）"
+        case .networkUnavailable, .networkFailure: return "网络不可用"
+        case .serverRejectedRequest, .invalidArguments: return "iCloud 拒绝了这次同步，通常是云端结构未部署（需要开发者部署 CloudKit schema）"
         default: return innermost.localizedDescription
         }
     }
