@@ -11,9 +11,8 @@
 [![Release](https://img.shields.io/github/v/release/qyangcv/Rede?label=Release)](https://github.com/qyangcv/Rede/releases/latest)
 ![macOS](https://img.shields.io/badge/macOS-26.0+-000?logo=apple&logoColor=white)
 ![iOS](https://img.shields.io/badge/iOS-26.0+-000?logo=apple&logoColor=white)
-![Swift](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
-[![AI: Assisted](https://img.shields.io/badge/AI-Assisted-0969da)](https://aidisclosurebadge.com/levels/ai-assisted/)
+![AI: Assisted](https://img.shields.io/badge/AI-Assisted-0969da)
 
 </div>
 
