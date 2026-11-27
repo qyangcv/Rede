@@ -137,6 +137,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
     private var anchors: [String: Int] = [:]
 
     var onProgress: ((ReadingPosition, PageInfo, TOCItem?) -> Void)?
+    var onPageLayout: ((PageViewport?, [PageHighlightAnchor]) -> Void)?
     var onLink: ((Int, String?) -> Void)?
     var onGesture: ((ReaderGesture) -> Void)?
     var onTurn: (() -> Void)?
@@ -281,6 +282,11 @@ final class Reader: NSObject,  WKNavigationDelegate {
         Task { await bridge.clearSearchHit() }
     }
 
+    func setActiveHighlight(_ id: String?) {
+        guard ready else { return }
+        Task { await bridge.setActiveHighlight(id) }
+    }
+
     @discardableResult
     func turn(_ step: Int) -> Task<Void, Never> {
         navigated = true
@@ -311,6 +317,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
     fileprivate func receive(_ report: ProgressReport) {
         position = report.position
         anchors = report.anchors
+        onPageLayout?(report.viewport, report.highlights)
         onProgress?(report.position, report.page,
                     tocItem(chapter: report.position.chapter, offset: report.position.offset, anchors: report.anchors))
     }

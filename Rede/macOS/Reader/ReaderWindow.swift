@@ -37,7 +37,16 @@ private struct ReaderWindowContent: View {
     @Environment(ReaderSession.self) private var session
     @Environment(\.colorScheme) private var colorScheme
     @Bindable private var settings = Settings.shared
+    private struct PendingMarginAnchor {
+        let midY: CGFloat
+        let midX: Double
+        let widthRatio: Double
+    }
+
     @State private var noteTarget: NoteTarget?
+    @State private var editingMarginNoteID: String?
+    @State private var hoveredMarginNoteID: String?
+    @State private var pendingMarginAnchors: [String: PendingMarginAnchor] = [:]
     @State private var drawer: Drawer?
     @State private var search = ReaderSearch()
     @State private var annotationKind = Annotation.Kind.bookmark
@@ -176,17 +185,33 @@ private struct ReaderWindowContent: View {
                     case .turn(let direction):
                         turn(direction)
                     case .highlight(let hit):
-                        noteTarget = NoteTarget(id: hit.id, rect: hit.rect.cgRect)
+                        if marginLayout != nil {
+                            pendingMarginAnchors[hit.id] = pendingAnchor(for: hit.rect.cgRect)
+                            editingMarginNoteID = hit.id
+                        } else {
+                            noteTarget = NoteTarget(id: hit.id, rect: hit.rect.cgRect)
+                        }
                     case .tap:
-                        break
+                        if editingMarginNoteID != nil {
+                            editingMarginNoteID = nil
+                            reader.focus()
+                        }
                     }
                 }
                 reader.onSelectionChange = { selecting in
-                    if selecting { noteTarget = nil }
+                    if selecting {
+                        noteTarget = nil
+                        editingMarginNoteID = nil
+                    }
                 }
                 reader.onAnnotationAction = { action in
                     session.perform(action) { id, rect in
-                        noteTarget = NoteTarget(id: id, rect: rect)
+                        if marginLayout != nil {
+                            pendingMarginAnchors[id] = pendingAnchor(for: rect)
+                            editingMarginNoteID = id
+                        } else {
+                            noteTarget = NoteTarget(id: id, rect: rect)
+                        }
                     }
                 }
                 reader.onCopyHighlight = { id in
@@ -197,6 +222,45 @@ private struct ReaderWindowContent: View {
             }
             .ignoresSafeArea()
             .overlay {
+                if let layout = marginLayout {
+                    MarginNotesOverlay(
+                        layout: layout,
+                        items: marginNotes,
+                        editingID: $editingMarginNoteID,
+                        hoveredID: $hoveredMarginNoteID,
+                        onSave: { id, text in
+                            guard let annotation = session.annotation(id: id) else { return }
+                            session.setNote(text, of: annotation)
+                        },
+                        onDelete: { id in
+                            pendingMarginAnchors.removeValue(forKey: id)
+                            session.deleteAnnotation(id: id)
+                        },
+                        onFinishEditing: {
+                            reader.focus()
+                        }
+                    )
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.16), value: marginLayout != nil)
+            .onChange(of: editingMarginNoteID ?? hoveredMarginNoteID) { _, id in
+                reader.setActiveHighlight(id)
+            }
+            .onChange(of: marginLayout == nil) { _, unavailable in
+                if unavailable {
+                    editingMarginNoteID = nil
+                    hoveredMarginNoteID = nil
+                    pendingMarginAnchors = [:]
+                }
+            }
+            .onChange(of: session.position) {
+                editingMarginNoteID = nil
+                hoveredMarginNoteID = nil
+                pendingMarginAnchors = [:]
+            }
+            .overlay {
                 navigationDrawer
                     .animation(.snappy(duration: 0.22), value: drawer)
             }
@@ -204,6 +268,7 @@ private struct ReaderWindowContent: View {
             .toolbar(removing: settings.readerTitle == .hidden ? .title : nil)
             .onDisappear {
                 search.cancel()
+                reader.setActiveHighlight(nil)
                 reader.onGesture = nil
                 reader.onSelectionChange = nil
                 reader.onAnnotationAction = nil
@@ -248,6 +313,45 @@ private struct ReaderWindowContent: View {
     private func showAnnotations(_ kind: Annotation.Kind) {
         annotationKind = kind
         drawer = .annotations
+    }
+
+    private var marginLayout: MarginNotesLayout? {
+        guard settings.showMarginNotes,
+              drawer == nil,
+              (turner as? SwipePageTurner)?.slide == nil,
+              let viewport = session.pageViewport else { return nil }
+        return MarginNotesLayout(viewport: viewport)
+    }
+
+    private func pendingAnchor(for rect: CGRect) -> PendingMarginAnchor {
+        guard let viewport = session.pageViewport else {
+            return PendingMarginAnchor(midY: rect.midY, midX: 0.5, widthRatio: 1)
+        }
+        let contentWidth = viewport.contentRight - viewport.contentLeft
+        let midX = contentWidth > 0 ? (Double(rect.midX) - viewport.contentLeft) / contentWidth : 0.5
+        let widthRatio = contentWidth > 0 ? Double(rect.width) / contentWidth : 1
+        return PendingMarginAnchor(midY: rect.midY, midX: midX, widthRatio: widthRatio)
+    }
+
+    private var marginNotes: [MarginNoteItem] {
+        var items: [MarginNoteItem] = []
+        var seen: Set<String> = []
+        for anchor in session.pageHighlights {
+            guard let annotation = session.annotation(id: anchor.id),
+                  !annotation.note.isEmpty || editingMarginNoteID == anchor.id else { continue }
+            seen.insert(anchor.id)
+            items.append(MarginNoteItem(id: anchor.id, note: annotation.note,
+                                        anchorMidY: CGFloat((anchor.top + anchor.bottom) / 2),
+                                        midX: anchor.midX, widthRatio: anchor.widthRatio))
+        }
+        if let editingID = editingMarginNoteID, !seen.contains(editingID),
+           let pending = pendingMarginAnchors[editingID],
+           let annotation = session.annotation(id: editingID) {
+            items.append(MarginNoteItem(id: editingID, note: annotation.note,
+                                        anchorMidY: pending.midY,
+                                        midX: pending.midX, widthRatio: pending.widthRatio))
+        }
+        return items.sorted { $0.anchorMidY < $1.anchorMidY }
     }
 
     private func turn(_ direction: PageDirection) {

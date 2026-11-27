@@ -57,6 +57,10 @@ extension JSBridge {
         await call("reader.clearSearchHit()")
     }
 
+    func setActiveHighlight(_ id: String?) async {
+        await call("reader.setActiveHighlight(id)", ["id": id ?? NSNull()])
+    }
+
     func peek(from position: ReadingPosition, step: Int) async -> ProgressReport? {
         await call("return reader.peek(position, step)", ["position": position.jsObject, "step": step])
             .flatMap { ProgressReport(jsValue: $0) }

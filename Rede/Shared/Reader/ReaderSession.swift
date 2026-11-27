@@ -12,6 +12,8 @@ final class ReaderSession {
     private(set) var book: Book?
     private(set) var position: ReadingPosition?
     private(set) var page: PageInfo?
+    private(set) var pageViewport: PageViewport?
+    private(set) var pageHighlights: [PageHighlightAnchor] = []
     private(set) var chapter: TOCItem?
     private(set) var progressRevision = 0
     let history = JumpHistory()
@@ -75,6 +77,12 @@ final class ReaderSession {
                 self?.progressRevision += 1
             }
         }
+        reader.onPageLayout = { [weak self] viewport, highlights in
+            MainActor.assumeIsolated {
+                self?.pageViewport = viewport
+                self?.pageHighlights = highlights
+            }
+        }
         reader.onLink = { [weak self] chapter, anchor in
             self?.jump(chapter: chapter, anchor: anchor)
         }
@@ -87,6 +95,8 @@ final class ReaderSession {
         self.book = book
         self.position = book.position
         self.page = nil
+        self.pageViewport = nil
+        self.pageHighlights = []
         self.chapter = nil
         self.progressRevision = 0
         self.shownPosition = book.position
@@ -112,6 +122,8 @@ final class ReaderSession {
         book = nil
         position = nil
         page = nil
+        pageViewport = nil
+        pageHighlights = []
         chapter = nil
         progressRevision = 0
         shownPosition = nil

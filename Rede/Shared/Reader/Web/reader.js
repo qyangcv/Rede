@@ -119,6 +119,15 @@ const reader = {
     doc?.defaultView?.CSS.highlights.get(SEARCH_LAYER)?.clear();
   },
 
+  setActiveHighlight(id) {
+    const layer = doc?.defaultView?.CSS.highlights.get(FOCUS_LAYER);
+    if (!layer) return;
+    layer.clear();
+    if (!id) return;
+    const hit = highlights.find((h) => h.id === id);
+    if (hit) layer.add(hit.range);
+  },
+
   setStyle(vars) {
     Object.assign(state.style, vars);
     reflow();
@@ -195,6 +204,7 @@ async function prepare(doc) {
   const marks = doc.createElementNS(XHTML_NS, "style");
   marks.textContent = `${HIGHLIGHT_LAYERS.map((name) => `::highlight(${name})`).join(", ")}
     { background-color: var(--reader-highlight); }
+    ::highlight(${FOCUS_LAYER}) { background-color: var(--reader-highlight); }
     ::highlight(${NOTE_LAYER}) { text-decoration: underline dashed 1.5px var(--reader-note); }
     ::highlight(${SEARCH_LAYER}) { background-color: #ffd457; color: #241b00; }
     :root.over-highlight { cursor: default; }
@@ -209,7 +219,7 @@ async function prepare(doc) {
     }`;
   head.prepend(fonts, before);
   head.append(...after, marks);
-  for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER, SEARCH_LAYER]) {
+  for (const name of [...HIGHLIGHT_LAYERS, FOCUS_LAYER, NOTE_LAYER, SEARCH_LAYER]) {
     doc.defaultView.CSS.highlights.set(name, new doc.defaultView.Highlight());
   }
 
@@ -342,6 +352,7 @@ function settle(page, offset = null) {
   updatePageRange();
   if (state.spread !== previousSpread) {
     clearHoverHighlight();
+    doc.defaultView.CSS.highlights.get(FOCUS_LAYER)?.clear();
     doc.getSelection().removeAllRanges();
   } else {
     pageSelection();
@@ -370,6 +381,7 @@ function locate(at) {
 // 重叠加深：同一 Highlight 内的 Range 重叠时只画一层，所以按重叠深度分层注册，
 // 第 k 层覆盖至少 k+1 条高亮重叠的区域，各层同一半透明色叠加，越深越浓；超过层数的深度不再加深
 const HIGHLIGHT_LAYERS = ["rede-highlight-1", "rede-highlight-2"];
+const FOCUS_LAYER = "rede-focus";
 // 带笔记的高亮额外加入此层，画虚线下划线
 const NOTE_LAYER = "rede-note";
 const SEARCH_LAYER = "rede-search";
@@ -396,7 +408,7 @@ function paintHighlights() {
 }
 
 function refreshHighlights(chapter) {
-  for (const name of [...HIGHLIGHT_LAYERS, NOTE_LAYER, SEARCH_LAYER]) {
+  for (const name of [...HIGHLIGHT_LAYERS, FOCUS_LAYER, NOTE_LAYER, SEARCH_LAYER]) {
     const highlight = chapter.defaultView.CSS.highlights.get(name);
     const ranges = [...highlight];
     highlight.clear();
@@ -596,7 +608,33 @@ function updatePageRange() {
   selectionBounds = null;
 }
 
+function pageHighlights() {
+  if (!doc || !state.range || highlights.length === 0) return [];
+  const origin = frame.getBoundingClientRect();
+  const result = [];
+  for (const h of highlights) {
+    if (h.end <= state.range.start || h.start >= state.range.end) continue;
+    const rects = lineRects(h.range)
+      .filter((r) => spreadOfRect(r) === state.spread)
+      .sort((a, b) => a.top - b.top);
+    if (rects.length === 0) continue;
+    const line = rects.length % 2 === 1 ? rects[Math.floor(rects.length / 2)] : rects[0];
+    const midX = origin.width > 0 ? ((line.left + line.right) / 2) / origin.width : 0.5;
+    const widthRatio = origin.width > 0 ? (line.right - line.left) / origin.width : 1;
+    result.push({
+      id: h.id,
+      top: line.top + origin.top,
+      bottom: line.bottom + origin.top,
+      midX,
+      widthRatio,
+    });
+  }
+  result.sort((a, b) => a.top - b.top);
+  return result;
+}
+
 function progress() {
+  const rect = frame.getBoundingClientRect();
   return {
     chapter: state.chapterId,
     offset: state.offset,
@@ -608,6 +646,15 @@ function progress() {
     start: state.range?.start ?? null,
     excerpt: state.range ? excerpt(doc, state.range.start, EXCERPT_LENGTH) : "",
     bookmarks: pageBookmarks(),
+    viewport: {
+      columns: state.columns,
+      contentLeft: rect.left,
+      contentRight: rect.right,
+      contentTop: rect.top,
+      contentBottom: rect.bottom,
+      width: window.innerWidth,
+    },
+    highlights: pageHighlights(),
   };
 }
 

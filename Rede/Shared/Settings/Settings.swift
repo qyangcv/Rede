@@ -58,6 +58,7 @@ final class Settings {
     var readerWindowMode: ReaderWindowMode { didSet { save() } }
     var restoreReaderWindows: Bool { didSet { save() } }
     var showProgressBarBookmarks: Bool { didSet { save() } }
+    var showMarginNotes: Bool { didSet { save() } }
     var readerPageLayout: ReaderPageLayout { didSet { save() } }
     var readerPageMargin: Int {
         didSet { if readerPageMargin != oldValue { save() } }
@@ -93,6 +94,7 @@ final class Settings {
         var readerWindowMode: ReaderWindowMode?
         var restoreReaderWindows: Bool?
         var showProgressBarBookmarks: Bool?
+        var showMarginNotes: Bool?
         var readerPageLayout: ReaderPageLayout?
         var readerPageMargin: Int?
         #endif
@@ -117,6 +119,7 @@ final class Settings {
         readerWindowMode = snapshot?.readerWindowMode ?? .single
         restoreReaderWindows = snapshot?.restoreReaderWindows ?? true
         showProgressBarBookmarks = snapshot?.showProgressBarBookmarks ?? true
+        showMarginNotes = snapshot?.showMarginNotes ?? true
         readerPageLayout = snapshot?.readerPageLayout ?? .auto
         let savedMargin = snapshot?.readerPageMargin ?? Self.defaultReaderPageMargin
         readerPageMargin = min(max(savedMargin, Self.readerPageMarginRange.lowerBound), Self.readerPageMarginRange.upperBound)
@@ -146,6 +149,7 @@ final class Settings {
             snapshot.readerWindowMode = readerWindowMode
             snapshot.restoreReaderWindows = restoreReaderWindows
             snapshot.showProgressBarBookmarks = showProgressBarBookmarks
+            snapshot.showMarginNotes = showMarginNotes
             snapshot.readerPageLayout = readerPageLayout
             snapshot.readerPageMargin = readerPageMargin
             #endif

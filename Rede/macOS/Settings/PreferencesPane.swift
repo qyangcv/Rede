@@ -14,6 +14,10 @@ struct PreferencesPane: View {
                 }
                 Toggle("启动时恢复上次未关闭的书籍", isOn: $settings.restoreReaderWindows)
                 Toggle("在进度条上显示书签", isOn: $settings.showProgressBarBookmarks)
+                Toggle(isOn: $settings.showMarginNotes) {
+                    Text("在页边显示笔记")
+                    Text("单栏且空间充足时")
+                }
             }
         }
         .formStyle(.grouped)

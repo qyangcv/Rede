@@ -22,17 +22,39 @@ struct PageInfo: Codable, Equatable {
     var bookmarks: [String]
 }
 
+struct PageViewport: Codable, Equatable {
+    let columns: Int
+    let contentLeft: Double
+    let contentRight: Double
+    let contentTop: Double
+    let contentBottom: Double
+    let width: Double
+}
+
+struct PageHighlightAnchor: Codable, Equatable, Identifiable {
+    let id: String
+    let top: Double
+    let bottom: Double
+    let midX: Double
+    let widthRatio: Double
+}
+
 struct ProgressReport: Decodable {
     let position: ReadingPosition
     let page: PageInfo
     let anchors: [String: Int]
+    let viewport: PageViewport?
+    let highlights: [PageHighlightAnchor]
 
-    private enum CodingKeys: String, CodingKey { case anchors }
+    private enum CodingKeys: String, CodingKey { case anchors, viewport, highlights }
 
     init(from decoder: any Decoder) throws {
         position = try ReadingPosition(from: decoder)
         page = try PageInfo(from: decoder)
-        anchors = try decoder.container(keyedBy: CodingKeys.self).decode([String: Int].self, forKey: .anchors)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        anchors = try container.decode([String: Int].self, forKey: .anchors)
+        viewport = try container.decodeIfPresent(PageViewport.self, forKey: .viewport)
+        highlights = try container.decodeIfPresent([PageHighlightAnchor].self, forKey: .highlights) ?? []
     }
 }
 
