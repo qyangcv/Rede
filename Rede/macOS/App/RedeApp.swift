@@ -6,6 +6,8 @@ import Sparkle
 struct RedeApp: App {
     static let libraryWindowID = "library"
     static let readerWindowID = "reader"
+    private static let libraryFrameName: NSWindow.FrameAutosaveName = "Rede.Library"
+    private static let readerFrameName: NSWindow.FrameAutosaveName = "Rede.Reader"
 
     @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
     private var readers: ReaderWindowStore { appDelegate.readers }
@@ -41,9 +43,20 @@ struct RedeApp: App {
     var body: some Scene {
         Window("书库", id: Self.libraryWindowID) {
             LibraryView()
-                .background(WindowFramePersistence(name: "Rede.Library"))
+                .background(WindowFramePersistence(name: Self.libraryFrameName))
         }
-        .defaultSize(width: 600, height: 400)
+        .defaultWindowPlacement { _, context in
+            WindowFramePersistence.placement(for: Self.libraryFrameName, in: context) {
+                let bounds = context.defaultDisplay.bounds
+                let size = CGSize(width: 600, height: 400)
+                let position = CGPoint(
+                    x: bounds.midX - size.width / 2,
+                    y: bounds.midY - size.height / 2
+                )
+                return WindowPlacement(position, size: size)
+            }
+        }
+        .restorationBehavior(.disabled)
         .modelContainer(.library)
         .environment(readers)
         .commands {
@@ -77,18 +90,20 @@ struct RedeApp: App {
         WindowGroup("阅读", id: Self.readerWindowID, for: UUID.self) { $windowID in
             if let windowID {
                 ReaderWindow(windowID: windowID)
-                    .background(WindowFramePersistence(name: "Rede.Reader", cascading: true))
+                    .background(WindowFramePersistence(name: Self.readerFrameName, cascading: true))
             }
         }
         .defaultWindowPlacement { _, context in
-            let bounds = context.defaultDisplay.bounds
-            let scale: CGFloat = 3.0 / 4.0
-            let size = CGSize(width: bounds.width * scale, height: bounds.height * scale)
-            let position = CGPoint(
-                x: bounds.midX - size.width / 2,
-                y: bounds.midY - size.height / 2
-            )
-            return WindowPlacement(position, size: size)
+            WindowFramePersistence.placement(for: Self.readerFrameName, cascading: true, in: context) {
+                let bounds = context.defaultDisplay.bounds
+                let scale: CGFloat = 3.0 / 4.0
+                let size = CGSize(width: bounds.width * scale, height: bounds.height * scale)
+                let position = CGPoint(
+                    x: bounds.midX - size.width / 2,
+                    y: bounds.midY - size.height / 2
+                )
+                return WindowPlacement(position, size: size)
+            }
         }
         .environment(readers)
         .windowManagerRole(.principal)

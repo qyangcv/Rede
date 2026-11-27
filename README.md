@@ -4,13 +4,16 @@
 
 # Rede
 
-一款开源、轻量、现代化的 EPUB 阅读器，专为中文阅读设计。
+一款开源、轻量、现代化的 EPUB 阅读器。
 
-支持 macOS 与 iOS 双端 iCloud 同步。
+专为 macOS / iOS 中文阅读设计，支持 iCloud 同步。
 
+[![Release](https://img.shields.io/github/v/release/qyangcv/Rede?label=Release)](https://github.com/qyangcv/Rede/releases/latest)
 ![macOS](https://img.shields.io/badge/macOS-26.0+-000?logo=apple&logoColor=white)
 ![iOS](https://img.shields.io/badge/iOS-26.0+-000?logo=apple&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![AI: Assisted](https://img.shields.io/badge/AI-Assisted-0969da)](https://aidisclosurebadge.com/levels/ai-assisted/)
 
 </div>
 
@@ -24,7 +27,7 @@
 - 阅读样式：切换字体、调节行距/段距/页边距、切换单栏/双栏、深色模式/浅色模式、进度条
 - 内容标注：搜索、书签、高亮、笔记功能
 
-## 安装
+## 安装 Rede
 
 **macOS**
 
@@ -40,10 +43,18 @@
 1. 在 App Store 安装 [TestFlight](https://apps.apple.com/app/testflight/id899247664)
 2. 在 iOS 上打开 [TestFlight 链接](https://testflight.apple.com/join/UvDG6ykV)，安装 Rede 测试版
 
-## 已知限制
+## 数据与隐私
+
+Rede 的云同步功能不会收集您的任何信息，包括：
+
+- 无账号体系，书籍、分类、阅读进度和标注信息仅保存在设备本地与个人 iCloud 私有数据库
+- 不包含任何数据统计、行为分析或遥测上报，不收集任何个人信息
+- 除可选的 iCloud 同步外，仅在按需下载开源字体和 macOS 版检查更新时连接 GitHub
+
+## Rede 的局限
 
 - 文件：仅支持 EPUB 格式，不支持 DRM/FXL EPUB、漫画或画册
-- 阅读；仅支持中文，不支持竖排，不支持上下滚动翻页
+- 阅读：仅支持中文，不支持竖排，不支持上下滚动翻页
 - 同步：仅支持 iCloud 同步，不支持 WebDAV、OPDS 和 Calibre
 
 ## 项目依赖
