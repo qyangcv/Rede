@@ -4,6 +4,8 @@ DEFINE SCHEMA
         CD_bookID              STRING QUERYABLE SEARCHABLE SORTABLE,
         CD_bookID_ckAsset      ASSET,
         CD_chapter             INT64 QUERYABLE SORTABLE,
+        CD_colorRaw            STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_colorRaw_ckAsset    ASSET,
         CD_created             TIMESTAMP QUERYABLE SORTABLE,
         CD_end                 INT64 QUERYABLE SORTABLE,
         CD_entityName          STRING QUERYABLE SEARCHABLE SORTABLE,
