@@ -279,9 +279,9 @@ struct ImportProgress: Equatable {
 
 enum BookImporter {
     private static let coverSize = 600
-    nonisolated static let supportedExtensions: Set<String> = ["epub", "azw3", "mobi"]
+    nonisolated static let supportedExtensions: Set<String> = ["epub", "azw3", "mobi", "txt"]
     static let supportedContentTypes: [UTType] = {
-        var types: [UTType] = [.epub]
+        var types: [UTType] = [.epub, .plainText]
         if let azw3 = UTType(filenameExtension: "azw3") { types.append(azw3) }
         if let mobi = UTType(filenameExtension: "mobi") { types.append(mobi) }
         return types
@@ -363,10 +363,10 @@ enum BookImporter {
     nonisolated private static func buildBook(id: String, rawData: Data, source: URL,
                                               useMetadataTitle: Bool) async throws -> PreparedBook {
         let fileExtension = source.pathExtension.lowercased()
-        let data = try normalizedEpubData(from: rawData, fileExtension: fileExtension)
+        let filename = source.deletingPathExtension().lastPathComponent
+        let data = try normalizedEpubData(from: rawData, fileExtension: fileExtension, title: filename)
         let epub = try parseEpub(data)
         guard !epub.model.spine.isEmpty else { throw MobiConversionError.emptyContent }
-        let filename = source.deletingPathExtension().lastPathComponent
         let metadataTitle = epub.model.metadata.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = useMetadataTitle
             ? (metadataTitle.isEmpty ? filename : metadataTitle)
@@ -381,10 +381,12 @@ enum BookImporter {
         )
     }
 
-    nonisolated private static func normalizedEpubData(from data: Data, fileExtension: String) throws -> Data {
+    nonisolated private static func normalizedEpubData(from data: Data, fileExtension: String, title: String) throws -> Data {
         switch fileExtension {
         case "azw3", "mobi":
             return try MobiToEpub.convert(data)
+        case "txt":
+            return try TxtToEpub.convert(data, title: title)
         default:
             return data
         }
