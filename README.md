@@ -8,13 +8,13 @@
 
 专为 macOS / iOS 中文阅读设计，通过 iCloud 同步。
 
-支持 EPUB、AZW3、MOBI、TXT 格式。
-
 [![Release](https://img.shields.io/github/v/release/qyangcv/Rede?label=Release)](https://github.com/qyangcv/Rede/releases/latest)
 ![macOS](https://img.shields.io/badge/macOS-26.0+-000?logo=apple&logoColor=white)
 ![iOS](https://img.shields.io/badge/iOS-26.0+-000?logo=apple&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 ![AI: Assisted](https://img.shields.io/badge/AI-Assisted-0969da)
+
+![Supported Formats](https://img.shields.io/badge/支持格式-EPUB%20%7C%20AZW3%20%7C%20MOBI%20%7C%20TXT-4c566a)
 
 </div>
 
