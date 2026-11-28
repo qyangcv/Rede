@@ -14,7 +14,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 ![AI: Assisted](https://img.shields.io/badge/AI-Assisted-0969da)
 
-![Supported Formats](https://img.shields.io/badge/支持格式-EPUB%20%7C%20AZW3%20%7C%20MOBI%20%7C%20TXT-4c566a)
+![Supported Formats](https://img.shields.io/badge/Supported_Formats-EPUB%20%7C%20AZW3%20%7C%20MOBI%20%7C%20TXT-4c566a)
 
 </div>
 
@@ -24,7 +24,7 @@
 
 ## 功能
 
-- 书籍管理：导入和导出书籍、批量管理书籍、查看书籍元信息
+- 书籍管理：导入和导出书籍（支持 `.epub`, `.azw3` ,`.mobi`, `.txt`）、批量管理书籍、查看书籍元信息
 - 阅读样式：切换字体、调节行距/段距/页边距、切换单栏/双栏、深色模式/浅色模式、进度条
 - 内容标注：搜索、书签、高亮、笔记功能
 
