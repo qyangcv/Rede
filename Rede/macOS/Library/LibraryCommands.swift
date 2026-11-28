@@ -73,7 +73,7 @@ struct LibraryFileCommands: View {
     @FocusedValue(\.libraryMenuContext) private var context
 
     var body: some View {
-        Button("导入 EPUB") { context?.beginImport() }
+        Button("导入书籍") { context?.beginImport() }
             .disabled(context == nil)
         Button("打开") { context?.open?() }
             .disabled(context?.open == nil)

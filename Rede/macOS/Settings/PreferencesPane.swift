@@ -5,6 +5,13 @@ struct PreferencesPane: View {
 
     var body: some View {
         Form {
+            Section("书库") {
+                Toggle(isOn: $settings.useMetadataTitle) {
+                    Text("自动识别书籍元信息中的标题")
+                    Text("关闭时，优先使用文件名作为书名；开启时，优先使用书籍元信息中的书名")
+                }
+            }
+
             Section("阅读窗口") {
                 Picker("打开新书时", selection: $settings.readerWindowMode) {
                     ForEach(ReaderWindowMode.allCases) { Text($0.name).tag($0) }

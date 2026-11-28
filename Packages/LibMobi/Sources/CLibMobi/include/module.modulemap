@@ -1,0 +1,4 @@
+module CLibMobi {
+    header "mobi.h"
+    export *
+}

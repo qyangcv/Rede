@@ -144,7 +144,7 @@ struct LibraryView: View {
                 ContentUnavailableView(
                     "书库是空的",
                     systemImage: "books.vertical",
-                    description: Text("点击右上角按钮或拖入 EPUB")
+                    description: Text("点击右上角按钮或拖入电子书")
                 )
             }
         }
@@ -180,13 +180,13 @@ struct LibraryView: View {
 
             ToolbarItemGroup {
                 AppearanceButton(appearance: $settings.appearance)
-                Button("导入 EPUB", systemImage: "plus", action: beginImport)
+                Button("导入书籍", systemImage: "plus", action: beginImport)
             }
             .sharedBackgroundVisibility(.hidden)
         }
         .fileImporter(
             isPresented: $isImporting,
-            allowedContentTypes: [.epub],
+            allowedContentTypes: BookImporter.supportedContentTypes,
             allowsMultipleSelection: true
         ){
             result in
@@ -395,9 +395,9 @@ struct LibraryView: View {
     }
 
     private func importEPUBs(_ urls: [URL], category: BookCategory?) -> Bool {
-        let epubs = urls.filter { $0.pathExtension.lowercased() == "epub" }
-        importBooks(epubs, category: category)
-        return !epubs.isEmpty
+        let supported = urls.filter(BookImporter.supports)
+        importBooks(supported, category: category)
+        return !supported.isEmpty
     }
 
     private func importBooks(_ urls: [URL], category: BookCategory?) {

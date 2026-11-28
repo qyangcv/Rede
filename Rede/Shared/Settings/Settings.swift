@@ -63,6 +63,7 @@ final class Settings {
     var readerPageMargin: Int {
         didSet { if readerPageMargin != oldValue { save() } }
     }
+    var useMetadataTitle: Bool { didSet { save() } }
     #endif
 
     #if os(iOS)
@@ -97,6 +98,7 @@ final class Settings {
         var showMarginNotes: Bool?
         var readerPageLayout: ReaderPageLayout?
         var readerPageMargin: Int?
+        var useMetadataTitle: Bool?
         #endif
         #if os(iOS)
         var brightness: Double?
@@ -123,6 +125,7 @@ final class Settings {
         readerPageLayout = snapshot?.readerPageLayout ?? .auto
         let savedMargin = snapshot?.readerPageMargin ?? Self.defaultReaderPageMargin
         readerPageMargin = min(max(savedMargin, Self.readerPageMarginRange.lowerBound), Self.readerPageMarginRange.upperBound)
+        useMetadataTitle = snapshot?.useMetadataTitle ?? false
         #endif
         #if os(iOS)
         brightness = snapshot?.brightness ?? 1
@@ -152,6 +155,7 @@ final class Settings {
             snapshot.showMarginNotes = showMarginNotes
             snapshot.readerPageLayout = readerPageLayout
             snapshot.readerPageMargin = readerPageMargin
+            snapshot.useMetadataTitle = useMetadataTitle
             #endif
             #if os(iOS)
             snapshot.brightness = brightness

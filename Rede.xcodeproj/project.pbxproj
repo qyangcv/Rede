@@ -11,6 +11,8 @@
 		2F9F3D42306C389300DE863C /* Kanna in Frameworks */ = {isa = PBXBuildFile; productRef = 2F9F3D41306C389300DE863C /* Kanna */; };
 		2F9F3D45306C38AF00DE863C /* Kanna in Frameworks */ = {isa = PBXBuildFile; productRef = 2F9F3D44306C38AF00DE863C /* Kanna */; };
 		2FB0A00130700000000A0016 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 2FB0A00130700000000A0015 /* ZIPFoundation */; };
+		2FB0A00130800000000A0003 /* CLibMobi in Frameworks */ = {isa = PBXBuildFile; productRef = 2FB0A00130800000000A0002 /* CLibMobi */; };
+		2FB0A00130800000000A0005 /* CLibMobi in Frameworks */ = {isa = PBXBuildFile; productRef = 2FB0A00130800000000A0004 /* CLibMobi */; };
 		2FF960A430663CA600AFB10E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 2FF960A330663CA600AFB10E /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -81,6 +83,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2FB0A00130800000000A0003 /* CLibMobi in Frameworks */,
 				2F9F3D42306C389300DE863C /* Kanna in Frameworks */,
 				2F62D3763055C33000626E1E /* ZIPFoundation in Frameworks */,
 				2FF960A430663CA600AFB10E /* Sparkle in Frameworks */,
@@ -98,6 +101,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2FB0A00130800000000A0005 /* CLibMobi in Frameworks */,
 				2F9F3D45306C38AF00DE863C /* Kanna in Frameworks */,
 				2FB0A00130700000000A0016 /* ZIPFoundation in Frameworks */,
 			);
@@ -168,6 +172,7 @@
 				2F62D3753055C33000626E1E /* ZIPFoundation */,
 				2FF960A330663CA600AFB10E /* Sparkle */,
 				2F9F3D41306C389300DE863C /* Kanna */,
+				2FB0A00130800000000A0002 /* CLibMobi */,
 			);
 			productName = Rede;
 			productReference = 2F442E7530525751000DD248 /* Rede.app */;
@@ -214,6 +219,7 @@
 			packageProductDependencies = (
 				2FB0A00130700000000A0015 /* ZIPFoundation */,
 				2F9F3D44306C38AF00DE863C /* Kanna */,
+				2FB0A00130800000000A0004 /* CLibMobi */,
 			);
 			productName = Rede;
 			productReference = 2FB0A00130700000000A0011 /* Rede.app */;
@@ -255,6 +261,7 @@
 				2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 				2FF960A230663CA600AFB10E /* XCRemoteSwiftPackageReference "Sparkle" */,
 				2F9F3D40306C389300DE863C /* XCRemoteSwiftPackageReference "Kanna" */,
+				2FB0A00130800000000A0001 /* XCLocalSwiftPackageReference "Packages/LibMobi" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2F442E7630525751000DD248 /* Products */;
@@ -671,6 +678,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		2FB0A00130800000000A0001 /* XCLocalSwiftPackageReference "Packages/LibMobi" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/LibMobi;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -718,6 +732,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2F62D3743055C33000626E1E /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
 			productName = ZIPFoundation;
+		};
+		2FB0A00130800000000A0002 /* CLibMobi */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2FB0A00130800000000A0001 /* XCLocalSwiftPackageReference "Packages/LibMobi" */;
+			productName = CLibMobi;
+		};
+		2FB0A00130800000000A0004 /* CLibMobi */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2FB0A00130800000000A0001 /* XCLocalSwiftPackageReference "Packages/LibMobi" */;
+			productName = CLibMobi;
 		};
 		2FF960A330663CA600AFB10E /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;

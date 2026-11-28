@@ -331,7 +331,7 @@ private struct SidebarOutline: NSViewRepresentable {
 
         private func epubURLs(from pasteboard: NSPasteboard) -> [URL] {
             let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
-            return urls.filter { $0.pathExtension.lowercased() == "epub" }
+            return urls.filter(BookImporter.supports)
         }
 
         private func makeItemCell() -> NSTableCellView {

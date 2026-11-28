@@ -5,7 +5,7 @@ struct SettingsView: View {
         TabView {
             Tab("偏好", systemImage: "gearshape") {
                 PreferencesPane()
-                    .frame(width: 480, height: 300)
+                    .frame(width: 480, height: 380)
             }
             Tab("字体", systemImage: "f.cursive") {
                 FontsPane()

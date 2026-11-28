@@ -40,6 +40,7 @@ final class Book {
     var lastRead: Date?
     var category: BookCategory?
     var categoryUpdatedAt: Date?
+    var sourceFormat: String?
     @Attribute(.externalStorage) var cover: Data?
     @Relationship(deleteRule: .cascade, inverse: \BookFile.book) var file: BookFile?
 
@@ -112,6 +113,7 @@ struct BookDetails {
             ("出版社", details?.metadata?.publisher),
             ("出版日期", details?.metadata?.date),
             ("ISBN", details?.metadata?.isbn),
+            ("原始格式", book.sourceFormat?.uppercased()),
             ("EPUB 版本", details?.metadata?.version),
             ("文件大小", details?.fileSize.map { Int64($0).formatted(.byteCount(style: .file)) }),
             ("字数", book.wordCount?.formatted()),
@@ -257,6 +259,17 @@ extension ModelContainer {
 
 enum BookImporter {
     private static let coverSize = 600
+    nonisolated static let supportedExtensions: Set<String> = ["epub", "azw3", "mobi"]
+    static let supportedContentTypes: [UTType] = {
+        var types: [UTType] = [.epub]
+        if let azw3 = UTType(filenameExtension: "azw3") { types.append(azw3) }
+        if let mobi = UTType(filenameExtension: "mobi") { types.append(mobi) }
+        return types
+    }()
+
+    nonisolated static func supports(_ url: URL) -> Bool {
+        supportedExtensions.contains(url.pathExtension.lowercased())
+    }
 
     static func importBooks(from urls: [URL], into context: ModelContext, category: BookCategory?) -> [String] {
         var errors: [String] = []
@@ -276,19 +289,32 @@ enum BookImporter {
         let granted = source.startAccessingSecurityScopedResource()
         defer { if granted { source.stopAccessingSecurityScopedResource() } }
 
-        let data = try Data(contentsOf: source)
-        let id = fileID(of: data)
+        let rawData = try Data(contentsOf: source)
+        let id = fileID(of: rawData)
         let existing = FetchDescriptor<Book>(predicate: #Predicate { $0.id == id })
         if let book = try context.fetch(existing).first {
             if let category { try BookCategories.assign([book], to: category, in: context) }
             return book
         }
 
+        let fileExtension = source.pathExtension.lowercased()
+        let data = try normalizedEpubData(from: rawData, fileExtension: fileExtension)
         let epub = try parseEpub(data)
-        let title = epub.model.metadata.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !epub.model.spine.isEmpty else { throw MobiConversionError.emptyContent }
+        let filename = source.deletingPathExtension().lastPathComponent
+        let metadataTitle = epub.model.metadata.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        #if os(macOS)
+        let useMetadataTitle = Settings.shared.useMetadataTitle
+        #else
+        let useMetadataTitle = true
+        #endif
+        let name = useMetadataTitle
+            ? (metadataTitle.isEmpty ? filename : metadataTitle)
+            : (filename.isEmpty ? metadataTitle : filename)
         let book = Book(id: id,
-                        name: title.isEmpty ? source.deletingPathExtension().lastPathComponent : title,
+                        name: name,
                         author: epub.model.metadata.author)
+        book.sourceFormat = fileExtension.isEmpty ? nil : fileExtension
         book.cover = thumbnail(of: epub)
         book.file = BookFile(data: data)
 
@@ -297,6 +323,15 @@ enum BookImporter {
         try context.save()
         ChapterLengthIndexer.shared.ensure(book, in: context)
         return book
+    }
+
+    private static func normalizedEpubData(from data: Data, fileExtension: String) throws -> Data {
+        switch fileExtension {
+        case "azw3", "mobi":
+            return try MobiToEpub.convert(data)
+        default:
+            return data
+        }
     }
 
     private static func fileID(of data: Data) -> String {

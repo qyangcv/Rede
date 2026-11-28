@@ -103,10 +103,10 @@ struct LibraryView: View {
                         }
                     } description: {
                         if categoryID == nil {
-                            Text("导入 EPUB 开始阅读")
+                            Text("导入电子书开始阅读")
                         }
                     } actions: {
-                        Button("导入 EPUB") { isImporting = true }
+                        Button("导入书籍") { isImporting = true }
                             .buttonStyle(.borderedProminent)
                             .padding(.top, categoryID == nil ? 0 : 12)
                     }
@@ -143,7 +143,7 @@ struct LibraryView: View {
                     .sharedBackgroundVisibility(.hidden)
                 }
             }
-            .fileImporter(isPresented: $isImporting, allowedContentTypes: [.epub],
+            .fileImporter(isPresented: $isImporting, allowedContentTypes: BookImporter.supportedContentTypes,
                           allowsMultipleSelection: true) { result in
                 switch result {
                 case .success(let urls): importBooks(urls)
