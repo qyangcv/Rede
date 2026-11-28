@@ -51,6 +51,8 @@ DEFINE SCHEMA
         CD_name                   STRING QUERYABLE SEARCHABLE SORTABLE,
         CD_name_ckAsset           ASSET,
         CD_position               BYTES QUERYABLE SORTABLE,
+        CD_sourceFormat           STRING QUERYABLE SEARCHABLE SORTABLE,
+        CD_sourceFormat_ckAsset   ASSET,
         CD_wordCount              INT64 QUERYABLE SORTABLE,
         "___createTime"           TIMESTAMP,
         "___createdBy"            REFERENCE,
