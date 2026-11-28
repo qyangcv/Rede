@@ -18,7 +18,7 @@ struct LibrarySidebar: View {
     let renameCategory: (UUID) -> Void
     let deleteCategory: (UUID) -> Void
     let moveCategories: (IndexSet, Int) -> Bool
-    let importEPUBs: ([URL], LibrarySection) -> Bool
+    let importFiles: ([URL], LibrarySection) -> Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -296,7 +296,7 @@ private struct SidebarOutline: NSViewRepresentable {
                 return categoryMove(info, item: item, index: index) == nil ? [] : .move
             }
 
-            guard !epubURLs(from: info.draggingPasteboard).isEmpty else { return [] }
+            guard !bookURLs(from: info.draggingPasteboard).isEmpty else { return [] }
             let point = outlineView.convert(info.draggingLocation, from: nil)
             let row = outlineView.row(at: point)
             guard row >= 0, let target = outlineView.item(atRow: row) as? SidebarItem,
@@ -314,8 +314,8 @@ private struct SidebarOutline: NSViewRepresentable {
             }
 
             guard index == NSOutlineViewDropOnItemIndex, let section = (item as? SidebarItem)?.section else { return false }
-            let urls = epubURLs(from: info.draggingPasteboard)
-            return !urls.isEmpty && sidebar.importEPUBs(urls, section)
+            let urls = bookURLs(from: info.draggingPasteboard)
+            return !urls.isEmpty && sidebar.importFiles(urls, section)
         }
 
         private func categoryMove(_ info: any NSDraggingInfo, item: Any?, index: Int) -> (source: Int, destination: Int)? {
@@ -329,7 +329,7 @@ private struct SidebarOutline: NSViewRepresentable {
             return (source, destination)
         }
 
-        private func epubURLs(from pasteboard: NSPasteboard) -> [URL] {
+        private func bookURLs(from pasteboard: NSPasteboard) -> [URL] {
             let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
             return urls.filter(BookImporter.supports)
         }

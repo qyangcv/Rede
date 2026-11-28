@@ -260,6 +260,21 @@ extension ModelContainer {
 struct ImportProgress: Equatable {
     var completed: Int
     var total: Int
+
+    static func begin(_ progress: inout ImportProgress?, count: Int) {
+        if var current = progress {
+            current.total += count
+            progress = current
+        } else {
+            progress = ImportProgress(completed: 0, total: count)
+        }
+    }
+
+    static func advance(_ progress: inout ImportProgress?) {
+        guard var current = progress else { return }
+        current.completed += 1
+        progress = current.completed >= current.total ? nil : current
+    }
 }
 
 enum BookImporter {

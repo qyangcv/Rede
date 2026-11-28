@@ -23,6 +23,15 @@ nonisolated struct MobiPartEntry {
     let path: String
     let mediaType: String
     let data: Data
+    var isNormalizedXHTML = false
+
+    var isNCX: Bool {
+        mediaType == "application/x-dtbncx+xml" || path.hasSuffix(".ncx")
+    }
+
+    var relativeHref: String {
+        path.hasPrefix("OEBPS/") ? String(path.dropFirst(6)) : path
+    }
 }
 
 nonisolated struct MobiExtractedMetadata {
@@ -109,16 +118,8 @@ nonisolated enum MobiExtractor {
         var current = head
         while let part = current {
             let value = part.pointee
-            if value.size > 0, let bytes = value.data {
-                let meta = mobi_get_filemeta_by_type(value.type)
-                let ext = cTupleString(meta.extension)
-                let mime = cTupleString(meta.mime_type)
-                let filename = String(format: "OEBPS/%@%05lu.%@", prefix, UInt(value.uid), ext)
-                entries.append(MobiPartEntry(
-                    path: filename,
-                    mediaType: mime.isEmpty ? "application/octet-stream" : mime,
-                    data: Data(bytes: bytes, count: value.size)
-                ))
+            if let entry = makePartEntry(from: value, prefix: prefix) {
+                entries.append(entry)
             }
             current = value.next
         }
@@ -132,24 +133,28 @@ nonisolated enum MobiExtractor {
         while let part = current {
             let value = part.pointee
             if value.size > 0, let bytes = value.data {
-                let meta = mobi_get_filemeta_by_type(value.type)
-                let data = Data(bytes: bytes, count: value.size)
-                if meta.type == T_OPF {
-                    opf = data
-                } else {
-                    let ext = cTupleString(meta.extension)
-                    let mime = cTupleString(meta.mime_type)
-                    let filename = String(format: "OEBPS/resource%05lu.%@", UInt(value.uid), ext)
-                    entries.append(MobiPartEntry(
-                        path: filename,
-                        mediaType: mime.isEmpty ? "application/octet-stream" : mime,
-                        data: data
-                    ))
+                if mobi_get_filemeta_by_type(value.type).type == T_OPF {
+                    opf = Data(bytes: bytes, count: value.size)
+                } else if let entry = makePartEntry(from: value, prefix: "resource") {
+                    entries.append(entry)
                 }
             }
             current = value.next
         }
         return (opf, entries)
+    }
+
+    private static func makePartEntry(from value: MOBIPart, prefix: String) -> MobiPartEntry? {
+        guard value.size > 0, let bytes = value.data else { return nil }
+        let meta = mobi_get_filemeta_by_type(value.type)
+        let ext = cTupleString(meta.extension)
+        let mime = cTupleString(meta.mime_type)
+        let filename = String(format: "OEBPS/%@%05lu.%@", prefix, UInt(value.uid), ext)
+        return MobiPartEntry(
+            path: filename,
+            mediaType: mime.isEmpty ? "application/octet-stream" : mime,
+            data: Data(bytes: bytes, count: value.size)
+        )
     }
 
     private static func cTupleString<T>(_ tuple: T) -> String {

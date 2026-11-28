@@ -88,13 +88,13 @@ struct LibraryView: View {
                 }
             },
             moveCategories: moveCategories,
-            importEPUBs: { urls, section in
+            importFiles: { urls, section in
                 switch section {
                 case .library:
-                    return importEPUBs(urls, category: nil)
+                    return importFiles(urls, category: nil)
                 case .category(let id):
                     guard let category = categories.first(where: { $0.id == id }) else { return false }
-                    return importEPUBs(urls, category: category)
+                    return importFiles(urls, category: category)
                 }
             }
         )
@@ -151,7 +151,7 @@ struct LibraryView: View {
         }
         .onChange(of: books.map(\.id), initial: true) { Task { BookMerger.merge(in: modelContext) } }
         .dropDestination(for: URL.self) { urls, _ in
-            return importEPUBs(urls, category: selectedCategory)
+            return importFiles(urls, category: selectedCategory)
         }
         .navigationTitle(selectedCategory?.name ?? BookCategories.libraryName)
         .toolbar {
@@ -240,8 +240,8 @@ struct LibraryView: View {
         }
         .onOpenURL { url in
             Task {
-                beginImportProgress(count: 1)
-                defer { advanceImportProgress() }
+                ImportProgress.begin(&importProgress, count: 1)
+                defer { ImportProgress.advance(&importProgress) }
                 do {
                     open(try await BookImporter.importBook(from: url, into: modelContext))
                 } catch {
@@ -406,7 +406,7 @@ struct LibraryView: View {
         importBooks(urls, category: selectedCategory)
     }
 
-    private func importEPUBs(_ urls: [URL], category: BookCategory?) -> Bool {
+    private func importFiles(_ urls: [URL], category: BookCategory?) -> Bool {
         let supported = urls.filter(BookImporter.supports)
         importBooks(supported, category: category)
         return !supported.isEmpty
@@ -414,28 +414,13 @@ struct LibraryView: View {
 
     private func importBooks(_ urls: [URL], category: BookCategory?) {
         guard !urls.isEmpty else { return }
-        beginImportProgress(count: urls.count)
+        ImportProgress.begin(&importProgress, count: urls.count)
         Task {
             let newErrors = await BookImporter.importBooks(from: urls, into: modelContext, category: category) {
-                advanceImportProgress()
+                ImportProgress.advance(&importProgress)
             }
             errors += newErrors
         }
-    }
-
-    private func beginImportProgress(count: Int) {
-        if var current = importProgress {
-            current.total += count
-            importProgress = current
-        } else {
-            importProgress = ImportProgress(completed: 0, total: count)
-        }
-    }
-
-    private func advanceImportProgress() {
-        guard var current = importProgress else { return }
-        current.completed += 1
-        importProgress = current.completed >= current.total ? nil : current
     }
 }
 

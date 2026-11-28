@@ -52,7 +52,7 @@ Rede 的云同步功能不会收集您的任何信息，包括：
 
 ## Rede 的局限
 
-- 文件：仅支持 EPUB、AZW3、MOBI 格式，不支持 PDF、 DRM 加密书籍、固定版式（FXL / Print Replica）书籍、漫画或画册
+- 文件：支持 EPUB、AZW3、MOBI 格式，不支持 PDF、 DRM 加密书籍、固定版式（FXL / Print Replica）书籍、漫画或画册
 - 阅读：仅支持中文，不支持竖排，不支持上下滚动翻页
 - 同步：仅支持 iCloud 同步，不支持 WebDAV、OPDS 和 Calibre
 

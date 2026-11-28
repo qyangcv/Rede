@@ -28,7 +28,7 @@ nonisolated enum MobiToEpub {
         try addEntry(to: archive, path: "OEBPS/content.opf", data: opfData, compression: .deflate)
 
         for entry in book.markup {
-            let xhtml = normalizeXHTML(entry.data)
+            let xhtml = entry.isNormalizedXHTML ? entry.data : normalizeXHTML(entry.data)
             try addEntry(to: archive, path: entry.path, data: xhtml, compression: .deflate)
         }
 
@@ -101,25 +101,22 @@ nonisolated enum MobiToEpub {
 
         for (index, entry) in book.markup.enumerated() {
             let id = "part\(index)"
-            let href = relativeHref(entry.path)
-            manifestItems.append("    <item id=\"\(id)\" href=\"\(escapeXML(href))\" media-type=\"application/xhtml+xml\"/>")
+            manifestItems.append("    <item id=\"\(id)\" href=\"\(escapeXML(entry.relativeHref))\" media-type=\"application/xhtml+xml\"/>")
             spineItems.append("    <itemref idref=\"\(id)\"/>")
         }
 
         for (index, entry) in book.flow.enumerated() {
             let id = "flow\(index)"
-            let href = relativeHref(entry.path)
-            manifestItems.append("    <item id=\"\(id)\" href=\"\(escapeXML(href))\" media-type=\"\(escapeXML(entry.mediaType))\"/>")
+            manifestItems.append("    <item id=\"\(id)\" href=\"\(escapeXML(entry.relativeHref))\" media-type=\"\(escapeXML(entry.mediaType))\"/>")
         }
 
         var tocID: String?
         for (index, entry) in book.resources.enumerated() {
             let id = "res\(index)"
-            let href = relativeHref(entry.path)
-            if entry.mediaType == "application/x-dtbncx+xml" || href.hasSuffix(".ncx") {
+            if entry.isNCX {
                 tocID = id
             }
-            manifestItems.append("    <item id=\"\(id)\" href=\"\(escapeXML(href))\" media-type=\"\(escapeXML(entry.mediaType))\"/>")
+            manifestItems.append("    <item id=\"\(id)\" href=\"\(escapeXML(entry.relativeHref))\" media-type=\"\(escapeXML(entry.mediaType))\"/>")
         }
 
         var metaLines = [
@@ -153,10 +150,6 @@ nonisolated enum MobiToEpub {
             </package>
             """
         return Data(xml.utf8)
-    }
-
-    private static func relativeHref(_ path: String) -> String {
-        path.hasPrefix("OEBPS/") ? String(path.dropFirst(6)) : path
     }
 
     private static func escapeXML(_ string: String) -> String {

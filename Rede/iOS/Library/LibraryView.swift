@@ -197,8 +197,8 @@ struct LibraryView: View {
             }
             .onOpenURL { url in
                 Task {
-                    beginImportProgress(count: 1)
-                    defer { advanceImportProgress() }
+                    ImportProgress.begin(&importProgress, count: 1)
+                    defer { ImportProgress.advance(&importProgress) }
                     do {
                         open(try await BookImporter.importBook(from: url, into: modelContext))
                     } catch {
@@ -359,29 +359,14 @@ struct LibraryView: View {
 
     private func importBooks(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
-        beginImportProgress(count: urls.count)
+        ImportProgress.begin(&importProgress, count: urls.count)
         let category = selectedCategory
         Task {
             let newErrors = await BookImporter.importBooks(from: urls, into: modelContext, category: category) {
-                advanceImportProgress()
+                ImportProgress.advance(&importProgress)
             }
             errors += newErrors
         }
-    }
-
-    private func beginImportProgress(count: Int) {
-        if var current = importProgress {
-            current.total += count
-            importProgress = current
-        } else {
-            importProgress = ImportProgress(completed: 0, total: count)
-        }
-    }
-
-    private func advanceImportProgress() {
-        guard var current = importProgress else { return }
-        current.completed += 1
-        importProgress = current.completed >= current.total ? nil : current
     }
 }
 

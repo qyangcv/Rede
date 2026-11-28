@@ -23,7 +23,7 @@ nonisolated enum MobiSplitter {
         }
 
         let headXML = doc.at_xpath("//head")?.toXML ?? "<head/>"
-        let sourceHref = relativeHref(single.path)
+        let sourceHref = single.relativeHref
         let ncxAnchors = collectNCXAnchors(from: book.resources, sourceHref: sourceHref)
         let pieces = collectPieces(from: body)
         guard !pieces.isEmpty else { return book }
@@ -46,8 +46,9 @@ nonisolated enum MobiSplitter {
         for (index, chunk) in chunks.enumerated() {
             let fileName = fileNames[index]
             let rawBody = chunk.map(\.xml).joined()
-            let rewrittenBody = rewriteLinks(in: rawBody, sourceHref: sourceHref,
-                                             currentFile: fileName, anchorToFile: anchorToFile)
+            let rewrittenBody = rewriteAnchorTargets(in: rawBody, attribute: "href",
+                                                     sourceHref: sourceHref, currentFile: fileName,
+                                                     anchorToFile: anchorToFile)
             let xhtml = """
                 <?xml version="1.0" encoding="utf-8"?>
                 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -58,17 +59,19 @@ nonisolated enum MobiSplitter {
             newMarkup.append(MobiPartEntry(
                 path: "OEBPS/\(fileName)",
                 mediaType: "application/xhtml+xml",
-                data: Data(xhtml.utf8)
+                data: Data(xhtml.utf8),
+                isNormalizedXHTML: true
             ))
         }
 
         let newResources = book.resources.map { entry -> MobiPartEntry in
-            guard entry.mediaType == "application/x-dtbncx+xml" || entry.path.hasSuffix(".ncx"),
+            guard entry.isNCX,
                   let text = String(data: entry.data, encoding: .utf8) else {
                 return entry
             }
-            let rewritten = rewriteAttrTargets(in: text, attribute: "src",
-                                               sourceHref: sourceHref, anchorToFile: anchorToFile)
+            let rewritten = rewriteAnchorTargets(in: text, attribute: "src",
+                                                 sourceHref: sourceHref, currentFile: nil,
+                                                 anchorToFile: anchorToFile)
             return MobiPartEntry(path: entry.path, mediaType: entry.mediaType, data: Data(rewritten.utf8))
         }
 
@@ -261,7 +264,7 @@ nonisolated enum MobiSplitter {
 
     private static func collectNCXAnchors(from resources: [MobiPartEntry], sourceHref: String) -> Set<String> {
         var anchors: Set<String> = []
-        for entry in resources where entry.mediaType == "application/x-dtbncx+xml" || entry.path.hasSuffix(".ncx") {
+        for entry in resources where entry.isNCX {
             guard let xml = try? XML(xml: entry.data, encoding: .utf8) else { continue }
             for node in xml.xpath("//*[local-name()='content']/@src") {
                 guard let src = node.text else { continue }
@@ -274,41 +277,21 @@ nonisolated enum MobiSplitter {
         return anchors
     }
 
-    private static func rewriteLinks(in html: String, sourceHref: String, currentFile: String,
-                                     anchorToFile: [String: String]) -> String {
+    private static func rewriteAnchorTargets(in text: String, attribute: String, sourceHref: String,
+                                             currentFile: String?, anchorToFile: [String: String]) -> String {
         let escapedSource = NSRegularExpression.escapedPattern(for: sourceHref)
-        guard let regex = try? NSRegularExpression(pattern: #"href="((?:"# + escapedSource + #")?#([^"]+))""#) else {
-            return html
+        let prefix = currentFile == nil ? escapedSource : "(?:\(escapedSource))?"
+        guard let regex = try? NSRegularExpression(pattern: "\(attribute)=\"\(prefix)#([^\"]+)\"") else {
+            return text
         }
-        let ns = html as NSString
-        var result = html
-        for match in regex.matches(in: html, range: NSRange(location: 0, length: ns.length)).reversed() {
-            let anchor = ns.substring(with: match.range(at: 2))
-            guard let targetFile = anchorToFile[anchor] else { continue }
-            let replacement = targetFile == currentFile
-                ? "href=\"#\(anchor)\""
-                : "href=\"\(targetFile)#\(anchor)\""
-            if let range = Range(match.range, in: result) {
-                result.replaceSubrange(range, with: replacement)
-            }
-        }
-        return result
-    }
-
-    private static func rewriteAttrTargets(in xml: String, attribute: String, sourceHref: String,
-                                           anchorToFile: [String: String]) -> String {
-        let escapedSource = NSRegularExpression.escapedPattern(for: sourceHref)
-        guard let regex = try? NSRegularExpression(
-            pattern: attribute + #"=""# + escapedSource + #"#([^"]+)""#
-        ) else {
-            return xml
-        }
-        let ns = xml as NSString
-        var result = xml
-        for match in regex.matches(in: xml, range: NSRange(location: 0, length: ns.length)).reversed() {
+        let ns = text as NSString
+        var result = text
+        for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed() {
             let anchor = ns.substring(with: match.range(at: 1))
             guard let targetFile = anchorToFile[anchor] else { continue }
-            let replacement = "\(attribute)=\"\(targetFile)#\(anchor)\""
+            let replacement = targetFile == currentFile
+                ? "\(attribute)=\"#\(anchor)\""
+                : "\(attribute)=\"\(targetFile)#\(anchor)\""
             if let range = Range(match.range, in: result) {
                 result.replaceSubrange(range, with: replacement)
             }
@@ -359,16 +342,13 @@ nonisolated enum MobiSplitter {
         }
         opf.replaceSubrange(refRange, with: spineReplacement)
 
-        opf = rewriteAttrTargets(in: opf, attribute: "href", sourceHref: sourceHref, anchorToFile: anchorToFile)
+        opf = rewriteAnchorTargets(in: opf, attribute: "href", sourceHref: sourceHref,
+                                   currentFile: nil, anchorToFile: anchorToFile)
 
         guard let updated = opf.data(using: .utf8),
               (try? XML(xml: updated, encoding: .utf8)) != nil else {
             return nil
         }
         return updated
-    }
-
-    private static func relativeHref(_ path: String) -> String {
-        path.hasPrefix("OEBPS/") ? String(path.dropFirst(6)) : path
     }
 }
