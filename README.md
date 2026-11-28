@@ -4,7 +4,7 @@
 
 # Rede
 
-一款开源、轻量、现代化的 EPUB 阅读器。
+一款开源、轻量、现代化的电子书阅读器。
 
 专为 macOS / iOS 中文阅读设计，支持 iCloud 同步。
 
@@ -22,7 +22,7 @@
 
 ## 功能
 
-- 书籍管理：导入和导出 EPUB、批量管理书籍、查看书籍元信息
+- 书籍管理：导入和导出 EPUB / AZW3 / MOBI、批量管理书籍、查看书籍元信息
 - 阅读样式：切换字体、调节行距/段距/页边距、切换单栏/双栏、深色模式/浅色模式、进度条
 - 内容标注：搜索、书签、高亮、笔记功能
 
@@ -52,13 +52,13 @@ Rede 的云同步功能不会收集您的任何信息，包括：
 
 ## Rede 的局限
 
-- 文件：仅支持 EPUB 格式，不支持 DRM/FXL EPUB、漫画或画册
+- 文件：仅支持 EPUB、AZW3、MOBI 格式，不支持 PDF、 DRM 加密书籍、固定版式（FXL / Print Replica）书籍、漫画或画册
 - 阅读：仅支持中文，不支持竖排，不支持上下滚动翻页
 - 同步：仅支持 iCloud 同步，不支持 WebDAV、OPDS 和 Calibre
 
-## 开发计划
+## 开发记录
 
-- [ ] 支持更多流式格式：azw3, mobi, fb2, txt 等
+- [x] 支持 AZW3 与 MOBI 格式（2026.11.28）
 
 ## 项目依赖
 
@@ -66,3 +66,4 @@ Rede 的云同步功能不会收集您的任何信息，包括：
 - [ZIPFoundation](https://github.com/weichsel/ZIPFoundation)
 - [Kanna](https://github.com/tid-kijyun/Kanna)
 - [Sparkle](https://github.com/sparkle-project/Sparkle)
+- [libmobi](https://github.com/bfabiszewski/libmobi) (LGPL-3.0)

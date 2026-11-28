@@ -257,6 +257,11 @@ extension ModelContainer {
     }()
 }
 
+struct ImportProgress: Equatable {
+    var completed: Int
+    var total: Int
+}
+
 enum BookImporter {
     private static let coverSize = 600
     nonisolated static let supportedExtensions: Set<String> = ["epub", "azw3", "mobi"]
@@ -267,56 +272,61 @@ enum BookImporter {
         return types
     }()
 
+    nonisolated private struct PreparedBook: Sendable {
+        let id: String
+        let name: String
+        let author: String
+        let sourceFormat: String?
+        let cover: Data?
+        let epubData: Data
+    }
+
     nonisolated static func supports(_ url: URL) -> Bool {
         supportedExtensions.contains(url.pathExtension.lowercased())
     }
 
-    static func importBooks(from urls: [URL], into context: ModelContext, category: BookCategory?) -> [String] {
+    static func importBooks(
+        from urls: [URL],
+        into context: ModelContext,
+        category: BookCategory?,
+        onStep: (() -> Void)? = nil
+    ) async -> [String] {
         var errors: [String] = []
         for url in urls {
             do {
-                try importBook(from: url, into: context, category: category)
+                try await importBook(from: url, into: context, category: category)
             } catch {
                 errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
             }
+            onStep?()
         }
         return errors
     }
 
     @discardableResult
     static func importBook(from source: URL, into context: ModelContext,
-                           category: BookCategory? = nil) throws -> Book {
-        let granted = source.startAccessingSecurityScopedResource()
-        defer { if granted { source.stopAccessingSecurityScopedResource() } }
-
-        let rawData = try Data(contentsOf: source)
-        let id = fileID(of: rawData)
+                           category: BookCategory? = nil) async throws -> Book {
+        let (id, rawData) = try await readSource(source)
         let existing = FetchDescriptor<Book>(predicate: #Predicate { $0.id == id })
         if let book = try context.fetch(existing).first {
             if let category { try BookCategories.assign([book], to: category, in: context) }
             return book
         }
 
-        let fileExtension = source.pathExtension.lowercased()
-        let data = try normalizedEpubData(from: rawData, fileExtension: fileExtension)
-        let epub = try parseEpub(data)
-        guard !epub.model.spine.isEmpty else { throw MobiConversionError.emptyContent }
-        let filename = source.deletingPathExtension().lastPathComponent
-        let metadataTitle = epub.model.metadata.title.trimmingCharacters(in: .whitespacesAndNewlines)
         #if os(macOS)
         let useMetadataTitle = Settings.shared.useMetadataTitle
         #else
         let useMetadataTitle = true
         #endif
-        let name = useMetadataTitle
-            ? (metadataTitle.isEmpty ? filename : metadataTitle)
-            : (filename.isEmpty ? metadataTitle : filename)
-        let book = Book(id: id,
-                        name: name,
-                        author: epub.model.metadata.author)
-        book.sourceFormat = fileExtension.isEmpty ? nil : fileExtension
-        book.cover = thumbnail(of: epub)
-        book.file = BookFile(data: data)
+
+        let prepared = try await buildBook(id: id, rawData: rawData, source: source,
+                                           useMetadataTitle: useMetadataTitle)
+        let book = Book(id: prepared.id,
+                        name: prepared.name,
+                        author: prepared.author)
+        book.sourceFormat = prepared.sourceFormat
+        book.cover = prepared.cover
+        book.file = BookFile(data: prepared.epubData)
 
         context.insert(book)
         book.assign(to: category)
@@ -325,7 +335,38 @@ enum BookImporter {
         return book
     }
 
-    private static func normalizedEpubData(from data: Data, fileExtension: String) throws -> Data {
+    @concurrent
+    nonisolated private static func readSource(_ source: URL) async throws -> (id: String, rawData: Data) {
+        let granted = source.startAccessingSecurityScopedResource()
+        defer { if granted { source.stopAccessingSecurityScopedResource() } }
+
+        let rawData = try Data(contentsOf: source)
+        return (fileID(of: rawData), rawData)
+    }
+
+    @concurrent
+    nonisolated private static func buildBook(id: String, rawData: Data, source: URL,
+                                              useMetadataTitle: Bool) async throws -> PreparedBook {
+        let fileExtension = source.pathExtension.lowercased()
+        let data = try normalizedEpubData(from: rawData, fileExtension: fileExtension)
+        let epub = try parseEpub(data)
+        guard !epub.model.spine.isEmpty else { throw MobiConversionError.emptyContent }
+        let filename = source.deletingPathExtension().lastPathComponent
+        let metadataTitle = epub.model.metadata.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = useMetadataTitle
+            ? (metadataTitle.isEmpty ? filename : metadataTitle)
+            : (filename.isEmpty ? metadataTitle : filename)
+        return PreparedBook(
+            id: id,
+            name: name,
+            author: epub.model.metadata.author,
+            sourceFormat: fileExtension.isEmpty ? nil : fileExtension,
+            cover: thumbnail(of: epub),
+            epubData: data
+        )
+    }
+
+    nonisolated private static func normalizedEpubData(from data: Data, fileExtension: String) throws -> Data {
         switch fileExtension {
         case "azw3", "mobi":
             return try MobiToEpub.convert(data)
@@ -334,14 +375,14 @@ enum BookImporter {
         }
     }
 
-    private static func fileID(of data: Data) -> String {
+    nonisolated private static func fileID(of data: Data) -> String {
         SHA256.hash(data: data)
             .prefix(4)
             .map { String(format: "%02x", $0) }
             .joined()
     }
 
-    private static func thumbnail(of epub: EpubBook) -> Data? {
+    nonisolated private static func thumbnail(of epub: EpubBook) -> Data? {
         guard let cover = epub.model.cover,
               let data = try? epub.fetcher.data(at: cover.path),
               let source = CGImageSourceCreateWithData(data as CFData, nil),

@@ -12,6 +12,7 @@ struct LibraryView: View {
     @State private var categoryToEdit: CategoryEdit?
     @State private var categoryToDelete: BookCategory?
     @State private var isImporting = false
+    @State private var importProgress: ImportProgress?
     @State private var errors: [String] = []
     @State private var booksToDelete: [Book] = []
     @State private var selection: Set<Book.ID> = []
@@ -154,6 +155,13 @@ struct LibraryView: View {
         }
         .navigationTitle(selectedCategory?.name ?? BookCategories.libraryName)
         .toolbar {
+            if let progress = importProgress {
+                ToolbarItem {
+                    ImportProgressRing(progress: progress)
+                }
+                .sharedBackgroundVisibility(.hidden)
+            }
+
             ToolbarItem {
                 SettingsLink {
                     Label("设置", systemImage: "gearshape")
@@ -231,10 +239,14 @@ struct LibraryView: View {
             Text(errors.joined(separator: "\n"))
         }
         .onOpenURL { url in
-            do {
-                open(try BookImporter.importBook(from: url, into: modelContext))
-            } catch {
-                errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+            Task {
+                beginImportProgress(count: 1)
+                defer { advanceImportProgress() }
+                do {
+                    open(try await BookImporter.importBook(from: url, into: modelContext))
+                } catch {
+                    errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+                }
             }
         }
     }
@@ -401,7 +413,29 @@ struct LibraryView: View {
     }
 
     private func importBooks(_ urls: [URL], category: BookCategory?) {
-        errors += BookImporter.importBooks(from: urls, into: modelContext, category: category)
+        guard !urls.isEmpty else { return }
+        beginImportProgress(count: urls.count)
+        Task {
+            let newErrors = await BookImporter.importBooks(from: urls, into: modelContext, category: category) {
+                advanceImportProgress()
+            }
+            errors += newErrors
+        }
+    }
+
+    private func beginImportProgress(count: Int) {
+        if var current = importProgress {
+            current.total += count
+            importProgress = current
+        } else {
+            importProgress = ImportProgress(completed: 0, total: count)
+        }
+    }
+
+    private func advanceImportProgress() {
+        guard var current = importProgress else { return }
+        current.completed += 1
+        importProgress = current.completed >= current.total ? nil : current
     }
 }
 

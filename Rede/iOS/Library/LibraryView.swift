@@ -13,6 +13,7 @@ struct LibraryView: View {
     @State private var categoryPanel: LibraryCategoryPanel?
     @Bindable private var settings = Settings.shared
     @State private var isImporting = false
+    @State private var importProgress: ImportProgress?
     @State private var showSettings = false
     @State private var errors: [String] = []
     @State private var booksToDelete: [Book] = []
@@ -125,6 +126,12 @@ struct LibraryView: View {
                     if !categories.isEmpty {
                         ToolbarTitleMenu { categoryOptions }
                     }
+                    if let progress = importProgress {
+                        ToolbarItem {
+                            ImportProgressRing(progress: progress)
+                        }
+                        .sharedBackgroundVisibility(.hidden)
+                    }
                     if SyncMonitor.shared.hasProblem {
                         ToolbarItem { SyncAlertButton() }
                         ToolbarSpacer(.fixed)
@@ -189,10 +196,14 @@ struct LibraryView: View {
                 Text(errors.joined(separator: "\n"))
             }
             .onOpenURL { url in
-                do {
-                    open(try BookImporter.importBook(from: url, into: modelContext))
-                } catch {
-                    errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+                Task {
+                    beginImportProgress(count: 1)
+                    defer { advanceImportProgress() }
+                    do {
+                        open(try await BookImporter.importBook(from: url, into: modelContext))
+                    } catch {
+                        errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+                    }
                 }
             }
             .fullScreenCover(isPresented: Binding(get: { session.reader != nil },
@@ -347,7 +358,30 @@ struct LibraryView: View {
     }
 
     private func importBooks(_ urls: [URL]) {
-        errors += BookImporter.importBooks(from: urls, into: modelContext, category: selectedCategory)
+        guard !urls.isEmpty else { return }
+        beginImportProgress(count: urls.count)
+        let category = selectedCategory
+        Task {
+            let newErrors = await BookImporter.importBooks(from: urls, into: modelContext, category: category) {
+                advanceImportProgress()
+            }
+            errors += newErrors
+        }
+    }
+
+    private func beginImportProgress(count: Int) {
+        if var current = importProgress {
+            current.total += count
+            importProgress = current
+        } else {
+            importProgress = ImportProgress(completed: 0, total: count)
+        }
+    }
+
+    private func advanceImportProgress() {
+        guard var current = importProgress else { return }
+        current.completed += 1
+        importProgress = current.completed >= current.total ? nil : current
     }
 }
 
