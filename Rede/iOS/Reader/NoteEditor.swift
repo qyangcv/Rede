@@ -2,14 +2,20 @@ import SwiftUI
 
 struct NoteEditor: View {
     let quote: String
+    let color: HighlightColor
     let onSave: (String) -> Void
+    let onChangeColor: (HighlightColor) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var text: String
 
-    init(quote: String, note: String, onSave: @escaping (String) -> Void) {
+    init(quote: String, note: String, color: HighlightColor,
+         onSave: @escaping (String) -> Void,
+         onChangeColor: @escaping (HighlightColor) -> Void) {
         self.quote = quote
+        self.color = color
         self.onSave = onSave
+        self.onChangeColor = onChangeColor
         _text = State(initialValue: note)
     }
 
@@ -22,8 +28,10 @@ struct NoteEditor: View {
                     .lineLimit(4)
                     .padding(.leading, 12)
                     .overlay(alignment: .leading) {
-                        Capsule().fill(Color.orange).frame(width: 3)
+                        Capsule().fill(color.accent).frame(width: 3)
                     }
+                HighlightColorDots(selection: color, size: 22, spacing: 12, onSelect: onChangeColor)
+                    .padding(.vertical, 2)
                 TextEditor(text: $text)
                     .scrollContentBackground(.hidden)
                     .overlay(alignment: .topLeading) {

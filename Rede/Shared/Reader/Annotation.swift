@@ -19,8 +19,10 @@ final class Annotation {
     var note: String = ""
     var created: Date = Date.now
     var tocID: String?
+    var colorRaw: String = HighlightColor.yellow.rawValue
 
-    init(bookID: String, kind: Kind, chapter: Int, start: Int, end: Int, text: String, tocID: String?) {
+    init(bookID: String, kind: Kind, chapter: Int, start: Int, end: Int, text: String, tocID: String?,
+         color: HighlightColor = .yellow) {
         self.bookID = bookID
         self.kindRaw = kind.rawValue
         self.chapter = chapter
@@ -28,9 +30,11 @@ final class Annotation {
         self.end = end
         self.text = text
         self.tocID = tocID
+        self.colorRaw = color.rawValue
     }
 
     var kind: Kind? { Kind(rawValue: kindRaw) }
+    var highlightColor: HighlightColor { HighlightColor(rawValue: colorRaw) ?? .yellow }
 }
 
 struct AnnotationMark: Equatable {
@@ -40,6 +44,7 @@ struct AnnotationMark: Equatable {
     let start: Int
     let end: Int
     let hasNote: Bool
+    let color: HighlightColor
 
     init?(_ annotation: Annotation) {
         guard let kind = annotation.kind else { return nil }
@@ -49,10 +54,19 @@ struct AnnotationMark: Equatable {
         start = annotation.start
         end = annotation.end
         hasNote = !annotation.note.isEmpty
+        color = annotation.highlightColor
     }
 
     var jsObject: [String: Any] {
-        ["id": id, "kind": kind.rawValue, "chapter": chapter, "start": start, "end": end, "note": hasNote]
+        [
+            "id": id,
+            "kind": kind.rawValue,
+            "chapter": chapter,
+            "start": start,
+            "end": end,
+            "note": hasNote,
+            "color": color.rawValue,
+        ]
     }
 }
 
@@ -103,11 +117,11 @@ final class AnnotationStore {
         save()
     }
 
-    func addHighlight(_ selection: TextSelection, tocID: String?) -> Annotation {
+    func addHighlight(_ selection: TextSelection, color: HighlightColor, tocID: String?) -> Annotation {
         if let merge = selection.merge,
            let existing = annotations().first(where: {
                $0.id == merge.id && $0.kind == .highlight && $0.chapter == selection.chapter &&
-               $0.start == merge.start && $0.end == merge.end
+               $0.start == merge.start && $0.end == merge.end && $0.highlightColor == color
            }) {
             if selection.start < existing.start {
                 existing.start = selection.start
@@ -120,10 +134,17 @@ final class AnnotationStore {
         }
 
         let annotation = Annotation(bookID: bookID, kind: .highlight, chapter: selection.chapter,
-                                    start: selection.start, end: selection.end, text: selection.text, tocID: tocID)
+                                    start: selection.start, end: selection.end, text: selection.text,
+                                    tocID: tocID, color: color)
         context.insert(annotation)
         save()
         return annotation
+    }
+
+    func setColor(_ color: HighlightColor, of annotation: Annotation) {
+        guard annotation.colorRaw != color.rawValue else { return }
+        annotation.colorRaw = color.rawValue
+        save()
     }
 
     func setNote(_ note: String, of annotation: Annotation) {

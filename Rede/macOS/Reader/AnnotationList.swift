@@ -3,8 +3,10 @@ import SwiftUI
 struct AnnotationList: View {
     let kind: Annotation.Kind
     let sections: [AnnotationSections.Section]
+    var isFiltered = false
     let progress: (Annotation) -> Double?
     let onSelect: (Annotation) -> Void
+    let onChangeColor: (Annotation, HighlightColor) -> Void
     let onDelete: (Annotation) -> Void
 
     var body: some View {
@@ -13,7 +15,11 @@ struct AnnotationList: View {
             case .bookmark:
                 EmptyState(title: "没有书签", systemImage: "bookmark", description: "按 ⌘D 添加本页书签")
             case .highlight:
-                EmptyState(title: "没有高亮与笔记", systemImage: "highlighter", description: "选中文字后右键添加高亮或笔记")
+                if isFiltered {
+                    EmptyState(title: "没有该颜色的高亮", systemImage: "highlighter", description: "切换其他颜色或选择「全部」查看")
+                } else {
+                    EmptyState(title: "没有高亮与笔记", systemImage: "highlighter", description: "选中文字后右键添加高亮或笔记")
+                }
             }
         } else {
             ScrollView {
@@ -33,6 +39,19 @@ struct AnnotationList: View {
                                 onSelect(annotation)
                             }
                             .contextMenu {
+                                if kind == .highlight {
+                                    Menu("更改颜色", systemImage: "paintpalette") {
+                                        ForEach(HighlightColor.allCases) { color in
+                                            Button {
+                                                onChangeColor(annotation, color)
+                                            } label: {
+                                                Label(color.name,
+                                                      systemImage: color == annotation.highlightColor ? "checkmark" : "circle.fill")
+                                            }
+                                        }
+                                    }
+                                    Divider()
+                                }
                                 Button(kind == .bookmark ? "移除书签" : annotation.note.isEmpty ? "移除高亮" : "移除高亮与笔记",
                                        systemImage: "trash", role: .destructive) {
                                     onDelete(annotation)
@@ -56,10 +75,11 @@ private struct AnnotationRow: View {
     @State private var isHovering = false
 
     var body: some View {
+        let accent = annotation.highlightColor.accent
         Button(action: action) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: isBookmark ? "bookmark.fill" : "highlighter")
-                    .foregroundStyle(isBookmark ? Color.red : Color.orange)
+                    .foregroundStyle(isBookmark ? Color.red : accent)
                     .frame(width: 14)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(annotation.text.isEmpty ? (isBookmark ? "插图页" : "插图") : annotation.text)
@@ -71,7 +91,7 @@ private struct AnnotationRow: View {
                             .lineLimit(3)
                             .padding(.leading, 8)
                             .overlay(alignment: .leading) {
-                                Capsule().fill(Color.orange).frame(width: 2)
+                                Capsule().fill(accent).frame(width: 2)
                             }
                     }
                     HStack(spacing: 8) {

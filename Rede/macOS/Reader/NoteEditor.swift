@@ -8,17 +8,24 @@ struct NoteTarget: Identifiable {
 struct NoteEditor: View {
     let quote: String
     let hasNote: Bool
+    let color: HighlightColor
     let onSave: (String) -> Void
+    let onChangeColor: (HighlightColor) -> Void
     let onDelete: () -> Void
 
     @State private var text: String
     @State private var deleted = false
     @FocusState private var focused: Bool
 
-    init(quote: String, note: String, onSave: @escaping (String) -> Void, onDelete: @escaping () -> Void) {
+    init(quote: String, note: String, color: HighlightColor,
+         onSave: @escaping (String) -> Void,
+         onChangeColor: @escaping (HighlightColor) -> Void,
+         onDelete: @escaping () -> Void) {
         self.quote = quote
         self.hasNote = !note.isEmpty
+        self.color = color
         self.onSave = onSave
+        self.onChangeColor = onChangeColor
         self.onDelete = onDelete
         _text = State(initialValue: note)
     }
@@ -31,7 +38,7 @@ struct NoteEditor: View {
                 .lineLimit(3)
                 .padding(.leading, 10)
                 .overlay(alignment: .leading) {
-                    Capsule().fill(Color.orange).frame(width: 3)
+                    Capsule().fill(color.accent).frame(width: 3)
                 }
             TextEditor(text: $text)
                 .font(.body)
@@ -40,6 +47,7 @@ struct NoteEditor: View {
                 .frame(height: 140)
             Divider()
             HStack {
+                HighlightColorDots(selection: color, size: 14, spacing: 8, onSelect: onChangeColor)
                 Spacer()
                 Button(role: .destructive) {
                     deleted = true

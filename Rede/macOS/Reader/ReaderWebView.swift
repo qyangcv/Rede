@@ -114,9 +114,16 @@ extension Reader {
         guard let onAnnotationAction else { return }
         var items: [NSMenuItem]
         if let hit = contextHighlight {
+            let currentColor = highlightColor(of: hit.id)
             items = [
-                ActionMenuItem(title: hasNote(hit.id) ? "移除高亮与笔记" : "移除高亮") { onAnnotationAction(.delete(id: hit.id)) },
+                HighlightColorMenuItem(selected: currentColor) { color in
+                    if color != currentColor {
+                        onAnnotationAction(.setColor(id: hit.id, color))
+                    }
+                },
+                .separator(),
                 ActionMenuItem(title: hasNote(hit.id) ? "查看笔记" : "添加笔记") { onAnnotationAction(.editNote(hit)) },
+                ActionMenuItem(title: hasNote(hit.id) ? "移除高亮与笔记" : "移除高亮") { onAnnotationAction(.delete(id: hit.id)) },
             ]
             if menu.items.isEmpty, let onCopyHighlight {
                 items.append(.separator())
@@ -124,8 +131,11 @@ extension Reader {
             }
         } else if selecting {
             items = [
-                ActionMenuItem(title: "高亮") { onAnnotationAction(.highlightSelection) },
-                ActionMenuItem(title: "添加笔记") { onAnnotationAction(.noteSelection) },
+                HighlightColorMenuItem(selected: nil) { color in
+                    onAnnotationAction(.highlightSelection(color))
+                },
+                .separator(),
+                ActionMenuItem(title: "添加笔记") { onAnnotationAction(.noteSelection(Settings.shared.highlightColor)) },
             ]
         } else {
             return
@@ -161,5 +171,110 @@ final class ActionMenuItem: NSMenuItem {
 
     @objc private func invoke() {
         handler()
+    }
+}
+
+private final class HighlightColorMenuItem: NSMenuItem {
+    init(selected: HighlightColor?, onSelect: @escaping (HighlightColor) -> Void) {
+        super.init(title: "高亮颜色", action: nil, keyEquivalent: "")
+        view = HighlightColorMenuView(selected: selected, onSelect: onSelect)
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+}
+
+private final class HighlightColorMenuView: NSView {
+    private static let dotSize: CGFloat = 14
+    private static let slotSize: CGFloat = 20
+    private static let spacing: CGFloat = 2
+    private static let horizontalInset: CGFloat = 12
+    private static let verticalInset: CGFloat = 4
+
+    init(selected: HighlightColor?, onSelect: @escaping (HighlightColor) -> Void) {
+        let count = CGFloat(HighlightColor.allCases.count)
+        let width = Self.horizontalInset * 2 + count * Self.slotSize + (count - 1) * Self.spacing
+        let height = Self.verticalInset * 2 + Self.slotSize
+        super.init(frame: NSRect(x: 0, y: 0, width: width, height: height))
+
+        for (index, color) in HighlightColor.allCases.enumerated() {
+            let x = Self.horizontalInset + CGFloat(index) * (Self.slotSize + Self.spacing)
+            let button = HighlightSwatchControl(
+                color: color,
+                isSelected: color == selected,
+                dotSize: Self.dotSize,
+                frame: NSRect(x: x, y: Self.verticalInset, width: Self.slotSize, height: Self.slotSize)
+            ) { [weak self] in
+                self?.enclosingMenuItem?.menu?.cancelTracking()
+                onSelect(color)
+            }
+            addSubview(button)
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+}
+
+private final class HighlightSwatchControl: NSView {
+    private let color: HighlightColor
+    private let isSelected: Bool
+    private let dotSize: CGFloat
+    private let onClick: () -> Void
+    private var isHovering = false
+
+    init(color: HighlightColor, isSelected: Bool, dotSize: CGFloat, frame: NSRect, onClick: @escaping () -> Void) {
+        self.color = color
+        self.isSelected = isSelected
+        self.dotSize = dotSize
+        self.onClick = onClick
+        super.init(frame: frame)
+        toolTip = color.name
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        setAccessibilityLabel(color.name)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas { removeTrackingArea(area) }
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isHovering = true
+        needsDisplay = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovering = false
+        needsDisplay = true
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if bounds.contains(point) {
+            onClick()
+        }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let size = isHovering ? dotSize + 1.5 : dotSize
+        let dotRect = NSRect(x: (bounds.width - size) / 2, y: (bounds.height - size) / 2, width: size, height: size)
+        let dotPath = NSBezierPath(ovalIn: dotRect)
+        NSColor(color.swatch).setFill()
+        dotPath.fill()
+
+        if isSelected {
+            let check = NSBezierPath()
+            check.move(to: NSPoint(x: dotRect.minX + size * 0.28, y: dotRect.minY + size * 0.50))
+            check.line(to: NSPoint(x: dotRect.minX + size * 0.44, y: dotRect.minY + size * 0.34))
+            check.line(to: NSPoint(x: dotRect.minX + size * 0.73, y: dotRect.minY + size * 0.66))
+            check.lineWidth = 1.6
+            check.lineCapStyle = .round
+            check.lineJoinStyle = .round
+            NSColor.white.setStroke()
+            check.stroke()
+        }
     }
 }

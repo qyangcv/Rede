@@ -56,3 +56,61 @@ private struct BackgroundSwatch: View {
         .help(name)
     }
 }
+
+struct HighlightColorDots: View {
+    let selection: HighlightColor?
+    var size: CGFloat = 14
+    var spacing: CGFloat = 8
+    let onSelect: (HighlightColor) -> Void
+
+    var body: some View {
+        HStack(spacing: spacing) {
+            ForEach(HighlightColor.allCases) { color in
+                let selected = color == selection
+                Button {
+                    onSelect(color)
+                } label: {
+                    Circle()
+                        .fill(color.swatch)
+                        .overlay {
+                            if selected {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: size * 0.52, weight: .bold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .frame(width: size, height: size)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help(color.name)
+                .accessibilityLabel(color.name)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+    }
+}
+
+struct HighlightColorFilterBar: View {
+    @Binding var selection: HighlightColor?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button {
+                selection = nil
+            } label: {
+                Text("全部")
+                    .font(.caption.weight(selection == nil ? .semibold : .regular))
+                    .foregroundStyle(selection == nil ? .primary : .secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(selection == nil ? Color.primary.opacity(0.1) : .clear, in: Capsule())
+            }
+            .buttonStyle(.plain)
+
+            HighlightColorDots(selection: selection, size: 13, spacing: 6) { color in
+                selection = selection == color ? nil : color
+            }
+        }
+    }
+}

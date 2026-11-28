@@ -111,6 +111,7 @@ struct MarginNotesLayout: Equatable {
 struct MarginNoteItem: Identifiable, Equatable {
     let id: String
     let note: String
+    let color: HighlightColor
     let anchorMidY: CGFloat
     let midX: Double
     let widthRatio: Double
@@ -122,6 +123,7 @@ struct MarginNotesOverlay: View {
     @Binding var editingID: String?
     @Binding var hoveredID: String?
     let onSave: (String, String) -> Void
+    let onChangeColor: (String, HighlightColor) -> Void
     let onDelete: (String) -> Void
     let onFinishEditing: () -> Void
 
@@ -189,6 +191,9 @@ struct MarginNotesOverlay: View {
                     onSave: { text in
                         onSave(item.id, text)
                     },
+                    onChangeColor: { color in
+                        onChangeColor(item.id, color)
+                    },
                     onDelete: {
                         if editingID == item.id { editingID = nil }
                         if hoveredID == item.id { hoveredID = nil }
@@ -220,6 +225,7 @@ private struct MarginNoteCard: View {
     let onHover: (Bool) -> Void
     let onStartEditing: () -> Void
     let onSave: (String) -> Void
+    let onChangeColor: (HighlightColor) -> Void
     let onDelete: () -> Void
     let onFinishEditing: () -> Void
 
@@ -229,8 +235,8 @@ private struct MarginNoteCard: View {
 
     init(item: MarginNoteItem, side: MarginSide, isEditing: Bool, isHovered: Bool,
          onHover: @escaping (Bool) -> Void, onStartEditing: @escaping () -> Void,
-         onSave: @escaping (String) -> Void, onDelete: @escaping () -> Void,
-         onFinishEditing: @escaping () -> Void) {
+         onSave: @escaping (String) -> Void, onChangeColor: @escaping (HighlightColor) -> Void,
+         onDelete: @escaping () -> Void, onFinishEditing: @escaping () -> Void) {
         self.item = item
         self.side = side
         self.isEditing = isEditing
@@ -238,6 +244,7 @@ private struct MarginNoteCard: View {
         self.onHover = onHover
         self.onStartEditing = onStartEditing
         self.onSave = onSave
+        self.onChangeColor = onChangeColor
         self.onDelete = onDelete
         self.onFinishEditing = onFinishEditing
         _draft = State(initialValue: item.note)
@@ -254,7 +261,7 @@ private struct MarginNoteCard: View {
 
     private var accentBar: some View {
         Capsule()
-            .fill(Color.orange.opacity(isHovered ? 0.95 : 0.6))
+            .fill(item.color.accent.opacity(isHovered ? 0.95 : 0.6))
             .frame(width: 2)
             .padding(.vertical, 2)
     }
@@ -288,6 +295,16 @@ private struct MarginNoteCard: View {
         .onHover(perform: onHover)
         .contextMenu {
             Button("编辑笔记", systemImage: "pencil", action: onStartEditing)
+            Menu("更改颜色", systemImage: "paintpalette") {
+                ForEach(HighlightColor.allCases) { color in
+                    Button {
+                        onChangeColor(color)
+                    } label: {
+                        Label(color.name, systemImage: color == item.color ? "checkmark" : "circle.fill")
+                    }
+                }
+            }
+            Divider()
             Button("移除高亮与笔记", systemImage: "trash", role: .destructive, action: onDelete)
         }
     }
@@ -310,7 +327,11 @@ private struct MarginNoteCard: View {
                 )
                 .frame(height: 84)
             }
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
+                HighlightColorDots(selection: item.color, size: 12, spacing: 6, onSelect: onChangeColor)
+
+                Spacer(minLength: 4)
+
                 Button(role: .destructive) {
                     deleted = true
                     onDelete()
@@ -321,8 +342,6 @@ private struct MarginNoteCard: View {
                 .controlSize(.small)
                 .help(item.note.isEmpty ? "移除高亮" : "移除高亮与笔记")
                 .accessibilityLabel(item.note.isEmpty ? "移除高亮" : "移除高亮与笔记")
-
-                Spacer()
 
                 Button(action: commit) {
                     Image(systemName: "checkmark")
@@ -337,6 +356,12 @@ private struct MarginNoteCard: View {
         .fixedSize(horizontal: false, vertical: true)
         .padding(8)
         .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(alignment: side == .leading ? .trailing : .leading) {
+            Capsule()
+                .fill(item.color.accent.opacity(0.85))
+                .frame(width: 2)
+                .padding(.vertical, 8)
+        }
         .onAppear {
             draft = item.note
             hasInput = !item.note.isEmpty

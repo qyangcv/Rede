@@ -71,13 +71,71 @@ enum LinkColor {
     static let dark = "#7EC4E6"
 }
 
-enum HighlightColor {
-    static func color(for scheme: ColorScheme) -> String {
-        scheme == .dark ? "rgba(255, 200, 60, 0.28)" : "rgba(255, 204, 0, 0.48)"
+enum HighlightColor: String, CaseIterable, Identifiable, Codable {
+    case yellow, green, blue, pink, purple
+
+    var id: Self { self }
+
+    var name: String {
+        switch self {
+        case .yellow: "鹅黄"
+        case .green: "竹绿"
+        case .blue: "霁蓝"
+        case .pink: "绯粉"
+        case .purple: "丁香紫"
+        }
     }
 
-    static func note(for scheme: ColorScheme) -> String {
-        scheme == .dark ? "#E0A030" : "#D08000"
+    func color(for scheme: ColorScheme) -> String {
+        switch (self, scheme) {
+        case (.yellow, .dark): "rgba(255, 200, 60, 0.28)"
+        case (.yellow, _): "rgba(255, 204, 0, 0.48)"
+        case (.green, .dark): "rgba(74, 198, 128, 0.26)"
+        case (.green, _): "rgba(76, 195, 120, 0.38)"
+        case (.blue, .dark): "rgba(88, 166, 255, 0.28)"
+        case (.blue, _): "rgba(82, 168, 245, 0.36)"
+        case (.pink, .dark): "rgba(245, 118, 152, 0.28)"
+        case (.pink, _): "rgba(242, 112, 146, 0.34)"
+        case (.purple, .dark): "rgba(182, 138, 252, 0.28)"
+        case (.purple, _): "rgba(174, 126, 242, 0.34)"
+        }
+    }
+
+    func note(for scheme: ColorScheme) -> String {
+        switch (self, scheme) {
+        case (.yellow, .dark): "#E0A030"
+        case (.yellow, _): "#D08000"
+        case (.green, .dark): "#62C48A"
+        case (.green, _): "#2B8A52"
+        case (.blue, .dark): "#6AAFE6"
+        case (.blue, _): "#2B74B8"
+        case (.pink, .dark): "#E87A9A"
+        case (.pink, _): "#C44B6C"
+        case (.purple, .dark): "#BA94F5"
+        case (.purple, _): "#7B4EC2"
+        }
+    }
+
+    var swatchHex: String {
+        switch self {
+        case .yellow: "#F5C838"
+        case .green: "#4CC378"
+        case .blue: "#52A8F5"
+        case .pink: "#F27092"
+        case .purple: "#AE7EF2"
+        }
+    }
+
+    var swatch: Color { Color(hex: swatchHex) }
+
+    var accent: Color {
+        switch self {
+        case .yellow: Color(hex: "#E0A030")
+        case .green: Color(hex: "#3DA869")
+        case .blue: Color(hex: "#4595E0")
+        case .pink: Color(hex: "#DF6285")
+        case .purple: Color(hex: "#9B6CE0")
+        }
     }
 }
 
@@ -112,7 +170,7 @@ struct ReaderStyle: Equatable {
     func cssVariables(for scheme: ColorScheme) -> [String: String] {
         let text = TextColor.color(for: scheme)
         let forced = scheme == .dark
-        return [
+        var vars: [String: String] = [
             "--USER__fontSize": "\(fontScale)%",
             "--USER__fontFamily": font.family ?? "",
             "--USER__fontWeight": fontWeight.map(String.init) ?? "",
@@ -123,9 +181,12 @@ struct ReaderStyle: Equatable {
             "--USER__linkColor": forced ? LinkColor.dark : "",
             "--USER__visitedColor": forced ? LinkColor.dark : "",
             "--reader-bg": background.color(for: scheme),
-            "--reader-highlight": HighlightColor.color(for: scheme),
-            "--reader-note": HighlightColor.note(for: scheme),
         ]
+        for color in HighlightColor.allCases {
+            vars["--reader-highlight-\(color.rawValue)"] = color.color(for: scheme)
+            vars["--reader-note-\(color.rawValue)"] = color.note(for: scheme)
+        }
+        return vars
     }
 }
 

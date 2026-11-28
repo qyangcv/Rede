@@ -166,10 +166,16 @@ final class ReaderSession {
 
     func perform(_ action: AnnotationAction, editNote: @escaping (String, CGRect) -> Void) {
         switch action {
-        case .highlightSelection:
-            highlightSelection()
-        case .noteSelection:
-            highlightSelection(then: editNote)
+        case .highlightSelection(let color):
+            Settings.shared.highlightColor = color
+            highlightSelection(color: color)
+        case .noteSelection(let color):
+            Settings.shared.highlightColor = color
+            highlightSelection(color: color, then: editNote)
+        case .setColor(let id, let color):
+            if let annotation = annotation(id: id) {
+                setColor(color, of: annotation)
+            }
         case .editNote(let hit):
             editNote(hit.id, hit.rect.cgRect)
         case .delete(let id):
@@ -177,12 +183,12 @@ final class ReaderSession {
         }
     }
 
-    private func highlightSelection(then created: ((String, CGRect) -> Void)? = nil) {
+    private func highlightSelection(color: HighlightColor, then created: ((String, CGRect) -> Void)? = nil) {
         guard let reader, let annotationStore else { return }
         Task {
             guard let selection = await reader.takeSelection(), self.reader === reader else { return }
             let tocID = reader.tocItem(chapter: selection.chapter, offset: selection.start, anchors: selection.anchors)?.id
-            let annotation = annotationStore.addHighlight(selection, tocID: tocID)
+            let annotation = annotationStore.addHighlight(selection, color: color, tocID: tocID)
             pushAnnotations()
             created?(annotation.id, selection.rect.cgRect)
         }
@@ -190,6 +196,12 @@ final class ReaderSession {
 
     func annotation(id: String) -> Annotation? {
         annotations.first { $0.id == id }
+    }
+
+    func setColor(_ color: HighlightColor, of annotation: Annotation) {
+        Settings.shared.highlightColor = color
+        annotationStore?.setColor(color, of: annotation)
+        pushAnnotations()
     }
 
     func setNote(_ note: String, of annotation: Annotation) {

@@ -48,6 +48,7 @@ final class Settings {
     }
 
     var pageTransition: PageTransition { didSet { save() } }
+    var highlightColor: HighlightColor { didSet { save() } }
 
     #if os(macOS)
     static let readerPageMarginRange = 3...30
@@ -90,6 +91,7 @@ final class Settings {
         var readerStyle: ReaderStyle?
         var appearance: Appearance?
         var pageTransition: PageTransition?
+        var highlightColor: HighlightColor?
         #if os(macOS)
         var readerTitle: ReaderTitle?
         var readerWindowMode: ReaderWindowMode?
@@ -116,6 +118,7 @@ final class Settings {
         readerStyle = snapshot?.readerStyle ?? .default
         appearance = snapshot?.appearance ?? .system
         pageTransition = snapshot?.pageTransition ?? .default
+        highlightColor = snapshot?.highlightColor ?? .yellow
         #if os(macOS)
         readerTitle = snapshot?.readerTitle ?? .chapter
         readerWindowMode = snapshot?.readerWindowMode ?? .single
@@ -144,6 +147,7 @@ final class Settings {
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             var snapshot = Snapshot(readerStyle: readerStyle, appearance: appearance,
                                     pageTransition: pageTransition,
+                                    highlightColor: highlightColor,
                                     libraryLayout: libraryLayout, librarySort: librarySorting.key,
                                     libraryOrder: librarySorting.order,
                                     iCloudSync: iCloudSync)

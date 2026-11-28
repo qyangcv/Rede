@@ -168,8 +168,10 @@ private struct ReaderWindowContent: View {
             .popover(item: $noteTarget, attachmentAnchor: .rect(.rect(noteTarget?.rect ?? .zero)),
                      arrowEdge: .bottom) { target in
                 if let annotation = session.annotation(id: target.id) {
-                    NoteEditor(quote: annotation.text, note: annotation.note) {
+                    NoteEditor(quote: annotation.text, note: annotation.note, color: annotation.highlightColor) {
                         session.setNote($0, of: annotation)
+                    } onChangeColor: {
+                        session.setColor($0, of: annotation)
                     } onDelete: {
                         noteTarget = nil
                         session.deleteAnnotation(id: annotation.id)
@@ -231,6 +233,10 @@ private struct ReaderWindowContent: View {
                         onSave: { id, text in
                             guard let annotation = session.annotation(id: id) else { return }
                             session.setNote(text, of: annotation)
+                        },
+                        onChangeColor: { id, color in
+                            guard let annotation = session.annotation(id: id) else { return }
+                            session.setColor(color, of: annotation)
                         },
                         onDelete: { id in
                             pendingMarginAnchors.removeValue(forKey: id)
@@ -341,6 +347,7 @@ private struct ReaderWindowContent: View {
                   !annotation.note.isEmpty || editingMarginNoteID == anchor.id else { continue }
             seen.insert(anchor.id)
             items.append(MarginNoteItem(id: anchor.id, note: annotation.note,
+                                        color: annotation.highlightColor,
                                         anchorMidY: CGFloat((anchor.top + anchor.bottom) / 2),
                                         midX: anchor.midX, widthRatio: anchor.widthRatio))
         }
@@ -348,6 +355,7 @@ private struct ReaderWindowContent: View {
            let pending = pendingMarginAnchors[editingID],
            let annotation = session.annotation(id: editingID) {
             items.append(MarginNoteItem(id: editingID, note: annotation.note,
+                                        color: annotation.highlightColor,
                                         anchorMidY: pending.midY,
                                         midX: pending.midX, widthRatio: pending.widthRatio))
         }
@@ -449,6 +457,8 @@ private struct ReaderWindowContent: View {
                                         kind: $annotationKind, progress: session.progress(of:)) { annotation in
                             closeDrawer()
                             session.jump(to: annotation)
+                        } onChangeColor: { annotation, color in
+                            session.setColor(color, of: annotation)
                         } onDelete: { annotation in
                             session.deleteAnnotation(id: annotation.id)
                         }

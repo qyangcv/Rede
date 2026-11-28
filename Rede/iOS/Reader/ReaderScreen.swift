@@ -15,7 +15,11 @@ struct ReaderScreen: View {
     @State private var chromeVisible = false
     @State private var showsJumpBar = false
     @State private var panel: Panel?
+    @State private var highlightMenu: HighlightHit?
+    @State private var selectionRect: CGRect?
+    @State private var pendingSelectionRect: CGRect?
     @State private var annotationKind = Annotation.Kind.bookmark
+    @State private var highlightColorFilter: HighlightColor?
     @State private var styleHeight: CGFloat?
     @State private var dismissal = Dismissal()
     @Environment(\.scenePhase) private var scenePhase
@@ -27,7 +31,8 @@ struct ReaderScreen: View {
     var body: some View {
         if let reader = session.reader, let turner = session.turner {
             ReaderView(reader: reader, pages: turner.pages)
-                .gesture(dismissal.gesture(for: reader.webView, shouldBegin: { panel == nil && !reader.selecting },
+                .gesture(dismissal.gesture(for: reader.webView,
+                                           shouldBegin: { panel == nil && highlightMenu == nil && selectionRect == nil && !reader.selecting },
                                            onClose: session.close))
                 .overlay {
                     PageDecor(chapter: (chromeVisible || jumpBarVisible) ? nil : session.chapter, page: session.page)
@@ -54,9 +59,54 @@ struct ReaderScreen: View {
                             .transition(.opacity)
                     }
                 }
+                .overlay {
+                    if let hit = highlightMenu, let annotation = session.annotation(id: hit.id) {
+                        HighlightActionOverlay(
+                            rect: hit.rect.cgRect,
+                            color: annotation.highlightColor,
+                            hasNote: !annotation.note.isEmpty,
+                            background: settings.readerStyle.background,
+                            onSelectColor: { color in
+                                if color != annotation.highlightColor {
+                                    perform(.setColor(id: hit.id, color))
+                                }
+                            },
+                            onNote: {
+                                highlightMenu = nil
+                                perform(.editNote(hit))
+                            },
+                            onDelete: {
+                                highlightMenu = nil
+                                perform(.delete(id: hit.id))
+                            }
+                        )
+                        .id(hit.id)
+                        .transition(.opacity)
+                    } else if let rect = selectionRect {
+                        SelectionActionOverlay(
+                            rect: rect,
+                            background: settings.readerStyle.background,
+                            onHighlight: { color in
+                                clearSelectionMenu()
+                                perform(.highlightSelection(color))
+                            },
+                            onNote: {
+                                clearSelectionMenu()
+                                perform(.noteSelection(Settings.shared.highlightColor))
+                            },
+                            onCopy: {
+                                clearSelectionMenu()
+                                copySelection(from: reader)
+                            }
+                        )
+                        .transition(.opacity)
+                    }
+                }
                 .overlay { dimmer }
                 .animation(.easeInOut(duration: 0.2), value: chromeVisible)
                 .animation(.easeInOut(duration: 0.2), value: jumpBarVisible)
+                .animation(.easeOut(duration: 0.16), value: highlightMenu)
+                .animation(.easeOut(duration: 0.16), value: selectionRect != nil)
                 .background {
                     settings.readerStyle.background.swatch(for: colorScheme)
                         .ignoresSafeArea()
@@ -75,10 +125,27 @@ struct ReaderScreen: View {
                     reader.onTurn = {
                         chromeVisible = false
                         showsJumpBar = false
+                        highlightMenu = nil
+                        clearSelectionMenu()
                         panel = nil
                     }
+                    reader.webView.onTouchChange = { touching in
+                        guard pendingSelectionRect != nil || selectionRect != nil else { return }
+                        selectionRect = touching ? nil : pendingSelectionRect
+                    }
+                    reader.onSelectionRect = { [weak reader] rect in
+                        pendingSelectionRect = rect
+                        if rect != nil {
+                            highlightMenu = nil
+                        }
+                        selectionRect = (reader?.webView.isTouching ?? false) ? nil : rect
+                    }
                 }
-                .onDisappear { UIDevice.current.isBatteryMonitoringEnabled = false }
+                .onDisappear {
+                    reader.webView.onTouchChange = nil
+                    reader.onSelectionRect = nil
+                    UIDevice.current.isBatteryMonitoringEnabled = false
+                }
                 .onChange(of: session.jumpCount) {
                     if !chromeVisible, session.history.canGoBack {
                         showsJumpBar = true
@@ -182,7 +249,10 @@ struct ReaderScreen: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         case .annotations:
-            let annotations = annotationKind == .bookmark ? session.bookmarks : session.highlights
+            let filteredHighlights = highlightColorFilter.map { filter in
+                session.highlights.filter { $0.highlightColor == filter }
+            } ?? session.highlights
+            let annotations = annotationKind == .bookmark ? session.bookmarks : filteredHighlights
             VStack(spacing: 0) {
                 PanelHeader(title: "标注") {
                     if annotationKind == .bookmark {
@@ -202,11 +272,19 @@ struct ReaderScreen: View {
                 .labelsHidden()
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
+                if annotationKind == .highlight, !session.highlights.isEmpty {
+                    HighlightColorFilterBar(selection: $highlightColorFilter)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                }
                 AnnotationList(kind: annotationKind,
                                sections: AnnotationSections(toc: reader.toc).sections(for: annotations),
+                               isFiltered: annotationKind == .highlight && highlightColorFilter != nil,
                                progress: session.progress(of:)) { annotation in
                     panel = nil
                     session.jump(to: annotation)
+                } onChangeColor: { annotation, color in
+                    session.setColor(color, of: annotation)
                 } onDelete: { annotation in
                     session.deleteAnnotation(id: annotation.id)
                 }
@@ -217,8 +295,12 @@ struct ReaderScreen: View {
             .presentationDragIndicator(.visible)
         case .note(let id):
             if let annotation = session.annotation(id: id) {
-                NoteEditor(quote: annotation.text, note: annotation.note) { session.setNote($0, of: annotation) }
-                    .presentationDetents([.medium, .large])
+                NoteEditor(quote: annotation.text, note: annotation.note, color: annotation.highlightColor) {
+                    session.setNote($0, of: annotation)
+                } onChangeColor: {
+                    session.setColor($0, of: annotation)
+                }
+                .presentationDetents([.medium, .large])
             }
         case .style:
             StyleSheet(style: $settings.readerStyle, appearance: $settings.appearance,
@@ -233,28 +315,35 @@ struct ReaderScreen: View {
     private func handle(_ gesture: ReaderGesture) {
         switch gesture {
         case .tap(let x):
-            if chromeVisible { chromeVisible = false; showsJumpBar = false }
+            if highlightMenu != nil { highlightMenu = nil }
+            else if chromeVisible { chromeVisible = false; showsJumpBar = false }
             else if x < Self.edge { session.turner?.turn(.prev) }
             else if x > 1 - Self.edge { session.turner?.turn(.next) }
             else if panel != nil { panel = nil; chromeVisible = true; showsJumpBar = false }
             else { chromeVisible = true; showsJumpBar = false }
         case .turn(let direction):
+            highlightMenu = nil
             session.turner?.turn(direction)
         case .highlight(let hit):
             if chromeVisible { chromeVisible = false; return }
-            let hasNote = session.reader?.hasNote(hit.id) ?? false
-            let note = UIAction(title: hasNote ? "查看笔记" : "添加笔记", image: UIImage(systemName: "square.and.pencil")) { _ in
-                perform(.editNote(hit))
-            }
-            let delete = UIAction(title: hasNote ? "移除高亮与笔记" : "移除高亮", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in
-                perform(.delete(id: hit.id))
-            }
-            session.reader?.webView.presentMenu(UIMenu(children: [note, delete]), at: hit.rect.cgRect)
+            highlightMenu = highlightMenu?.id == hit.id ? nil : hit
         }
     }
 
     private func perform(_ action: AnnotationAction) {
         session.perform(action) { id, _ in panel = .note(id) }
+    }
+
+    private func clearSelectionMenu() {
+        pendingSelectionRect = nil
+        selectionRect = nil
+    }
+
+    private func copySelection(from reader: Reader) {
+        Task {
+            guard let selection = await reader.takeSelection() else { return }
+            UIPasteboard.general.string = selection.text
+        }
     }
 }
 
@@ -273,6 +362,115 @@ private struct PanelHeader<Trailing: View>: View {
             .padding(.vertical, 10)
             Divider()
         }
+    }
+}
+
+private struct HighlightActionOverlay: View {
+    let rect: CGRect
+    let color: HighlightColor
+    let hasNote: Bool
+    let background: BackgroundColor
+    let onSelectColor: (HighlightColor) -> Void
+    let onNote: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HighlightAnchorLayout(rect: rect, topEdge: max(CGFloat(ReaderLayout.marginTop), 56)) {
+            HStack(spacing: 12) {
+                HighlightColorDots(selection: color, size: 20, spacing: 10, onSelect: onSelectColor)
+
+                Divider().frame(height: 18)
+
+                Button(action: onNote) {
+                    Image(systemName: hasNote ? "text.bubble" : "square.and.pencil")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .frame(width: 28, height: 32)
+                        .contentShape(.rect)
+                }
+                .accessibilityLabel(hasNote ? "查看笔记" : "添加笔记")
+
+                Button(role: .destructive, action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.red)
+                        .frame(width: 28, height: 32)
+                        .contentShape(.rect)
+                }
+                .accessibilityLabel(hasNote ? "移除高亮与笔记" : "移除高亮")
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .barBackground(in: .capsule, background: background)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+private struct SelectionActionOverlay: View {
+    let rect: CGRect
+    let background: BackgroundColor
+    let onHighlight: (HighlightColor) -> Void
+    let onNote: () -> Void
+    let onCopy: () -> Void
+
+    var body: some View {
+        HighlightAnchorLayout(rect: rect, topEdge: max(CGFloat(ReaderLayout.marginTop), 56)) {
+            HStack(spacing: 12) {
+                HighlightColorDots(selection: nil, size: 20, spacing: 10, onSelect: onHighlight)
+
+                Divider().frame(height: 18)
+
+                Button(action: onNote) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .frame(width: 28, height: 32)
+                        .contentShape(.rect)
+                }
+                .accessibilityLabel("笔记")
+
+                Button(action: onCopy) {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .frame(width: 28, height: 32)
+                        .contentShape(.rect)
+                }
+                .accessibilityLabel("拷贝")
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .barBackground(in: .capsule, background: background)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+private struct HighlightAnchorLayout: Layout {
+    let rect: CGRect
+    let topEdge: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions()
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let subview = subviews.first else { return }
+        let size = subview.sizeThatFits(.unspecified)
+        let halfW = size.width / 2
+        let halfH = size.height / 2
+        let minX = bounds.minX + halfW + 12
+        let maxX = max(minX, bounds.maxX - halfW - 12)
+        let x = min(max(bounds.minX + rect.midX, minX), maxX)
+        let aboveY = bounds.minY + rect.minY - halfH - 10
+        let belowY = bounds.minY + rect.maxY + halfH + 10
+        let y = aboveY - halfH >= bounds.minY + topEdge + 8
+            ? aboveY
+            : min(belowY, bounds.maxY - halfH - 12)
+        subview.place(at: CGPoint(x: x, y: y), anchor: .center, proposal: ProposedViewSize(size))
     }
 }
 

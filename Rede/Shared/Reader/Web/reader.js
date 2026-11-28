@@ -120,12 +120,15 @@ const reader = {
   },
 
   setActiveHighlight(id) {
+    activeHighlightId = id || null;
     const layer = doc?.defaultView?.CSS.highlights.get(FOCUS_LAYER);
     if (!layer) return;
     layer.clear();
-    if (!id) return;
-    const hit = highlights.find((h) => h.id === id);
-    if (hit) layer.add(hit.range);
+    if (!activeHighlightId) return;
+    const hit = highlights.find((h) => h.id === activeHighlightId);
+    if (!hit) return;
+    doc.documentElement.style.setProperty("--reader-focus", `var(--reader-highlight-${hit.color})`);
+    layer.add(hit.range);
   },
 
   setStyle(vars) {
@@ -202,10 +205,12 @@ async function prepare(doc) {
     stylesheet(doc, "ReadiumCSS-after.css"),
   ];
   const marks = doc.createElementNS(XHTML_NS, "style");
-  marks.textContent = `${HIGHLIGHT_LAYERS.map((name) => `::highlight(${name})`).join(", ")}
-    { background-color: var(--reader-highlight); }
-    ::highlight(${FOCUS_LAYER}) { background-color: var(--reader-highlight); }
-    ::highlight(${NOTE_LAYER}) { text-decoration: underline dashed 1.5px var(--reader-note); }
+  const colorRules = HIGHLIGHT_COLORS.map((color) =>
+    `${colorLayers(color).map((name) => `::highlight(${name})`).join(", ")} { background-color: var(--reader-highlight-${color}); }
+    ::highlight(${noteLayer(color)}) { text-decoration: underline dashed 1.5px var(--reader-note-${color}); }`
+  ).join("\n    ");
+  marks.textContent = `${colorRules}
+    ::highlight(${FOCUS_LAYER}) { background-color: var(--reader-focus, var(--reader-highlight-yellow)); }
     ::highlight(${SEARCH_LAYER}) { background-color: #ffd457; color: #241b00; }
     :root.over-highlight { cursor: default; }
     @layer rede {
@@ -219,7 +224,7 @@ async function prepare(doc) {
     }`;
   head.prepend(fonts, before);
   head.append(...after, marks);
-  for (const name of [...HIGHLIGHT_LAYERS, FOCUS_LAYER, NOTE_LAYER, SEARCH_LAYER]) {
+  for (const name of [...ALL_HIGHLIGHT_LAYERS, FOCUS_LAYER, ...ALL_NOTE_LAYERS, SEARCH_LAYER]) {
     doc.defaultView.CSS.highlights.set(name, new doc.defaultView.Highlight());
   }
 
@@ -378,37 +383,56 @@ function locate(at) {
   return rect ? spreadOfRect(rect) : 0;
 }
 
-// 重叠加深：同一 Highlight 内的 Range 重叠时只画一层，所以按重叠深度分层注册，
-// 第 k 层覆盖至少 k+1 条高亮重叠的区域，各层同一半透明色叠加，越深越浓；超过层数的深度不再加深
-const HIGHLIGHT_LAYERS = ["rede-highlight-1", "rede-highlight-2"];
+// 重叠加深：同一 Highlight 内的 Range 重叠时只画一层，所以按颜色和重叠深度分层注册，
+// 第 k 层覆盖至少 k+1 条同色高亮重叠的区域，各层同一半透明色叠加，越深越浓；超过层数的深度不再加深
+const HIGHLIGHT_COLORS = ["yellow", "green", "blue", "pink", "purple"];
+const HIGHLIGHT_DEPTH = 2;
+const colorLayers = (color) => Array.from({ length: HIGHLIGHT_DEPTH }, (_, i) => `rede-highlight-${color}-${i + 1}`);
+const noteLayer = (color) => `rede-note-${color}`;
+const ALL_HIGHLIGHT_LAYERS = HIGHLIGHT_COLORS.flatMap(colorLayers);
+const ALL_NOTE_LAYERS = HIGHLIGHT_COLORS.map(noteLayer);
 const FOCUS_LAYER = "rede-focus";
-// 带笔记的高亮额外加入此层，画虚线下划线
-const NOTE_LAYER = "rede-note";
 const SEARCH_LAYER = "rede-search";
 let activeSearchHit = null;
+let activeHighlightId = null;
+
+function highlightColor(value) {
+  return HIGHLIGHT_COLORS.includes(value) ? value : "yellow";
+}
 
 // 本章高亮整体替换。Highlight 对象在 prepare 里按章注册一次，这里只清空再加入：
 // WebKit 在 clear/add 时重绘被移除和新加入的 Range，而整体替换注册表条目只重绘新对象，删掉的高亮会残留到下次重绘。
 // Range 是活的 DOM 对象，换字号、缩放后随重排自动跟随，无需重算
 function paintHighlights() {
-  const spans = state.annotations.filter((a) => a.kind === "highlight" && a.chapter === state.chapterId);
-  const layers = depthLayers(spans);
-  const ranges = rangesOf(doc, [...spans, ...layers.flat()]);
-  highlights = spans.map((s, i) => ({ id: s.id, start: s.start, end: s.end, range: ranges[i] }));
+  const spans = state.annotations
+    .filter((a) => a.kind === "highlight" && a.chapter === state.chapterId)
+    .map((a) => ({ ...a, color: highlightColor(a.color) }));
+  const colorGroups = HIGHLIGHT_COLORS.map((color) => ({
+    color,
+    layers: depthLayers(spans.filter((s) => s.color === color)),
+  }));
+  const allIntervals = colorGroups.flatMap((g) => g.layers.flat());
+  const ranges = rangesOf(doc, [...spans, ...allIntervals]);
+  highlights = spans.map((s, i) => ({ id: s.id, start: s.start, end: s.end, color: s.color, range: ranges[i] }));
   let next = spans.length;
-  layers.forEach((intervals, k) => {
-    const highlight = doc.defaultView.CSS.highlights.get(HIGHLIGHT_LAYERS[k]);
-    highlight.clear();
-    for (let i = 0; i < intervals.length; i++) highlight.add(ranges[next++]);
+  for (const { color, layers } of colorGroups) {
+    const names = colorLayers(color);
+    layers.forEach((intervals, k) => {
+      const highlight = doc.defaultView.CSS.highlights.get(names[k]);
+      highlight.clear();
+      for (let i = 0; i < intervals.length; i++) highlight.add(ranges[next++]);
+    });
+    doc.defaultView.CSS.highlights.get(noteLayer(color)).clear();
+  }
+  spans.forEach((s, i) => {
+    if (s.note) doc.defaultView.CSS.highlights.get(noteLayer(s.color)).add(ranges[i]);
   });
-  const notes = doc.defaultView.CSS.highlights.get(NOTE_LAYER);
-  notes.clear();
-  spans.forEach((s, i) => { if (s.note) notes.add(ranges[i]); });
+  if (activeHighlightId) reader.setActiveHighlight(activeHighlightId);
   if (highlights.length === 0) clearHoverHighlight();
 }
 
 function refreshHighlights(chapter) {
-  for (const name of [...HIGHLIGHT_LAYERS, FOCUS_LAYER, NOTE_LAYER, SEARCH_LAYER]) {
+  for (const name of [...ALL_HIGHLIGHT_LAYERS, FOCUS_LAYER, ...ALL_NOTE_LAYERS, SEARCH_LAYER]) {
     const highlight = chapter.defaultView.CSS.highlights.get(name);
     const ranges = [...highlight];
     highlight.clear();
@@ -427,7 +451,7 @@ function shellRect(rect) {
 function depthLayers(spans) {
   const events = spans.flatMap((s) => [[s.start, 1], [s.end, -1]])
     .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const layers = HIGHLIGHT_LAYERS.map(() => []);
+  const layers = Array.from({ length: HIGHLIGHT_DEPTH }, () => []);
   let depth = 0;
   for (const [at, delta] of events) {
     if (delta > 0) {
@@ -779,12 +803,30 @@ function onMouseDown() {
   hadSelectionOnMouseDown = !doc.getSelection().isCollapsed;
 }
 
+function selectionRect(selection) {
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null;
+  const rects = Array.from(selection.getRangeAt(0).getClientRects())
+    .filter((r) => hasArea(r) && spreadOfRect(r) === state.spread);
+  if (rects.length === 0) return null;
+  let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+  for (const r of rects) {
+    left = Math.min(left, r.left);
+    top = Math.min(top, r.top);
+    right = Math.max(right, r.right);
+    bottom = Math.max(bottom, r.bottom);
+  }
+  return shellRect({ left, top, width: right - left, height: bottom - top });
+}
+
 // 有选区时拖动是在调整选区，原生侧据此不把下滑当作关闭
 function reportSelection(target) {
   const selection = target === doc ? pageSelection() : target.getSelection();
+  const active = selection != null && !selection.isCollapsed;
+  const rect = active && target === doc ? selectionRect(selection) : null;
   window.webkit?.messageHandlers?.gesture?.postMessage({
     type: "selection",
-    active: selection != null && !selection.isCollapsed,
+    active,
+    rect,
   });
 }
 

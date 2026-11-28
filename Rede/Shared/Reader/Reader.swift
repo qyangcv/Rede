@@ -114,8 +114,9 @@ enum ReaderGesture {
 }
 
 enum AnnotationAction {
-    case highlightSelection
-    case noteSelection
+    case highlightSelection(HighlightColor)
+    case noteSelection(HighlightColor)
+    case setColor(id: String, HighlightColor)
     case editNote(HighlightHit)
     case delete(id: String)
 }
@@ -145,6 +146,7 @@ final class Reader: NSObject,  WKNavigationDelegate {
     var onCopyHighlight: ((String) -> Void)?
     fileprivate(set) var contextHighlight: HighlightHit?
     var onSelectionChange: ((Bool) -> Void)?
+    var onSelectionRect: ((CGRect?) -> Void)?
     fileprivate(set) var selecting = false {
         didSet { if selecting != oldValue { onSelectionChange?(selecting) } }
     }
@@ -349,6 +351,10 @@ final class Reader: NSObject,  WKNavigationDelegate {
         annotations.first { $0.id == id }?.hasNote ?? false
     }
 
+    func highlightColor(of id: String) -> HighlightColor {
+        annotations.first { $0.id == id }?.color ?? .yellow
+    }
+
     func takeSelection() async -> TextSelection? {
         await bridge.takeSelection()
     }
@@ -388,7 +394,10 @@ private final class MessageRelay: NSObject, WKScriptMessageHandler {
             reader.selecting = body["selecting"] as? Bool ?? false
             reader.contextHighlight = body["highlight"].flatMap { HighlightHit(jsValue: $0) }
         case "selection":
-            reader.selecting = body["active"] as? Bool ?? false
+            let active = body["active"] as? Bool ?? false
+            reader.selecting = active
+            let rect = active ? body["rect"].flatMap { WebRect(jsValue: $0)?.cgRect } : nil
+            reader.onSelectionRect?(rect)
         case "link":
             if let chapter = body["chapter"] as? Int {
                 let anchor = (body["anchor"] as? String).flatMap { $0.isEmpty ? nil : $0 }

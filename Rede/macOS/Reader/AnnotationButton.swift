@@ -7,7 +7,15 @@ struct AnnotationPanel: View {
     @Binding var kind: Annotation.Kind
     let progress: (Annotation) -> Double?
     let onSelect: (Annotation) -> Void
+    let onChangeColor: (Annotation, HighlightColor) -> Void
     let onDelete: (Annotation) -> Void
+
+    @State private var colorFilter: HighlightColor?
+
+    private var filteredHighlights: [Annotation] {
+        guard let colorFilter else { return highlights }
+        return highlights.filter { $0.highlightColor == colorFilter }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,11 +27,19 @@ struct AnnotationPanel: View {
             .labelsHidden()
             .padding(10)
 
+            if kind == .highlight, !highlights.isEmpty {
+                HighlightColorFilterBar(selection: $colorFilter)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+            }
+
             Divider()
 
             AnnotationList(kind: kind,
-                           sections: AnnotationSections(toc: toc).sections(for: kind == .bookmark ? bookmarks : highlights),
-                           progress: progress, onSelect: onSelect, onDelete: onDelete)
+                           sections: AnnotationSections(toc: toc).sections(for: kind == .bookmark ? bookmarks : filteredHighlights),
+                           isFiltered: kind == .highlight && colorFilter != nil,
+                           progress: progress, onSelect: onSelect,
+                           onChangeColor: onChangeColor, onDelete: onDelete)
                 .id(kind)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
