@@ -116,17 +116,15 @@ enum HighlightColor: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var swatchHex: String {
+    var swatch: Color {
         switch self {
-        case .yellow: "#F5C838"
-        case .green: "#4CC378"
-        case .blue: "#52A8F5"
-        case .pink: "#F27092"
-        case .purple: "#AE7EF2"
+        case .yellow: Color(hex: "#F5C838")
+        case .green: Color(hex: "#4CC378")
+        case .blue: Color(hex: "#52A8F5")
+        case .pink: Color(hex: "#F27092")
+        case .purple: Color(hex: "#AE7EF2")
         }
     }
-
-    var swatch: Color { Color(hex: swatchHex) }
 
     var accent: Color {
         switch self {

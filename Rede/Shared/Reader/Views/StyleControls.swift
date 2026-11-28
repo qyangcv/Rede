@@ -114,3 +114,20 @@ struct HighlightColorFilterBar: View {
         }
     }
 }
+
+struct HighlightColorMenu: View {
+    let selection: HighlightColor
+    let onSelect: (HighlightColor) -> Void
+
+    var body: some View {
+        Menu("更改颜色", systemImage: "paintpalette") {
+            ForEach(HighlightColor.allCases) { color in
+                Button {
+                    onSelect(color)
+                } label: {
+                    Label(color.name, systemImage: color == selection ? "checkmark" : "circle.fill")
+                }
+            }
+        }
+    }
+}

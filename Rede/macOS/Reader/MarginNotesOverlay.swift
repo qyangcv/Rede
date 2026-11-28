@@ -295,15 +295,7 @@ private struct MarginNoteCard: View {
         .onHover(perform: onHover)
         .contextMenu {
             Button("编辑笔记", systemImage: "pencil", action: onStartEditing)
-            Menu("更改颜色", systemImage: "paintpalette") {
-                ForEach(HighlightColor.allCases) { color in
-                    Button {
-                        onChangeColor(color)
-                    } label: {
-                        Label(color.name, systemImage: color == item.color ? "checkmark" : "circle.fill")
-                    }
-                }
-            }
+            HighlightColorMenu(selection: item.color, onSelect: onChangeColor)
             Divider()
             Button("移除高亮与笔记", systemImage: "trash", role: .destructive, action: onDelete)
         }
@@ -322,8 +314,7 @@ private struct MarginNoteCard: View {
                 MarginNoteTextView(
                     text: $draft,
                     hasInput: $hasInput,
-                    onCancel: commit,
-                    onEndEditing: commit
+                    onCommit: commit
                 )
                 .frame(height: 84)
             }
@@ -382,8 +373,7 @@ private struct MarginNoteCard: View {
 private struct MarginNoteTextView: NSViewRepresentable {
     @Binding var text: String
     @Binding var hasInput: Bool
-    let onCancel: () -> Void
-    let onEndEditing: () -> Void
+    let onCommit: () -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -426,7 +416,7 @@ private struct MarginNoteTextView: NSViewRepresentable {
         textView.onMarkedTextChange = { [weak coordinator = context.coordinator] hasMarked in
             coordinator?.updateInputState(hasMarked: hasMarked)
         }
-        textView.onCancel = onCancel
+        textView.onCancel = onCommit
 
         scrollView.documentView = textView
         DispatchQueue.main.async {
@@ -439,7 +429,7 @@ private struct MarginNoteTextView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.parent = self
         guard let textView = scrollView.documentView as? EditorTextView else { return }
-        textView.onCancel = onCancel
+        textView.onCancel = onCommit
         if !textView.hasMarkedText(), textView.string != text {
             textView.string = text
             hasInput = !text.isEmpty
@@ -481,7 +471,7 @@ private struct MarginNoteTextView: NSViewRepresentable {
         }
 
         func textDidEndEditing(_ notification: Notification) {
-            parent.onEndEditing()
+            parent.onCommit()
         }
 
         func updateInputState(hasMarked: Bool) {

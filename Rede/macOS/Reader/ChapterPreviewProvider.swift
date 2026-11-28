@@ -18,6 +18,8 @@ nonisolated enum ChapterPreviewContent: Equatable, Sendable {
 @Observable
 final class ChapterPreviewStore {
     private var cache: [ChapterPreviewKey: ChapterPreviewContent] = [:]
+    private var cacheOrder: [ChapterPreviewKey] = []
+    private let maxCached = 128
     private var activeKey: ChapterPreviewKey?
     private var activeTask: Task<Void, Never>?
     private let extractor: ChapterPreviewExtractor?
@@ -67,12 +69,23 @@ final class ChapterPreviewStore {
             let content = await operation(extractor)
             guard let self, !Task.isCancelled else { return }
             if let content {
-                self.cache[key] = content
+                self.store(content, for: key)
             }
             if self.activeKey == key {
                 self.activeKey = nil
                 self.activeTask = nil
             }
+        }
+    }
+
+    private func store(_ content: ChapterPreviewContent, for key: ChapterPreviewKey) {
+        if cache[key] == nil {
+            cacheOrder.append(key)
+        }
+        cache[key] = content
+        if cacheOrder.count > maxCached {
+            let evicted = cacheOrder.removeFirst()
+            cache.removeValue(forKey: evicted)
         }
     }
 }
@@ -84,9 +97,6 @@ private actor ChapterPreviewExtractor {
     private var archive: Archive?
     private var entries: [String: Entry] = [:]
     private var loadedArchive = false
-    private var cache: [ChapterPreviewKey: ChapterPreviewContent] = [:]
-    private var cacheOrder: [ChapterPreviewKey] = []
-    private let maxCached = 128
 
     init(data: Data, spinePaths: [String], maxLines: Int) {
         self.data = data
@@ -95,27 +105,19 @@ private actor ChapterPreviewExtractor {
     }
 
     func extractChapter(chapter: Int, title: String?) -> ChapterPreviewContent? {
-        let key = ChapterPreviewKey(chapter: chapter, offset: nil)
-        if let cached = cache[key] { return cached }
         guard let bytes = readChapterData(chapter) else { return Task.isCancelled ? nil : .empty }
         if Task.isCancelled { return nil }
-        let result = Self.parseChapterStart(from: bytes, chapterTitle: title, maxLines: maxLines)
-        store(result, for: key)
-        return result
+        return Self.parseChapterStart(from: bytes, chapterTitle: title, maxLines: maxLines)
     }
 
     func extractOffset(chapter: Int, offset: Int, fallbackText: String) -> ChapterPreviewContent? {
-        let key = ChapterPreviewKey(chapter: chapter, offset: offset)
-        if let cached = cache[key] { return cached }
         guard let bytes = readChapterData(chapter) else {
             if Task.isCancelled { return nil }
             return fallbackText.isEmpty ? .empty : .text([fallbackText])
         }
         if Task.isCancelled { return nil }
-        let result = Self.parseFromOffset(from: bytes, offset: max(offset, 0),
-                                          fallbackText: fallbackText, maxLines: maxLines)
-        store(result, for: key)
-        return result
+        return Self.parseFromOffset(from: bytes, offset: max(offset, 0),
+                                    fallbackText: fallbackText, maxLines: maxLines)
     }
 
     private func readChapterData(_ chapter: Int) -> Data? {
@@ -149,15 +151,6 @@ private actor ChapterPreviewExtractor {
             map[entry.path] = entry
         }
         self.entries = map
-    }
-
-    private func store(_ content: ChapterPreviewContent, for key: ChapterPreviewKey) {
-        cache[key] = content
-        cacheOrder.append(key)
-        if cacheOrder.count > maxCached {
-            let evicted = cacheOrder.removeFirst()
-            cache.removeValue(forKey: evicted)
-        }
     }
 
     private static let excludedAncestors = [

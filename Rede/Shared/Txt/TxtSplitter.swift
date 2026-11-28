@@ -29,8 +29,8 @@ nonisolated enum TxtSplitter {
         let language = detectLanguage(normalized)
         let chapters: [TxtChapter]
 
-        if let rule = selectTocRule(in: normalized), let regex = rule.regex() {
-            chapters = splitWithRule(normalized, regex: regex)
+        if let rule = selectTocRule(in: normalized) {
+            chapters = splitWithRule(normalized, regex: rule.regex)
         } else {
             chapters = splitWithoutRule(normalized, fallbackTitle: title)
         }
@@ -66,8 +66,8 @@ nonisolated enum TxtSplitter {
         var maxNum = -1
         var selected: TxtTocRule?
 
-        for rule in TxtTocRule.enabled {
-            guard let regex = rule.regex() else { continue }
+        for rule in TxtTocRule.all {
+            let regex = rule.regex
             var start = 0
             var csNum = 0
             var numE = 0

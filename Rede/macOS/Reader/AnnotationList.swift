@@ -40,15 +40,8 @@ struct AnnotationList: View {
                             }
                             .contextMenu {
                                 if kind == .highlight {
-                                    Menu("更改颜色", systemImage: "paintpalette") {
-                                        ForEach(HighlightColor.allCases) { color in
-                                            Button {
-                                                onChangeColor(annotation, color)
-                                            } label: {
-                                                Label(color.name,
-                                                      systemImage: color == annotation.highlightColor ? "checkmark" : "circle.fill")
-                                            }
-                                        }
+                                    HighlightColorMenu(selection: annotation.highlightColor) { color in
+                                        onChangeColor(annotation, color)
                                     }
                                     Divider()
                                 }

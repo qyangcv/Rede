@@ -1,58 +1,33 @@
 import Foundation
 import Kanna
-import ZIPFoundation
 
 nonisolated enum MobiToEpub {
-    private static let mimetypeData = Data("application/epub+zip".utf8)
-    private static let containerXML = Data("""
-        <?xml version="1.0" encoding="UTF-8"?>
-        <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-          <rootfiles>
-            <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-          </rootfiles>
-        </container>
-        """.utf8)
-
     static func convert(_ data: Data) throws -> Data {
         let extracted = try MobiExtractor.extract(data)
         return try package(MobiSplitter.splitIfNeeded(extracted))
     }
 
     private static func package(_ book: MobiExtractedBook) throws -> Data {
-        let archive = try Archive(accessMode: .create)
-
-        try addEntry(to: archive, path: "mimetype", data: mimetypeData, compression: .none)
-        try addEntry(to: archive, path: "META-INF/container.xml", data: containerXML, compression: .deflate)
-
-        let opfData = normalizedOPF(for: book)
-        try addEntry(to: archive, path: "OEBPS/content.opf", data: opfData, compression: .deflate)
+        let writer = try EpubArchiveWriter()
+        try writer.add("OEBPS/content.opf", data: normalizedOPF(for: book))
 
         for entry in book.markup {
             let xhtml = entry.isNormalizedXHTML ? entry.data : normalizeXHTML(entry.data)
-            try addEntry(to: archive, path: entry.path, data: xhtml, compression: .deflate)
+            try writer.add(entry.path, data: xhtml)
         }
 
         for entry in book.flow {
-            try addEntry(to: archive, path: entry.path, data: entry.data, compression: .deflate)
+            try writer.add(entry.path, data: entry.data)
         }
 
         for entry in book.resources {
-            try addEntry(to: archive, path: entry.path, data: entry.data, compression: .deflate)
+            try writer.add(entry.path, data: entry.data)
         }
 
-        guard let epubData = archive.data else {
+        guard let epubData = writer.data else {
             throw MobiConversionError.conversionFailed
         }
         return epubData
-    }
-
-    private static func addEntry(to archive: Archive, path: String, data: Data,
-                                 compression: CompressionMethod) throws {
-        try archive.addEntry(with: path, type: .file, uncompressedSize: Int64(data.count),
-                             compressionMethod: compression) { position, size in
-            let start = Int(position)
-            return data.subdata(in: start..<(start + size))
-        }
     }
 
     private static func normalizeXHTML(_ data: Data) -> Data {
@@ -150,13 +125,5 @@ nonisolated enum MobiToEpub {
             </package>
             """
         return Data(xml.utf8)
-    }
-
-    private static func escapeXML(_ string: String) -> String {
-        string
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
     }
 }

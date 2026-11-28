@@ -38,6 +38,7 @@ private struct ReaderWindowContent: View {
     @Environment(\.colorScheme) private var colorScheme
     @Bindable private var settings = Settings.shared
     private struct PendingMarginAnchor {
+        let id: String
         let midY: CGFloat
         let midX: Double
         let widthRatio: Double
@@ -46,12 +47,83 @@ private struct ReaderWindowContent: View {
     @State private var noteTarget: NoteTarget?
     @State private var editingMarginNoteID: String?
     @State private var hoveredMarginNoteID: String?
-    @State private var pendingMarginAnchors: [String: PendingMarginAnchor] = [:]
+    @State private var pendingMarginAnchor: PendingMarginAnchor?
     @State private var drawer: Drawer?
     @State private var search = ReaderSearch()
     @State private var annotationKind = Annotation.Kind.bookmark
 
     var body: some View {
+        readerSurface
+            .toolbar { readerToolbar }
+            .popover(item: $noteTarget, attachmentAnchor: .rect(.rect(noteTarget?.rect ?? .zero)),
+                     arrowEdge: .bottom) { target in
+                if let annotation = session.annotation(id: target.id) {
+                    NoteEditor(quote: annotation.text, note: annotation.note, color: annotation.highlightColor) {
+                        session.setNote($0, of: annotation)
+                    } onChangeColor: {
+                        session.setColor($0, of: annotation)
+                    } onDelete: {
+                        noteTarget = nil
+                        session.deleteAnnotation(id: annotation.id)
+                    }
+                }
+            }
+            .onChange(of: noteTarget == nil) { _, closed in
+                if closed { reader.focus() }
+            }
+            .onAppear(perform: attachReaderCallbacks)
+            .ignoresSafeArea()
+            .overlay {
+                if let layout = marginLayout {
+                    MarginNotesOverlay(
+                        layout: layout,
+                        items: marginNotes,
+                        editingID: $editingMarginNoteID,
+                        hoveredID: $hoveredMarginNoteID,
+                        onSave: { id, text in
+                            guard let annotation = session.annotation(id: id) else { return }
+                            session.setNote(text, of: annotation)
+                        },
+                        onChangeColor: { id, color in
+                            guard let annotation = session.annotation(id: id) else { return }
+                            session.setColor(color, of: annotation)
+                        },
+                        onDelete: { id in
+                            if pendingMarginAnchor?.id == id { pendingMarginAnchor = nil }
+                            session.deleteAnnotation(id: id)
+                        },
+                        onFinishEditing: {
+                            reader.focus()
+                        }
+                    )
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.16), value: marginLayout != nil)
+            .onChange(of: editingMarginNoteID) { _, id in
+                if pendingMarginAnchor?.id != id { pendingMarginAnchor = nil }
+            }
+            .onChange(of: editingMarginNoteID ?? hoveredMarginNoteID) { _, id in
+                reader.setActiveHighlight(id)
+            }
+            .onChange(of: marginLayout == nil) { _, unavailable in
+                if unavailable { clearMarginNoteState() }
+            }
+            .onChange(of: session.position) {
+                clearMarginNoteState()
+            }
+            .overlay {
+                navigationDrawer
+                    .animation(.snappy(duration: 0.22), value: drawer)
+            }
+            .navigationTitle(title ?? session.book?.name ?? "阅读")
+            .toolbar(removing: settings.readerTitle == .hidden ? .title : nil)
+            .onDisappear(perform: detachReaderCallbacks)
+            .focusedSceneValue(\.readerMenuContext, menuContext)
+    }
+
+    private var readerSurface: some View {
         ReaderView(reader: reader, pages: turner.pages)
             .background {
                 settings.readerStyle.background.swatch(for: colorScheme)
@@ -123,165 +195,96 @@ private struct ReaderWindowContent: View {
                     .gesture(WindowDragGesture())
                     .allowsWindowActivationEvents(true)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    drawerButton(.toc, title: "目录", systemImage: "list.bullet")
-                }
-                .sharedBackgroundVisibility(.hidden)
+    }
 
-                ToolbarItem(placement: .navigation) {
-                    drawerButton(.search, title: "在本书中查找", systemImage: "magnifyingglass", help: "在本书中查找（⌘F）")
-                }
-                .sharedBackgroundVisibility(.hidden)
+    @ToolbarContentBuilder
+    private var readerToolbar: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            drawerButton(.toc, title: "目录", systemImage: "list.bullet")
+        }
+        .sharedBackgroundVisibility(.hidden)
 
-                if settings.readerTitle == .hidden {
-                    ToolbarSpacer(.flexible)
-                }
+        ToolbarItem(placement: .navigation) {
+            drawerButton(.search, title: "在本书中查找", systemImage: "magnifyingglass", help: "在本书中查找（⌘F）")
+        }
+        .sharedBackgroundVisibility(.hidden)
 
-                #if DEBUG
-                ToolbarItem(placement: .primaryAction) {
-                    PaletteTunerButton(onDismiss: reader.focus)
-                }
-                .sharedBackgroundVisibility(.hidden)
-                #endif
+        if settings.readerTitle == .hidden {
+            ToolbarSpacer(.flexible)
+        }
 
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: toggleBookmark) {
-                        Label(session.isBookmarked ? "移除书签" : "添加书签",
-                              systemImage: session.isBookmarked ? "bookmark.fill" : "bookmark")
-                    }
-                    .disabled(!session.canBookmark)
-                }
-                .sharedBackgroundVisibility(.hidden)
+        #if DEBUG
+        ToolbarItem(placement: .primaryAction) {
+            PaletteTunerButton(onDismiss: reader.focus)
+        }
+        .sharedBackgroundVisibility(.hidden)
+        #endif
 
-                ToolbarItem(placement: .primaryAction) {
-                    drawerButton(.annotations, title: "标注", systemImage: "highlighter")
-                }
-                .sharedBackgroundVisibility(.hidden)
+        ToolbarItem(placement: .primaryAction) {
+            Button(action: toggleBookmark) {
+                Label(session.isBookmarked ? "移除书签" : "添加书签",
+                      systemImage: session.isBookmarked ? "bookmark.fill" : "bookmark")
+            }
+            .disabled(!session.canBookmark)
+        }
+        .sharedBackgroundVisibility(.hidden)
 
-                ToolbarItem(placement: .primaryAction) {
-                    drawerButton(.style, title: "样式", systemImage: "textformat")
-                        .environment(\.locale, Locale(identifier: "en"))
-                }
-                .sharedBackgroundVisibility(.hidden)
-            }
-            .popover(item: $noteTarget, attachmentAnchor: .rect(.rect(noteTarget?.rect ?? .zero)),
-                     arrowEdge: .bottom) { target in
-                if let annotation = session.annotation(id: target.id) {
-                    NoteEditor(quote: annotation.text, note: annotation.note, color: annotation.highlightColor) {
-                        session.setNote($0, of: annotation)
-                    } onChangeColor: {
-                        session.setColor($0, of: annotation)
-                    } onDelete: {
-                        noteTarget = nil
-                        session.deleteAnnotation(id: annotation.id)
-                    }
-                }
-            }
-            .onChange(of: noteTarget == nil) { _, closed in
-                if closed { reader.focus() }
-            }
-            .onAppear {
-                reader.onGesture = { gesture in
-                    switch gesture {
-                    case .turn(let direction):
-                        turn(direction)
-                    case .highlight(let hit):
-                        if marginLayout != nil {
-                            pendingMarginAnchors[hit.id] = pendingAnchor(for: hit.rect.cgRect)
-                            editingMarginNoteID = hit.id
-                        } else {
-                            noteTarget = NoteTarget(id: hit.id, rect: hit.rect.cgRect)
-                        }
-                    case .tap:
-                        if editingMarginNoteID != nil {
-                            editingMarginNoteID = nil
-                            reader.focus()
-                        }
-                    }
-                }
-                reader.onSelectionChange = { selecting in
-                    if selecting {
-                        noteTarget = nil
-                        editingMarginNoteID = nil
-                    }
-                }
-                reader.onAnnotationAction = { action in
-                    session.perform(action) { id, rect in
-                        if marginLayout != nil {
-                            pendingMarginAnchors[id] = pendingAnchor(for: rect)
-                            editingMarginNoteID = id
-                        } else {
-                            noteTarget = NoteTarget(id: id, rect: rect)
-                        }
-                    }
-                }
-                reader.onCopyHighlight = { id in
-                    guard let text = session.annotation(id: id)?.text else { return }
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(text, forType: .string)
-                }
-            }
-            .ignoresSafeArea()
-            .overlay {
-                if let layout = marginLayout {
-                    MarginNotesOverlay(
-                        layout: layout,
-                        items: marginNotes,
-                        editingID: $editingMarginNoteID,
-                        hoveredID: $hoveredMarginNoteID,
-                        onSave: { id, text in
-                            guard let annotation = session.annotation(id: id) else { return }
-                            session.setNote(text, of: annotation)
-                        },
-                        onChangeColor: { id, color in
-                            guard let annotation = session.annotation(id: id) else { return }
-                            session.setColor(color, of: annotation)
-                        },
-                        onDelete: { id in
-                            pendingMarginAnchors.removeValue(forKey: id)
-                            session.deleteAnnotation(id: id)
-                        },
-                        onFinishEditing: {
-                            reader.focus()
-                        }
-                    )
-                    .ignoresSafeArea()
-                    .transition(.opacity)
-                }
-            }
-            .animation(.easeInOut(duration: 0.16), value: marginLayout != nil)
-            .onChange(of: editingMarginNoteID ?? hoveredMarginNoteID) { _, id in
-                reader.setActiveHighlight(id)
-            }
-            .onChange(of: marginLayout == nil) { _, unavailable in
-                if unavailable {
+        ToolbarItem(placement: .primaryAction) {
+            drawerButton(.annotations, title: "标注", systemImage: "highlighter")
+        }
+        .sharedBackgroundVisibility(.hidden)
+
+        ToolbarItem(placement: .primaryAction) {
+            drawerButton(.style, title: "样式", systemImage: "textformat")
+                .environment(\.locale, Locale(identifier: "en"))
+        }
+        .sharedBackgroundVisibility(.hidden)
+    }
+
+    private func attachReaderCallbacks() {
+        reader.onGesture = { gesture in
+            switch gesture {
+            case .turn(let direction):
+                turn(direction)
+            case .highlight(let hit):
+                openNoteEditor(id: hit.id, rect: hit.rect.cgRect)
+            case .tap:
+                if editingMarginNoteID != nil {
                     editingMarginNoteID = nil
-                    hoveredMarginNoteID = nil
-                    pendingMarginAnchors = [:]
+                    reader.focus()
                 }
             }
-            .onChange(of: session.position) {
+        }
+        reader.onSelectionChange = { selecting in
+            if selecting {
+                noteTarget = nil
                 editingMarginNoteID = nil
-                hoveredMarginNoteID = nil
-                pendingMarginAnchors = [:]
             }
-            .overlay {
-                navigationDrawer
-                    .animation(.snappy(duration: 0.22), value: drawer)
-            }
-            .navigationTitle(title ?? session.book?.name ?? "阅读")
-            .toolbar(removing: settings.readerTitle == .hidden ? .title : nil)
-            .onDisappear {
-                search.cancel()
-                reader.setActiveHighlight(nil)
-                reader.onGesture = nil
-                reader.onSelectionChange = nil
-                reader.onAnnotationAction = nil
-                reader.onCopyHighlight = nil
-                turner.detach()
-            }
-            .focusedSceneValue(\.readerMenuContext, menuContext)
+        }
+        reader.onAnnotationAction = { action in
+            session.perform(action, editNote: openNoteEditor)
+        }
+        reader.onCopyHighlight = { id in
+            guard let text = session.annotation(id: id)?.text else { return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+        }
+    }
+
+    private func detachReaderCallbacks() {
+        search.cancel()
+        reader.setActiveHighlight(nil)
+        reader.onGesture = nil
+        reader.onSelectionChange = nil
+        reader.onAnnotationAction = nil
+        reader.onCopyHighlight = nil
+        turner.detach()
+    }
+
+    private func clearMarginNoteState() {
+        editingMarginNoteID = nil
+        hoveredMarginNoteID = nil
+        pendingMarginAnchor = nil
     }
 
     private var menuContext: ReaderMenuContext {
@@ -329,14 +332,25 @@ private struct ReaderWindowContent: View {
         return MarginNotesLayout(viewport: viewport)
     }
 
-    private func pendingAnchor(for rect: CGRect) -> PendingMarginAnchor {
+    private func openNoteEditor(id: String, rect: CGRect) {
+        if marginLayout != nil {
+            if !session.pageHighlights.contains(where: { $0.id == id }) {
+                pendingMarginAnchor = makePendingAnchor(id: id, rect: rect)
+            }
+            editingMarginNoteID = id
+        } else {
+            noteTarget = NoteTarget(id: id, rect: rect)
+        }
+    }
+
+    private func makePendingAnchor(id: String, rect: CGRect) -> PendingMarginAnchor {
         guard let viewport = session.pageViewport else {
-            return PendingMarginAnchor(midY: rect.midY, midX: 0.5, widthRatio: 1)
+            return PendingMarginAnchor(id: id, midY: rect.midY, midX: 0.5, widthRatio: 1)
         }
         let contentWidth = viewport.contentRight - viewport.contentLeft
         let midX = contentWidth > 0 ? (Double(rect.midX) - viewport.contentLeft) / contentWidth : 0.5
         let widthRatio = contentWidth > 0 ? Double(rect.width) / contentWidth : 1
-        return PendingMarginAnchor(midY: rect.midY, midX: midX, widthRatio: widthRatio)
+        return PendingMarginAnchor(id: id, midY: rect.midY, midX: midX, widthRatio: widthRatio)
     }
 
     private var marginNotes: [MarginNoteItem] {
@@ -352,7 +366,7 @@ private struct ReaderWindowContent: View {
                                         midX: anchor.midX, widthRatio: anchor.widthRatio))
         }
         if let editingID = editingMarginNoteID, !seen.contains(editingID),
-           let pending = pendingMarginAnchors[editingID],
+           let pending = pendingMarginAnchor, pending.id == editingID,
            let annotation = session.annotation(id: editingID) {
             items.append(MarginNoteItem(id: editingID, note: annotation.note,
                                         color: annotation.highlightColor,

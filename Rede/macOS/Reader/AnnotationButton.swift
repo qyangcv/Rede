@@ -37,11 +37,14 @@ struct AnnotationPanel: View {
 
             AnnotationList(kind: kind,
                            sections: AnnotationSections(toc: toc).sections(for: kind == .bookmark ? bookmarks : filteredHighlights),
-                           isFiltered: kind == .highlight && colorFilter != nil,
+                           isFiltered: kind == .highlight && !highlights.isEmpty && colorFilter != nil,
                            progress: progress, onSelect: onSelect,
                            onChangeColor: onChangeColor, onDelete: onDelete)
                 .id(kind)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onChange(of: highlights.isEmpty) { _, isEmpty in
+            if isEmpty { colorFilter = nil }
         }
     }
 }

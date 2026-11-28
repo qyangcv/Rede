@@ -97,8 +97,11 @@ const reader = {
   // 相邻页渲染用：先落到 position 所在页，再翻 delta 页，返回落位后的进度；
   // 到书头书尾或被后续导航打断时返回 null
   async peek(position, delta) {
-    const moved = await goto(position.chapter, position) && await turn(delta);
-    return moved ? progress() : null;
+    const moved = await goto(position.chapter, position, null, true) && await turn(delta, true);
+    if (!moved) return null;
+    const info = progress(false);
+    document.documentElement.classList.toggle("bookmarked", info.bookmarks.length > 0);
+    return info;
   },
 
   jump(chapter, anchor) {
@@ -138,18 +141,18 @@ const reader = {
 };
 
 // 翻一页，到章首章尾时载入相邻章节；返回是否落位
-async function turn(delta) {
+async function turn(delta, silent = false) {
   reader.clearSearchHit();
   const spread = state.spread + delta;
   if (spread >= 0 && spread < state.spreadCount) {
-    settle(spread);
+    settle(spread, null, silent);
     return true;
   }
-  return goto(state.chapterId + delta, delta > 0 ? 0 : -1);
+  return goto(state.chapterId + delta, delta > 0 ? 0 : -1, null, silent);
 }
 
 // 导航，at 为数字（页码）、字符串（锚点）或位置对象；返回是否落位（被后续导航打断时为 false）
-async function goto(chapter, at, searchHit = null) {
+async function goto(chapter, at, searchHit = null, silent = false) {
   const path = state.spinePaths[chapter];
   if (path === undefined) return false;
   reader.clearSearchHit();
@@ -176,7 +179,7 @@ async function goto(chapter, at, searchHit = null) {
     const [range] = rangesOf(doc, [activeSearchHit]);
     doc.defaultView.CSS.highlights.get(SEARCH_LAYER).add(range);
   }
-  settle(locate(at), isPosition(at) ? at.offset : null);
+  settle(locate(at), isPosition(at) ? at.offset : null, silent);
   frame.classList.remove("loading");
   return true;
 }
@@ -351,19 +354,19 @@ function scrollToSpread(page) {
 }
 
 // 翻页落位：滚动 + 刷新锚点 + 上报进度
-function settle(page, offset = null) {
+function settle(page, offset = null, silent = false) {
   const previousSpread = state.spread;
   scrollToSpread(page);
   updatePageRange();
   if (state.spread !== previousSpread) {
     clearHoverHighlight();
-    doc.defaultView.CSS.highlights.get(FOCUS_LAYER)?.clear();
+    reader.setActiveHighlight(null);
     doc.getSelection().removeAllRanges();
   } else {
     pageSelection();
   }
   state.offset = offset ?? state.range?.start ?? -1;
-  report();
+  if (!silent) report();
 }
 
 function isPosition(at) {
@@ -633,7 +636,7 @@ function updatePageRange() {
 }
 
 function pageHighlights() {
-  if (!doc || !state.range || highlights.length === 0) return [];
+  if (!doc || !state.range || state.columns !== 1 || highlights.length === 0) return [];
   const origin = frame.getBoundingClientRect();
   const result = [];
   for (const h of highlights) {
@@ -657,9 +660,8 @@ function pageHighlights() {
   return result;
 }
 
-function progress() {
-  const rect = frame.getBoundingClientRect();
-  return {
+function progress(includeLayout = true) {
+  const base = {
     chapter: state.chapterId,
     offset: state.offset,
     total: state.total,
@@ -670,6 +672,11 @@ function progress() {
     start: state.range?.start ?? null,
     excerpt: state.range ? excerpt(doc, state.range.start, EXCERPT_LENGTH) : "",
     bookmarks: pageBookmarks(),
+  };
+  if (!includeLayout) return base;
+  const rect = frame.getBoundingClientRect();
+  return {
+    ...base,
     viewport: {
       columns: state.columns,
       contentLeft: rect.left,

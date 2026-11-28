@@ -238,3 +238,41 @@ nonisolated struct EpubFetcher {
     }
 }
 
+nonisolated struct EpubArchiveWriter {
+    private static let mimetypeData = Data("application/epub+zip".utf8)
+    private static let containerXML = Data("""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+          <rootfiles>
+            <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+          </rootfiles>
+        </container>
+        """.utf8)
+
+    private let archive: Archive
+
+    init() throws {
+        archive = try Archive(accessMode: .create)
+        try add("mimetype", data: Self.mimetypeData, compression: .none)
+        try add("META-INF/container.xml", data: Self.containerXML)
+    }
+
+    func add(_ path: String, data: Data, compression: CompressionMethod = .deflate) throws {
+        try archive.addEntry(with: path, type: .file, uncompressedSize: Int64(data.count),
+                             compressionMethod: compression) { position, size in
+            let start = Int(position)
+            return data.subdata(in: start..<(start + size))
+        }
+    }
+
+    var data: Data? { archive.data }
+}
+
+nonisolated func escapeXML(_ string: String) -> String {
+    string
+        .replacingOccurrences(of: "&", with: "&amp;")
+        .replacingOccurrences(of: "<", with: "&lt;")
+        .replacingOccurrences(of: ">", with: "&gt;")
+        .replacingOccurrences(of: "\"", with: "&quot;")
+}
+

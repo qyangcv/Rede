@@ -232,12 +232,14 @@ final class BookFile {
     }
 }
 
-enum LibraryError: LocalizedError {
+nonisolated enum LibraryError: LocalizedError {
     case fileNotSynced
+    case emptyContent
 
     var errorDescription: String? {
         switch self {
         case .fileNotSynced: "这本书还没有从 iCloud 下载完成，请稍后再试"
+        case .emptyContent: "书籍内容为空"
         }
     }
 }
@@ -278,7 +280,7 @@ struct ImportProgress: Equatable {
 }
 
 enum BookImporter {
-    private static let coverSize = 600
+    nonisolated private static let coverSize = 600
     nonisolated static let supportedExtensions: Set<String> = ["epub", "azw3", "mobi", "txt"]
     static let supportedContentTypes: [UTType] = {
         var types: [UTType] = [.epub, .plainText]
@@ -366,7 +368,7 @@ enum BookImporter {
         let filename = source.deletingPathExtension().lastPathComponent
         let data = try normalizedEpubData(from: rawData, fileExtension: fileExtension, title: filename)
         let epub = try parseEpub(data)
-        guard !epub.model.spine.isEmpty else { throw MobiConversionError.emptyContent }
+        guard !epub.model.spine.isEmpty else { throw LibraryError.emptyContent }
         let metadataTitle = epub.model.metadata.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let name = useMetadataTitle
             ? (metadataTitle.isEmpty ? filename : metadataTitle)

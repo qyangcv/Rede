@@ -1,17 +1,6 @@
 import Foundation
-import ZIPFoundation
 
 nonisolated enum TxtToEpub {
-    private static let mimetypeData = Data("application/epub+zip".utf8)
-    private static let containerXML = Data("""
-        <?xml version="1.0" encoding="UTF-8"?>
-        <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-          <rootfiles>
-            <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-          </rootfiles>
-        </container>
-        """.utf8)
-
     static func convert(_ data: Data, title: String) throws -> Data {
         let text = try TxtEncoding.decode(data)
         let book = try TxtSplitter.split(text, fallbackTitle: title)
@@ -19,34 +8,23 @@ nonisolated enum TxtToEpub {
     }
 
     private static func package(_ book: TxtBook) throws -> Data {
-        let archive = try Archive(accessMode: .create)
+        let writer = try EpubArchiveWriter()
         let bookID = "urn:uuid:\(UUID().uuidString.lowercased())"
 
-        try addEntry(to: archive, path: "mimetype", data: mimetypeData, compression: .none)
-        try addEntry(to: archive, path: "META-INF/container.xml", data: containerXML, compression: .deflate)
-        try addEntry(to: archive, path: "OEBPS/content.opf", data: buildOPF(for: book, bookID: bookID), compression: .deflate)
-        try addEntry(to: archive, path: "OEBPS/nav.xhtml", data: buildNav(for: book), compression: .deflate)
-        try addEntry(to: archive, path: "OEBPS/toc.ncx", data: buildNCX(for: book, bookID: bookID), compression: .deflate)
+        try writer.add("OEBPS/content.opf", data: buildOPF(for: book, bookID: bookID))
+        try writer.add("OEBPS/nav.xhtml", data: buildNav(for: book))
+        try writer.add("OEBPS/toc.ncx", data: buildNCX(for: book, bookID: bookID))
 
         for (index, chapter) in book.chapters.enumerated() {
             let path = "OEBPS/chapter_\(index).xhtml"
             let xhtml = buildChapterXHTML(chapter, language: book.language)
-            try addEntry(to: archive, path: path, data: xhtml, compression: .deflate)
+            try writer.add(path, data: xhtml)
         }
 
-        guard let epubData = archive.data else {
+        guard let epubData = writer.data else {
             throw TxtConversionError.conversionFailed
         }
         return epubData
-    }
-
-    private static func addEntry(to archive: Archive, path: String, data: Data,
-                                 compression: CompressionMethod) throws {
-        try archive.addEntry(with: path, type: .file, uncompressedSize: Int64(data.count),
-                             compressionMethod: compression) { position, size in
-            let start = Int(position)
-            return data.subdata(in: start..<(start + size))
-        }
     }
 
     private static func buildOPF(for book: TxtBook, bookID: String) -> Data {
@@ -159,13 +137,5 @@ nonisolated enum TxtToEpub {
         lines.append("</body>")
         lines.append("</html>")
         return Data(lines.joined(separator: "\n").utf8)
-    }
-
-    private static func escapeXML(_ string: String) -> String {
-        string
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
     }
 }

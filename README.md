@@ -6,7 +6,7 @@
 
 一款开源、轻量、现代化的电子书阅读器。
 
-专为 macOS / iOS 中文阅读设计，通过 iCloud 同步。
+专为 macOS / iOS 上的中文阅读设计，支持 iCloud 同步。
 
 [![Release](https://img.shields.io/github/v/release/qyangcv/Rede?label=Release)](https://github.com/qyangcv/Rede/releases/latest)
 ![macOS](https://img.shields.io/badge/macOS-26.0+-000?logo=apple&logoColor=white)

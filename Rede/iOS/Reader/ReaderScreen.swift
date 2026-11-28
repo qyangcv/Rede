@@ -19,7 +19,6 @@ struct ReaderScreen: View {
     @State private var selectionRect: CGRect?
     @State private var pendingSelectionRect: CGRect?
     @State private var annotationKind = Annotation.Kind.bookmark
-    @State private var highlightColorFilter: HighlightColor?
     @State private var styleHeight: CGFloat?
     @State private var dismissal = Dismissal()
     @Environment(\.scenePhase) private var scenePhase
@@ -249,46 +248,26 @@ struct ReaderScreen: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         case .annotations:
-            let filteredHighlights = highlightColorFilter.map { filter in
-                session.highlights.filter { $0.highlightColor == filter }
-            } ?? session.highlights
-            let annotations = annotationKind == .bookmark ? session.bookmarks : filteredHighlights
-            VStack(spacing: 0) {
-                PanelHeader(title: "标注") {
-                    if annotationKind == .bookmark {
-                        Button(session.isBookmarked ? "移除当前页书签" : "添加当前页书签",
-                               systemImage: session.isBookmarked ? "bookmark.fill" : "bookmark") {
-                            session.toggleBookmark()
-                        }
-                        .font(.subheadline)
-                        .disabled(!session.canBookmark)
-                    }
-                }
-                Picker("标注", selection: $annotationKind) {
-                    Text("书签").tag(Annotation.Kind.bookmark)
-                    Text("高亮与笔记").tag(Annotation.Kind.highlight)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                if annotationKind == .highlight, !session.highlights.isEmpty {
-                    HighlightColorFilterBar(selection: $highlightColorFilter)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
-                }
-                AnnotationList(kind: annotationKind,
-                               sections: AnnotationSections(toc: reader.toc).sections(for: annotations),
-                               isFiltered: annotationKind == .highlight && highlightColorFilter != nil,
-                               progress: session.progress(of:)) { annotation in
+            AnnotationSheet(
+                toc: reader.toc,
+                bookmarks: session.bookmarks,
+                highlights: session.highlights,
+                kind: $annotationKind,
+                isBookmarked: session.isBookmarked,
+                canBookmark: session.canBookmark,
+                progress: session.progress(of:),
+                onToggleBookmark: session.toggleBookmark,
+                onSelect: { annotation in
                     panel = nil
                     session.jump(to: annotation)
-                } onChangeColor: { annotation, color in
+                },
+                onChangeColor: { annotation, color in
                     session.setColor(color, of: annotation)
-                } onDelete: { annotation in
+                },
+                onDelete: { annotation in
                     session.deleteAnnotation(id: annotation.id)
                 }
-            }
+            )
             .padding(.horizontal, 8)
             .padding(.top, 4)
             .presentationDetents([.medium, .large])
@@ -365,6 +344,114 @@ private struct PanelHeader<Trailing: View>: View {
     }
 }
 
+private struct AnnotationSheet: View {
+    let toc: [TOCItem]
+    let bookmarks: [Annotation]
+    let highlights: [Annotation]
+    @Binding var kind: Annotation.Kind
+    let isBookmarked: Bool
+    let canBookmark: Bool
+    let progress: (Annotation) -> Double?
+    let onToggleBookmark: () -> Void
+    let onSelect: (Annotation) -> Void
+    let onChangeColor: (Annotation, HighlightColor) -> Void
+    let onDelete: (Annotation) -> Void
+
+    @State private var colorFilter: HighlightColor?
+
+    private var filteredHighlights: [Annotation] {
+        guard let colorFilter else { return highlights }
+        return highlights.filter { $0.highlightColor == colorFilter }
+    }
+
+    var body: some View {
+        let annotations = kind == .bookmark ? bookmarks : filteredHighlights
+        VStack(spacing: 0) {
+            PanelHeader(title: "标注") {
+                if kind == .bookmark {
+                    Button(isBookmarked ? "移除当前页书签" : "添加当前页书签",
+                           systemImage: isBookmarked ? "bookmark.fill" : "bookmark",
+                           action: onToggleBookmark)
+                        .font(.subheadline)
+                        .disabled(!canBookmark)
+                }
+            }
+            Picker("标注", selection: $kind) {
+                Text("书签").tag(Annotation.Kind.bookmark)
+                Text("高亮与笔记").tag(Annotation.Kind.highlight)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            if kind == .highlight, !highlights.isEmpty {
+                HighlightColorFilterBar(selection: $colorFilter)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+            }
+            AnnotationList(kind: kind,
+                           sections: AnnotationSections(toc: toc).sections(for: annotations),
+                           isFiltered: kind == .highlight && !highlights.isEmpty && colorFilter != nil,
+                           progress: progress,
+                           onSelect: onSelect,
+                           onChangeColor: onChangeColor,
+                           onDelete: onDelete)
+        }
+        .onChange(of: highlights.isEmpty) { _, isEmpty in
+            if isEmpty { colorFilter = nil }
+        }
+    }
+}
+
+private struct HighlightFloatingBar<Actions: View>: View {
+    let rect: CGRect
+    let selection: HighlightColor?
+    let background: BackgroundColor
+    let onSelectColor: (HighlightColor) -> Void
+    @ViewBuilder let actions: Actions
+
+    var body: some View {
+        HighlightAnchorLayout(rect: rect, topEdge: max(CGFloat(ReaderLayout.marginTop), 56)) {
+            HStack(spacing: 12) {
+                HighlightColorDots(selection: selection, size: 20, spacing: 10, onSelect: onSelectColor)
+
+                Divider().frame(height: 18)
+
+                actions
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .barBackground(in: .capsule, background: background)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+private struct OverlayActionButton: View {
+    let title: String
+    let systemImage: String
+    var role: ButtonRole? = nil
+    let action: () -> Void
+
+    var body: some View {
+        Button(role: role, action: action) {
+            let icon = Image(systemName: systemImage)
+                .font(.system(size: 16, weight: .medium))
+            Group {
+                if role == .destructive {
+                    icon.foregroundStyle(.red)
+                } else {
+                    icon.foregroundStyle(.primary)
+                }
+            }
+            .frame(width: 28, height: 32)
+            .contentShape(.rect)
+        }
+        .accessibilityLabel(title)
+    }
+}
+
 private struct HighlightActionOverlay: View {
     let rect: CGRect
     let color: HighlightColor
@@ -375,36 +462,15 @@ private struct HighlightActionOverlay: View {
     let onDelete: () -> Void
 
     var body: some View {
-        HighlightAnchorLayout(rect: rect, topEdge: max(CGFloat(ReaderLayout.marginTop), 56)) {
-            HStack(spacing: 12) {
-                HighlightColorDots(selection: color, size: 20, spacing: 10, onSelect: onSelectColor)
-
-                Divider().frame(height: 18)
-
-                Button(action: onNote) {
-                    Image(systemName: hasNote ? "text.bubble" : "square.and.pencil")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .frame(width: 28, height: 32)
-                        .contentShape(.rect)
-                }
-                .accessibilityLabel(hasNote ? "查看笔记" : "添加笔记")
-
-                Button(role: .destructive, action: onDelete) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.red)
-                        .frame(width: 28, height: 32)
-                        .contentShape(.rect)
-                }
-                .accessibilityLabel(hasNote ? "移除高亮与笔记" : "移除高亮")
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .barBackground(in: .capsule, background: background)
+        HighlightFloatingBar(rect: rect, selection: color, background: background, onSelectColor: onSelectColor) {
+            OverlayActionButton(title: hasNote ? "查看笔记" : "添加笔记",
+                                systemImage: hasNote ? "text.bubble" : "square.and.pencil",
+                                action: onNote)
+            OverlayActionButton(title: hasNote ? "移除高亮与笔记" : "移除高亮",
+                                systemImage: "trash",
+                                role: .destructive,
+                                action: onDelete)
         }
-        .ignoresSafeArea()
     }
 }
 
@@ -416,36 +482,10 @@ private struct SelectionActionOverlay: View {
     let onCopy: () -> Void
 
     var body: some View {
-        HighlightAnchorLayout(rect: rect, topEdge: max(CGFloat(ReaderLayout.marginTop), 56)) {
-            HStack(spacing: 12) {
-                HighlightColorDots(selection: nil, size: 20, spacing: 10, onSelect: onHighlight)
-
-                Divider().frame(height: 18)
-
-                Button(action: onNote) {
-                    Image(systemName: "square.and.pencil")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .frame(width: 28, height: 32)
-                        .contentShape(.rect)
-                }
-                .accessibilityLabel("笔记")
-
-                Button(action: onCopy) {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .frame(width: 28, height: 32)
-                        .contentShape(.rect)
-                }
-                .accessibilityLabel("拷贝")
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .barBackground(in: .capsule, background: background)
+        HighlightFloatingBar(rect: rect, selection: nil, background: background, onSelectColor: onHighlight) {
+            OverlayActionButton(title: "笔记", systemImage: "square.and.pencil", action: onNote)
+            OverlayActionButton(title: "拷贝", systemImage: "doc.on.doc", action: onCopy)
         }
-        .ignoresSafeArea()
     }
 }
 
